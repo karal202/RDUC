@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+/* Design tokens extracted from Figma file iRXNzVGjfd7EzaeCi8jmvM (node 0-1) */
+@theme {
+  /* Brand accents */
+  --color-rduc-red: #ff1b2d;
+  --color-rduc-green: #10b981;
+
+  /* Surfaces */
+  --color-rduc-darker: #070707;
+  --color-rduc-card: #121212;
+  --color-rduc-iconbg: #1a1a1a;
+
+  /* Lines & text */
+  --color-rduc-border: #262626;
+  --color-rduc-muted: #a3a3a3;
+  --color-rduc-ghost: #3d1417;
+}
+
+/* Typography: Archivo (body), Archivo Black (display), JetBrains Mono (labels) */
+@theme inline {
+  --font-sans: var(--font-archivo);
+  --font-display: var(--font-archivo-black);
+  --font-mono: var(--font-jetbrains-mono);
+}
+
+body {
+  background: #000000;
+  color: #ffffff;
+}
