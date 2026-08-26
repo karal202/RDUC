@@ -3,9 +3,9 @@ import Image from "next/image";
 import { CircleX } from "lucide-react";
 
 const columns = [
-  { title: "Product", links: ["Optimizer", "Pricing", "Status", "Download"] },
-  { title: "Support", links: ["Help Center", "Discord Hub", "System Check", "FAQ"] },
-  { title: "Legal", links: ["Privacy Policy", "Terms of Service", "EULA Spec"] },
+  { title: "Sản phẩm", links: ["Trình tối ưu", "Bảng giá", "Trạng thái", "Tải xuống"] },
+  { title: "Hỗ trợ", links: ["Trung tâm trợ giúp", "Cộng đồng Discord", "Kiểm tra hệ thống", "Hỏi đáp"] },
+  { title: "Pháp lý", links: ["Chính sách riêng tư", "Điều khoản sử dụng", "Thỏa thuận EULA"] },
 ];
 
 /* Brand icons were removed from lucide-react; these are the original
@@ -91,7 +91,7 @@ export function Footer() {
           <div className="flex max-w-[320px] flex-col gap-4">
             <Image src="/logo.png" alt="RDUC logo" width={84} height={38} />
             <p className="text-sm leading-[1.5] text-rduc-muted">
-              Esports grade hardware optimization infrastructure built for the next standard of gaming.
+              Hạ tầng tối ưu phần cứng chuẩn esports, được xây dựng cho thế hệ chơi game tiếp theo.
             </p>
           </div>
 
@@ -119,7 +119,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-20 flex flex-col items-start justify-between gap-4 border-t border-rduc-border pt-8 sm:flex-row sm:items-center">
           <p className="text-[13px] text-rduc-muted">
-            © 2026 RDUC Systems Inc. All Rights Reserved. Optimized for Windows OS.
+            © 2026 RDUC Systems Inc. Bảo lưu mọi quyền. Tối ưu cho hệ điều hành Windows.
           </p>
           <div className="flex items-center gap-4">
             <SocialLink label="Twitter">

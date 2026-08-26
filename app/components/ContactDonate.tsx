@@ -3,7 +3,7 @@ import { ArrowUpRight, MessageCircle, ScanLine } from "lucide-react";
 import Image from "next/image";
 import { SectionHeader } from "./SectionHeader";
 
-/* Brand icons removed from lucide-react — original simple-icons paths. */
+/* Biểu tượng thương hiệu dùng đường dẫn đơn giản, không cần thêm thư viện. */
 function DiscordIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -27,10 +27,6 @@ type ContactLink = {
   icon: ReactNode;
 };
 
-/**
- * NOTE: placeholder URLs — replace the `href` values below with your real
- * community / donation pages.
- */
 const contacts: ContactLink[] = [
   {
     name: "Discord",
@@ -58,67 +54,92 @@ const contacts: ContactLink[] = [
   },
 ];
 
-/**
- * Contact & Donate — community channels open in a new tab on click
- * (target="_blank"), plus a QR code for quick donations.
- */
+function ContactCard({ contact }: { contact: ContactLink }) {
+  return (
+    <a
+      href={contact.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex items-center justify-between gap-5 rounded-lg border border-rduc-border bg-rduc-card p-5 transition-all duration-300 hover:-translate-y-1 hover:border-rduc-red/60 hover:shadow-[0_12px_30px_rgba(255,27,45,0.12)] sm:p-6"
+    >
+      <div className="flex items-center gap-4">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded border border-rduc-border bg-rduc-iconbg text-white transition-colors group-hover:text-rduc-red">
+          {contact.icon}
+        </div>
+        <div className="flex flex-col gap-1">
+          <span className="font-display text-lg">{contact.name}</span>
+          <span className="font-mono text-xs text-rduc-muted">{contact.handle}</span>
+        </div>
+      </div>
+      <ArrowUpRight
+        className="size-5 shrink-0 text-rduc-muted transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-rduc-red"
+        strokeWidth={2}
+        aria-hidden
+      />
+    </a>
+  );
+}
+
+export function CommunityLinks() {
+  return (
+    <section className="border-y border-rduc-border bg-[#0b0b0b]">
+      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-6 py-10 lg:flex-row lg:items-center lg:px-24 lg:py-12">
+        <div className="rduc-rise-in lg:w-[38%]">
+          <p className="font-mono text-xs font-bold uppercase tracking-wide text-rduc-red">Cộng đồng RDUC</p>
+          <h2 className="mt-3 font-display text-2xl sm:text-3xl">Luôn kết nối cùng đội ngũ</h2>
+          <p className="mt-3 max-w-[460px] text-sm leading-6 text-rduc-muted">
+            Tham gia cộng đồng để nhận hỗ trợ, cập nhật phiên bản mới và chia sẻ trải nghiệm chơi game.
+          </p>
+        </div>
+        <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2">
+          {contacts.slice(0, 2).map((contact, index) => (
+            <div key={contact.name} className={`rduc-rise-in ${index === 0 ? "rduc-delay-1" : "rduc-delay-2"}`}>
+              <ContactCard contact={contact} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function ContactDonate() {
   return (
     <section id="contact" className="scroll-mt-[84px] bg-rduc-darker">
       <div className="mx-auto w-full max-w-[1440px] px-6 py-20 lg:px-24 lg:py-[120px]">
-        <SectionHeader
-          badge="Contact & Donate"
-          title="Join the Grid, Fuel the Engine"
-          sub="Hop into our community channels or send some love to keep RDUC free for every gamer out there."
-        />
+        <div className="grid items-start gap-12 lg:grid-cols-[1fr_420px] lg:gap-20">
+          <div className="rduc-rise-in">
+            <SectionHeader
+              badge="Liên hệ & Ủng hộ"
+              title="Chung tay xây dựng RDUC"
+              sub="Theo dõi các kênh của RDUC hoặc ủng hộ dự án để chúng tôi tiếp tục tối ưu trải nghiệm chơi game."
+            />
 
-        <div className="mt-16 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-5">
-          {/* Channel cards — each opens in a new tab */}
-          {contacts.map((contact) => (
-            <a
-              key={contact.name}
-              href={contact.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="group flex flex-col gap-6 rounded-lg border border-rduc-border bg-rduc-card p-8 transition-colors duration-200 hover:border-rduc-red/60"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex size-12 items-center justify-center rounded border border-rduc-border bg-rduc-iconbg text-white transition-colors group-hover:text-rduc-red">
-                  {contact.icon}
+            <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {contacts.slice(2).map((contact, index) => (
+                <div key={contact.name} className={`rduc-rise-in ${index === 0 ? "rduc-delay-1" : "rduc-delay-2"}`}>
+                  <ContactCard contact={contact} />
                 </div>
-                <ArrowUpRight
-                  className="size-5 text-rduc-muted transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-rduc-red"
-                  strokeWidth={2}
-                  aria-hidden
-                />
-              </div>
-              <div className="flex flex-col gap-1">
-                <span className="font-display text-lg">{contact.name}</span>
-                <span className="font-mono text-xs text-rduc-muted">{contact.handle}</span>
-              </div>
-            </a>
-          ))}
+              ))}
+            </div>
+          </div>
 
-          {/* QR donation card */}
           <a
             href="https://zypage.vn/rduc"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Open RDUC donation page"
-            className="group flex flex-col items-center gap-4 rounded-lg border border-rduc-red/60 bg-rduc-card p-8 text-center transition-colors duration-200 hover:border-rduc-red"
+            aria-label="Mở trang ủng hộ RDUC"
+            className="rduc-rise-in rduc-delay-2 group relative overflow-hidden rounded-lg border border-rduc-red/60 bg-black p-8 transition-all duration-300 hover:-translate-y-1 hover:border-rduc-red hover:shadow-[0_16px_45px_rgba(255,27,45,0.16)]"
           >
-            <div className="rounded-md bg-white p-3 transition-transform duration-200 group-hover:scale-105">
-              <Image
-                src="/donate-qr.svg"
-                alt="QR code to open the RDUC donation page"
-                width={112}
-                height={112}
-                className="size-28"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="font-display text-lg">Scan to Donate</span>
-              <span className="font-mono text-xs text-rduc-muted">Every FPS counts</span>
+            <div className="pointer-events-none absolute -right-16 -top-16 size-44 rounded-full bg-rduc-red/10 blur-3xl" aria-hidden />
+            <div className="relative flex flex-col items-center text-center">
+              <span className="font-mono text-xs font-bold uppercase tracking-wide text-rduc-red">Ủng hộ dự án</span>
+              <div className="mt-6 rounded-md bg-white p-3 transition-transform duration-300 group-hover:scale-105">
+                <Image src="/donate-qr.svg" alt="Mã QR mở trang ủng hộ RDUC" width={176} height={176} className="size-44" />
+              </div>
+              <span className="mt-6 font-display text-xl">Quét mã để ủng hộ</span>
+              <span className="mt-2 text-sm leading-6 text-rduc-muted">Mỗi đóng góp giúp RDUC tiếp tục miễn phí cho cộng đồng game thủ.</span>
+              <span className="rduc-pulse-line mt-6 h-1 w-24 rounded-full bg-rduc-red" aria-hidden />
             </div>
           </a>
         </div>

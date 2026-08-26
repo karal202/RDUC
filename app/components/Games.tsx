@@ -12,12 +12,13 @@ type Game = {
 /* Content extracted from Figma nodes 3:153–3:214. Each card frame carries
  * the game art as an IMAGE fill with a solid black overlay at 75% opacity. */
 const games: Game[] = [
-  { name: "Valorant", image: "/games/valorant.png", fps: "+45 FPS Boost", ping: "-38% Ping Drop" },
-  { name: "CS2", image: "/games/cs2.png", fps: "+55 FPS Boost", ping: "-42% Ping Drop" },
-  { name: "Fortnite", image: "/games/fortnite.png", fps: "+60 FPS Boost", ping: "-35% Ping Drop" },
-  { name: "Apex Legends", image: "/games/apex-legends.png", fps: "+40 FPS Boost", ping: "-30% Ping Drop" },
-  { name: "Overwatch 2", image: "/games/overwatch-2.png", fps: "+48 FPS Boost", ping: "-36% Ping Drop" },
-  { name: "League of Legends", image: "/games/league-of-legends.png", fps: "+80 FPS Boost", ping: "-45% Ping Drop" },
+  { name: "Valorant", image: "/games/valorant.png", fps: "+45 FPS", ping: "-38% độ trễ" },
+  { name: "CS2", image: "/games/cs2.png", fps: "+55 FPS", ping: "-42% độ trễ" },
+  { name: "Fortnite", image: "/games/fortnite.png", fps: "+60 FPS", ping: "-35% độ trễ" },
+  { name: "Apex Legends", image: "/games/apex-legends.png", fps: "+40 FPS", ping: "-30% độ trễ" },
+  { name: "Overwatch 2", image: "/games/overwatch-2.png", fps: "+48 FPS", ping: "-36% độ trễ" },
+  { name: "League of Legends", image: "/games/league-of-legends.png", fps: "+80 FPS", ping: "-45% độ trễ" },
+  { name: "GTA V", image: "/games/gta5.jpg", fps: "+35 FPS", ping: "-24% độ trễ" },
 ];
 
 function GameCard({ game }: { game: Game }) {
@@ -38,11 +39,11 @@ function GameCard({ game }: { game: Game }) {
 
       <dl className="relative flex flex-col gap-3">
         <div className="flex items-center justify-between border border-rduc-border py-2">
-          <dt className="text-[13px] text-rduc-muted">FPS Boost</dt>
+          <dt className="text-[13px] text-rduc-muted">Tăng FPS</dt>
           <dd className="font-mono text-sm font-bold text-rduc-red">{game.fps}</dd>
         </div>
         <div className="flex items-center justify-between">
-          <dt className="text-[13px] text-rduc-muted">Latency Cut</dt>
+          <dt className="text-[13px] text-rduc-muted">Giảm độ trễ</dt>
           <dd className="font-mono text-sm font-bold text-rduc-green">{game.ping}</dd>
         </div>
       </dl>
@@ -61,14 +62,14 @@ export function Games() {
     <section id="games" className="scroll-mt-[84px] overflow-hidden bg-black">
       <div className="mx-auto w-full max-w-[1440px] px-6 pt-20 lg:px-24 lg:pt-[120px]">
         <SectionHeader
-          badge="Integrated Games"
-          title="Supports Top Competitive Titles"
-          sub="Engineered optimizations tailored exactly to the network tick-rates and system demands of major competitive game engines."
+          badge="Game được hỗ trợ"
+          title="Tối ưu cho các tựa game cạnh tranh hàng đầu"
+          sub="Tối ưu hóa theo đúng nhịp mạng và yêu cầu hệ thống của các engine game phổ biến."
         />
       </div>
 
       <div className="mt-16 pb-20 lg:pb-[120px]">
-        <Marquee speed={35}>
+        <Marquee speed={35} loop={false}>
           {games.map((game) => (
             <GameCard key={game.name} game={game} />
           ))}

@@ -6,6 +6,8 @@ type MarqueeProps = {
   children: ReactNode;
   /** Auto-scroll speed in pixels per second. */
   speed?: number;
+  /** When false, scroll through the fixed list once and stop at the end. */
+  loop?: boolean;
   className?: string;
 };
 
@@ -21,8 +23,9 @@ type MarqueeProps = {
  *   (wheel / drag / touch) and resumes automatically.
  * - Respects `prefers-reduced-motion`.
  */
-export function Marquee({ children, speed = 35, className = "" }: MarqueeProps) {
+export function Marquee({ children, speed = 35, loop = true, className = "" }: MarqueeProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -39,12 +42,22 @@ export function Marquee({ children, speed = 35, className = "" }: MarqueeProps) 
       last = now;
 
       if (now < pausedUntil) return;
-      const firstCopy = viewport.firstElementChild?.firstElementChild as HTMLElement | null;
-      const loopWidth = firstCopy ? firstCopy.scrollWidth : 0;
-      if (loopWidth <= 0) return;
+      const maxScroll = viewport.scrollWidth - viewport.clientWidth;
+      viewport.scrollLeft = Math.min(viewport.scrollLeft + (speed * dt) / 1000, maxScroll);
+      if (loop) recyclePassedCard();
+    };
 
-      viewport.scrollLeft += (speed * dt) / 1000;
-      if (viewport.scrollLeft >= loopWidth) viewport.scrollLeft -= loopWidth;
+    const recyclePassedCard = () => {
+      const track = trackRef.current;
+      const firstCard = track?.firstElementChild as HTMLElement | null;
+      if (!track || !firstCard) return;
+
+      const gap = Number.parseFloat(getComputedStyle(track).columnGap) || 0;
+      const cardDistance = firstCard.offsetWidth + gap;
+      if (viewport.scrollLeft < cardDistance) return;
+
+      track.append(firstCard);
+      viewport.scrollLeft -= cardDistance;
     };
 
     raf = requestAnimationFrame(tick);
@@ -58,6 +71,7 @@ export function Marquee({ children, speed = 35, className = "" }: MarqueeProps) 
       if (delta === 0) return;
       event.preventDefault();
       viewport.scrollLeft += delta;
+      if (loop) recyclePassedCard();
       pausedUntil = performance.now() + 2000;
     };
 
@@ -81,6 +95,7 @@ export function Marquee({ children, speed = 35, className = "" }: MarqueeProps) 
       if (!moved && Math.abs(dx) > 5) moved = true;
       if (moved) {
         viewport.scrollLeft = startScroll - dx;
+        if (loop) recyclePassedCard();
         pausedUntil = performance.now() + 2000;
       }
     };
@@ -120,19 +135,15 @@ export function Marquee({ children, speed = 35, className = "" }: MarqueeProps) 
       viewport.removeEventListener("click", onClickCapture, true);
       viewport.removeEventListener("touchstart", onTouchStart);
     };
-  }, [speed]);
+  }, [loop, speed]);
 
   return (
     <div
       ref={viewportRef}
       className={`overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,transparent,black_6%,black_94%,transparent)] ${className}`}
     >
-      {/* Two identical copies -> seamless infinite loop */}
-      <div className="flex w-max">
-        <div className="flex gap-6 py-1 pl-6 pr-6 lg:pl-24">{children}</div>
-        <div aria-hidden className="flex gap-6 py-1 pr-6">
-          {children}
-        </div>
+      <div ref={trackRef} className="flex w-max gap-6 py-1 pl-6 pr-6 lg:pl-24">
+        {children}
       </div>
     </div>
   );

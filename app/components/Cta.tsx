@@ -16,19 +16,19 @@ export function Cta() {
       <div className="relative mx-auto flex w-full max-w-[1440px] flex-col items-center gap-10 px-6 py-24 text-center lg:px-24">
         <div className="flex max-w-[720px] flex-col items-center gap-4">
           <h2 className="font-display text-[34px] leading-[1.05] sm:text-[48px] sm:leading-[50.4px]">
-            SAY GOODBYE TO EXPENSIVE UPGRADES
+            NÓI KHÔNG VỚI NÂNG CẤP ĐẮT ĐỎ
           </h2>
           <p className="text-lg leading-[1.6] text-rduc-muted">
-            Reclaim your hardware’s baseline capacity. Run the diagnostics,
-            enable optimizations, and dominate competitive rankings with RDUC today.
+            Khôi phục hiệu năng vốn có của phần cứng. Chạy chẩn đoán, bật tối ưu
+            hóa và nâng cao thứ hạng thi đấu cùng RDUC ngay hôm nay.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-4">
           <ButtonPrimary href="#" withIcon>
-            Download RDUC Now
+            Tải RDUC ngay
           </ButtonPrimary>
-          <ButtonOutline href="#">Read Systems Spec</ButtonOutline>
+          <ButtonOutline href="#">Xem thông số hệ thống</ButtonOutline>
         </div>
       </div>
     </section>
