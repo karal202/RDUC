@@ -19,9 +19,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RDUC — Tăng FPS. Giảm độ trễ.",
+  title: "DAWA SHOP — Tối ưu. Thống trị. Chiến thắng.",
   description:
-    "Tối ưu hiệu năng PC và trong game chỉ với một cú nhấp. Loại bỏ điểm nghẽn và khai phá sức mạnh phần cứng.",
+    "Danh mục sản phẩm tối ưu PC, Windows, Network, BIOS và tài khoản game cho game thủ.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

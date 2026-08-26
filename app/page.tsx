@@ -2,7 +2,7 @@ import { Header } from "./components/Header";
 import { Hero } from "./components/Hero";
 import { Features } from "./components/Features";
 import { Games } from "./components/Games";
-import { Testimonials } from "./components/Testimonials";
+import { ProductCatalog } from "./components/ProductCatalog";
 import { Cta } from "./components/Cta";
 import { CommunityLinks, ContactDonate } from "./components/ContactDonate";
 import { Footer } from "./components/Footer";
@@ -18,9 +18,9 @@ export default function Home() {
       <main className="flex-1">
         <Hero />
         <CommunityLinks />
+        <ProductCatalog />
         <Features />
         <Games />
-        <Testimonials />
         <Cta />
         <ContactDonate />
       </main>

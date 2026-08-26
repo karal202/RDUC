@@ -1,10 +1,9 @@
 import type { ReactNode } from "react";
-import Image from "next/image";
 import { CircleX } from "lucide-react";
 
 const columns = [
   { title: "Sản phẩm", links: ["Trình tối ưu", "Bảng giá", "Trạng thái", "Tải xuống"] },
-  { title: "Hỗ trợ", links: ["Trung tâm trợ giúp", "Cộng đồng Discord", "Kiểm tra hệ thống", "Hỏi đáp"] },
+  { title: "Hỗ trợ", links: ["Trung tâm trợ giúp", "Kiểm tra hệ thống", "Hỏi đáp"] },
   { title: "Pháp lý", links: ["Chính sách riêng tư", "Điều khoản sử dụng", "Thỏa thuận EULA"] },
 ];
 
@@ -89,7 +88,9 @@ export function Footer() {
         <div className="flex flex-col justify-between gap-12 lg:flex-row">
           {/* Brand */}
           <div className="flex max-w-[320px] flex-col gap-4">
-            <Image src="/logo.png" alt="RDUC logo" width={84} height={38} />
+            <span className="font-display text-2xl tracking-[0.12em] text-white">
+              <span className="text-rduc-red">DAWA</span> SHOP
+            </span>
             <p className="text-sm leading-[1.5] text-rduc-muted">
               Hạ tầng tối ưu phần cứng chuẩn esports, được xây dựng cho thế hệ chơi game tiếp theo.
             </p>

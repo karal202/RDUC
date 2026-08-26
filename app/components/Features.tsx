@@ -64,7 +64,7 @@ const features: Feature[] = [
 
 function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
   return (
-    <article className="w-[280px] shrink-0 rounded-lg border border-rduc-border bg-rduc-card p-8 transition-colors duration-200 hover:border-rduc-red/60 sm:w-[294px]">
+    <article className="group flex h-[250px] w-[280px] shrink-0 flex-col rounded-lg border border-rduc-border bg-rduc-card p-8 transition-colors duration-200 hover:border-rduc-red/60 sm:w-[294px]">
       <div className="flex items-center justify-between">
         <div className="flex size-12 items-center justify-center rounded border border-rduc-border bg-rduc-iconbg">
           <feature.icon className="size-6 text-rduc-red" strokeWidth={2} aria-hidden />
@@ -73,9 +73,11 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
           {String(index + 1).padStart(2, "0")}
         </span>
       </div>
-      <div className="mt-6 flex flex-col gap-2">
+      <div className="mt-auto flex flex-col gap-2">
         <h3 className="font-display text-lg">{feature.title}</h3>
+        <div className="rduc-hover-content flex flex-col gap-2">
         <p className="text-sm leading-[1.5] text-rduc-muted">{feature.desc}</p>
+        </div>
       </div>
     </article>
   );
