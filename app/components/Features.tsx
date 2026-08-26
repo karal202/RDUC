@@ -22,43 +22,43 @@ type Feature = {
 const features: Feature[] = [
   {
     icon: Zap,
-    title: "FPS Optimizer",
-    desc: "Instantly reallocate system CPU threads to isolate and drive priority frames.",
+    title: "Tối ưu FPS",
+    desc: "Phân bổ lại luồng CPU để cô lập và ưu tiên xử lý từng khung hình.",
   },
   {
     icon: Activity,
-    title: "Latency Reducer",
-    desc: "Bypass standard network processing loops to shave off critical milliseconds.",
+    title: "Giảm độ trễ",
+    desc: "Rút ngắn các vòng xử lý mạng tiêu chuẩn để giảm từng mili-giây quan trọng.",
   },
   {
     icon: Trash2,
-    title: "System Cleaner",
-    desc: "Purge background bloatware and unnecessary caching services on startup.",
+    title: "Dọn dẹp hệ thống",
+    desc: "Loại bỏ phần mềm nền dư thừa và dịch vụ bộ nhớ đệm không cần thiết.",
   },
   {
     icon: Cpu,
-    title: "GPU Tuner",
-    desc: "Configure safe, high-efficiency power profiles tailored for gaming demands.",
+    title: "Tinh chỉnh GPU",
+    desc: "Thiết lập cấu hình nguồn an toàn, hiệu quả cao cho nhu cầu chơi game.",
   },
   {
     icon: SlidersHorizontal,
-    title: "RAM Manager",
-    desc: "Instantly release memory reserves locked by inactive system apps.",
+    title: "Quản lý RAM",
+    desc: "Giải phóng ngay phần bộ nhớ bị các ứng dụng không hoạt động chiếm dụng.",
   },
   {
     icon: Shield,
-    title: "Game Mode",
-    desc: "Divert all network and core activity strictly to your live competitive title.",
+    title: "Chế độ game",
+    desc: "Dồn tài nguyên mạng và lõi xử lý cho tựa game cạnh tranh đang chơi.",
   },
   {
     icon: Wifi,
-    title: "Network Booster",
-    desc: "Streamline packet routing paths to avoid packet loss during active queues.",
+    title: "Tăng tốc mạng",
+    desc: "Tối ưu đường truyền gói tin để hạn chế mất gói trong trận đấu.",
   },
   {
     icon: RefreshCw,
-    title: "Driver Shield",
-    desc: "Perform deep verification checks to guarantee standard esports compatibility.",
+    title: "Bảo vệ driver",
+    desc: "Kiểm tra chuyên sâu để đảm bảo khả năng tương thích esports ổn định.",
   },
 ];
 
@@ -91,9 +91,9 @@ export function Features() {
     <section id="features" className="scroll-mt-[84px] overflow-hidden bg-rduc-darker">
       <div className="mx-auto w-full max-w-[1440px] px-6 pt-20 lg:px-24 lg:pt-[120px]">
         <SectionHeader
-          badge="Engine Core Features"
-          title="Everything Your PC Needs to Game Better"
-          sub="Designed by competitive gamers and engineers, RDUC operates directly with your OS to remove latency bottlenecks."
+          badge="Tính năng lõi"
+          title="Mọi thứ PC cần để chơi game tốt hơn"
+          sub="Được xây dựng bởi game thủ và kỹ sư, RDUC tác động trực tiếp vào hệ điều hành để loại bỏ điểm nghẽn độ trễ."
         />
       </div>
 

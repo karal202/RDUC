@@ -49,7 +49,7 @@ export function Hero() {
           <div className="flex flex-col gap-6">
             <p className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wide text-rduc-red">
               <span className="size-2 rounded-sm bg-rduc-red" aria-hidden />
-              PC Optimization Software
+              Phần mềm tối ưu PC
             </p>
             <h1 className="font-display text-[40px] leading-[1.05] sm:text-[56px] sm:leading-[58.8px]">
               BOOST FPS.
@@ -57,17 +57,16 @@ export function Hero() {
               REDUCE LATENCY.
             </h1>
             <p className="max-w-[520px] text-lg leading-[1.6] text-rduc-muted">
-              Optimize your PC & in-game performance with one click. Clear the
-              bottleneck, unlock hardware potential, and achieve absolute
-              responsiveness.
+              Tối ưu hiệu năng PC và trong game chỉ với một cú nhấp. Loại bỏ
+              điểm nghẽn, khai phá sức mạnh phần cứng và đạt phản hồi tức thì.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
             <ButtonPrimary href="#download" withIcon>
-              Download RDUC
+              Tải RDUC
             </ButtonPrimary>
-            <ButtonOutline href="#features">Learn More</ButtonOutline>
+            <ButtonOutline href="#features">Xem thêm</ButtonOutline>
           </div>
 
           <div className="flex items-center gap-6">
@@ -84,9 +83,9 @@ export function Hero() {
               ))}
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="font-display text-sm">Trusted by 2.5M+ Gamers</span>
+              <span className="font-display text-sm">Được 2,5 triệu+ game thủ tin dùng</span>
               <span className="text-xs text-rduc-muted">
-                Across top tier competitive esports leagues
+                Đồng hành cùng các giải esports hàng đầu
               </span>
             </div>
           </div>
@@ -96,14 +95,14 @@ export function Hero() {
         <div className="w-full max-w-[608px] rounded-lg border border-rduc-border bg-rduc-card p-6 sm:p-8">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <StatCard
-              label="FPS Speedometer"
+              label="Tốc độ FPS"
               value="340"
               delta="+42%"
               deltaColor="text-rduc-red"
               barColor="bg-rduc-red"
             />
             <StatCard
-              label="System Latency"
+              label="Độ trễ hệ thống"
               value="4.2ms"
               delta="-68%"
               deltaColor="text-rduc-green"
@@ -114,12 +113,12 @@ export function Hero() {
           {/* Engine stability chart — Figma node 3:60: red border, bars aligned bottom */}
           <div className="mt-6 rounded-md border border-rduc-red bg-black p-6">
             <div className="flex items-center justify-between">
-              <span className="font-mono text-xs font-bold uppercase">RDUC Engine Stability</span>
-              <span className="font-mono text-xs font-bold uppercase text-rduc-red">Optimized</span>
+              <span className="font-mono text-xs font-bold uppercase">Độ ổn định RDUC</span>
+              <span className="font-mono text-xs font-bold uppercase text-rduc-red">Đã tối ưu</span>
             </div>
             <div
               role="img"
-              aria-label="Engine stability chart trending upward"
+              aria-label="Biểu đồ độ ổn định hệ thống đang tăng"
               className="mt-4 flex h-10 items-end gap-1"
             >
               {stabilityBars.map((height, index) => (

@@ -17,24 +17,24 @@ const testimonials: Testimonial[] = [
     handle: "@apexcarter_cs",
     avatar: "/avatar-4.png",
     quote:
-      "RDUC saved me thousands. My older GTX 1080 system went from dragging at 120 FPS to hitting an incredibly steady 240 FPS inside busy Valorant sites.",
-    result: "Result: +120 FPS Increase",
+      "RDUC giúp tôi tiết kiệm hàng chục triệu đồng. Hệ thống GTX 1080 cũ tăng từ 120 FPS lên 240 FPS ổn định trong những khu vực đông người của Valorant.",
+    result: "Kết quả: tăng 120 FPS",
   },
   {
     name: "Marcus Miller",
     handle: "@millerm_ow",
     avatar: "/avatar-5.png",
     quote:
-      "Input latency dropped from 12ms to 3.8ms immediately after launching RDUC. In competitive queues, that difference dictates who registers the tap.",
-    result: "Result: -8.2ms Input Latency",
+      "Độ trễ thao tác giảm từ 12ms xuống 3,8ms ngay sau khi khởi chạy RDUC. Trong trận đấu cạnh tranh, khác biệt đó quyết định ai ra đòn trước.",
+    result: "Kết quả: giảm 8,2ms độ trễ",
   },
   {
     name: "Elena Rostova",
     handle: "@elena_fps",
     avatar: "/avatar-6.png",
     quote:
-      "Zero micro-stutters during intensive team fights. The automated RAM allocation keeps my background Discord and game queue strictly isolated.",
-    result: "Result: 0% Packet Loss",
+      "Không còn giật khung hình trong những pha giao tranh căng thẳng. Tự động phân bổ RAM giúp Discord chạy nền và game được tách biệt hoàn toàn.",
+    result: "Kết quả: mất 0% gói tin",
   },
 ];
 
@@ -48,9 +48,9 @@ export function Testimonials() {
     <section id="testimonials" className="scroll-mt-[84px] bg-rduc-darker">
       <div className="mx-auto w-full max-w-[1440px] px-6 py-20 lg:px-24 lg:py-[120px]">
         <SectionHeader
-          badge="Gamer Verified"
-          title="Praise From the Esports Grid"
-          sub="Read how pro gamers, streamers, and hardware hobbyists alike are reclaiming their PC's peak capacity."
+          badge="Game thủ xác nhận"
+          title="Cộng đồng esports nói gì về RDUC"
+          sub="Khám phá cách game thủ chuyên nghiệp, streamer và người yêu phần cứng lấy lại hiệu năng tối đa cho PC."
         />
 
         <div className="mt-16 grid grid-cols-1 gap-6 md:grid-cols-3">

@@ -2,11 +2,11 @@ import Image from "next/image";
 import { ButtonPrimary } from "./buttons";
 
 const navLinks = [
-  { label: "Features", href: "#features" },
-  { label: "Games", href: "#games" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "FAQ", href: "#faq" },
-  { label: "Contact", href: "#contact" },
+  { label: "Tính năng", href: "#features" },
+  { label: "Trò chơi", href: "#games" },
+  { label: "Bảng giá", href: "#pricing" },
+  { label: "Hỏi đáp", href: "#faq" },
+  { label: "Liên hệ", href: "#contact" },
 ];
 
 /**
@@ -33,7 +33,7 @@ export function Header() {
           ))}
         </nav>
 
-        <ButtonPrimary href="#download">Download Now</ButtonPrimary>
+        <ButtonPrimary href="#download">Tải xuống</ButtonPrimary>
       </div>
     </header>
   );
