@@ -25,7 +25,7 @@ type MarqueeProps = {
  */
 export function Marquee({ children, speed = 35, loop = true, className = "" }: MarqueeProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
+  const copyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -35,29 +35,24 @@ export function Marquee({ children, speed = 35, loop = true, className = "" }: M
     let raf = 0;
     let last = performance.now();
     let pausedUntil = 0;
+    let pausedByHover = false;
 
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
       const dt = Math.min(now - last, 100);
       last = now;
 
-      if (now < pausedUntil) return;
-      const maxScroll = viewport.scrollWidth - viewport.clientWidth;
-      viewport.scrollLeft = Math.min(viewport.scrollLeft + (speed * dt) / 1000, maxScroll);
-      if (loop) recyclePassedCard();
-    };
+      if (pausedByHover || now < pausedUntil) return;
+      const copyWidth = copyRef.current?.offsetWidth ?? 0;
+      const gap = Number.parseFloat(getComputedStyle(viewport.firstElementChild as Element).columnGap) || 0;
+      const loopPoint = copyWidth + gap;
+      if (!loopPoint) return;
 
-    const recyclePassedCard = () => {
-      const track = trackRef.current;
-      const firstCard = track?.firstElementChild as HTMLElement | null;
-      if (!track || !firstCard) return;
-
-      const gap = Number.parseFloat(getComputedStyle(track).columnGap) || 0;
-      const cardDistance = firstCard.offsetWidth + gap;
-      if (viewport.scrollLeft < cardDistance) return;
-
-      track.append(firstCard);
-      viewport.scrollLeft -= cardDistance;
+      viewport.scrollLeft += (speed * dt) / 1000;
+      if (loop && viewport.scrollLeft >= loopPoint) viewport.scrollLeft -= loopPoint;
+      if (!loop && viewport.scrollLeft >= viewport.scrollWidth - viewport.clientWidth) {
+        viewport.scrollLeft = viewport.scrollWidth - viewport.clientWidth;
+      }
     };
 
     raf = requestAnimationFrame(tick);
@@ -71,7 +66,9 @@ export function Marquee({ children, speed = 35, loop = true, className = "" }: M
       if (delta === 0) return;
       event.preventDefault();
       viewport.scrollLeft += delta;
-      if (loop) recyclePassedCard();
+      const copyWidth = copyRef.current?.offsetWidth ?? 0;
+      const gap = Number.parseFloat(getComputedStyle(viewport.firstElementChild as Element).columnGap) || 0;
+      if (loop && viewport.scrollLeft >= copyWidth + gap) viewport.scrollLeft -= copyWidth + gap;
       pausedUntil = performance.now() + 2000;
     };
 
@@ -95,7 +92,9 @@ export function Marquee({ children, speed = 35, loop = true, className = "" }: M
       if (!moved && Math.abs(dx) > 5) moved = true;
       if (moved) {
         viewport.scrollLeft = startScroll - dx;
-        if (loop) recyclePassedCard();
+        const copyWidth = copyRef.current?.offsetWidth ?? 0;
+        const gap = Number.parseFloat(getComputedStyle(viewport.firstElementChild as Element).columnGap) || 0;
+        if (loop && viewport.scrollLeft >= copyWidth + gap) viewport.scrollLeft -= copyWidth + gap;
         pausedUntil = performance.now() + 2000;
       }
     };
@@ -117,6 +116,15 @@ export function Marquee({ children, speed = 35, loop = true, className = "" }: M
       pausedUntil = performance.now() + 2500;
     };
 
+    const onMouseEnter = () => {
+      pausedByHover = true;
+    };
+
+    const onMouseLeave = () => {
+      pausedByHover = false;
+      last = performance.now();
+    };
+
     viewport.addEventListener("wheel", onWheel, { passive: false });
     viewport.addEventListener("pointerdown", onPointerDown);
     viewport.addEventListener("pointermove", onPointerMove);
@@ -124,6 +132,8 @@ export function Marquee({ children, speed = 35, loop = true, className = "" }: M
     viewport.addEventListener("pointercancel", onPointerUp);
     viewport.addEventListener("click", onClickCapture, true);
     viewport.addEventListener("touchstart", onTouchStart, { passive: true });
+    viewport.addEventListener("mouseenter", onMouseEnter);
+    viewport.addEventListener("mouseleave", onMouseLeave);
 
     return () => {
       cancelAnimationFrame(raf);
@@ -134,16 +144,21 @@ export function Marquee({ children, speed = 35, loop = true, className = "" }: M
       viewport.removeEventListener("pointercancel", onPointerUp);
       viewport.removeEventListener("click", onClickCapture, true);
       viewport.removeEventListener("touchstart", onTouchStart);
+      viewport.removeEventListener("mouseenter", onMouseEnter);
+      viewport.removeEventListener("mouseleave", onMouseLeave);
     };
   }, [loop, speed]);
 
   return (
     <div
       ref={viewportRef}
-      className={`overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,transparent,black_6%,black_94%,transparent)] ${className}`}
+      className={`overflow-x-auto select-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,transparent,black_6%,black_94%,transparent)] ${className}`}
     >
-      <div ref={trackRef} className="flex w-max gap-6 py-1 pl-6 pr-6 lg:pl-24">
-        {children}
+      <div className="flex w-max gap-6 py-1 pl-6 pr-6 lg:pl-24">
+        <div ref={copyRef} className="flex w-max gap-6">
+          {children}
+        </div>
+        {loop && <div className="flex w-max gap-6" aria-hidden="true">{children}</div>}
       </div>
     </div>
   );

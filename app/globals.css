@@ -3,8 +3,8 @@
 /* Design tokens extracted from Figma file iRXNzVGjfd7EzaeCi8jmvM (node 0-1) */
 @theme {
   /* Brand accents */
-  --color-rduc-red: #ff1b2d;
-  --color-rduc-green: #10b981;
+  --color-rduc-red: #1677ff;
+  --color-rduc-green: #55a8ff;
 
   /* Surfaces */
   --color-rduc-darker: #070707;
@@ -14,7 +14,7 @@
   /* Lines & text */
   --color-rduc-border: #262626;
   --color-rduc-muted: #a3a3a3;
-  --color-rduc-ghost: #3d1417;
+  --color-rduc-ghost: #0b2a5c;
 }
 
 /* Typography: Archivo (body), Be Vietnam Pro 800 (display), JetBrains Mono (labels) */
@@ -27,6 +27,51 @@
 body {
   background: #000000;
   color: #ffffff;
+}
+
+.rduc-hover-content {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.group:hover .rduc-hover-content,
+.group:focus-within .rduc-hover-content {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (hover: none) {
+  .rduc-hover-content {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rduc-side-banner {
+  position: fixed;
+  top: 50%;
+  z-index: 20;
+  width: 92px;
+  height: 390px;
+  overflow: hidden;
+  border: 1px solid rgba(22, 119, 255, 0.75);
+  box-shadow: 0 0 28px rgba(22, 119, 255, 0.22);
+  transform: translateY(-50%);
+}
+
+.rduc-side-banner-left {
+  left: 12px;
+}
+
+.rduc-side-banner-right {
+  right: 12px;
+}
+
+@media (max-width: 1279px) {
+  .rduc-side-banner {
+    display: none;
+  }
 }
 
 @keyframes rduc-rise-in {

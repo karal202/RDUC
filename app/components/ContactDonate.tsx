@@ -31,7 +31,7 @@ const contacts: ContactLink[] = [
   {
     name: "Discord",
     handle: "discord.gg/rduc",
-    href: "https://discord.gg/rduc",
+    href: "https://discord.gg/tDe8UfztmE",
     icon: <DiscordIcon />,
   },
   {

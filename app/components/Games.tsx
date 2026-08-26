@@ -5,20 +5,18 @@ import { SectionHeader } from "./SectionHeader";
 type Game = {
   name: string;
   image: string;
-  fps: string;
-  ping: string;
 };
 
 /* Content extracted from Figma nodes 3:153–3:214. Each card frame carries
  * the game art as an IMAGE fill with a solid black overlay at 75% opacity. */
 const games: Game[] = [
-  { name: "Valorant", image: "/games/valorant.png", fps: "+45 FPS", ping: "-38% độ trễ" },
-  { name: "CS2", image: "/games/cs2.png", fps: "+55 FPS", ping: "-42% độ trễ" },
-  { name: "Fortnite", image: "/games/fortnite.png", fps: "+60 FPS", ping: "-35% độ trễ" },
-  { name: "Apex Legends", image: "/games/apex-legends.png", fps: "+40 FPS", ping: "-30% độ trễ" },
-  { name: "Overwatch 2", image: "/games/overwatch-2.png", fps: "+48 FPS", ping: "-36% độ trễ" },
-  { name: "League of Legends", image: "/games/league-of-legends.png", fps: "+80 FPS", ping: "-45% độ trễ" },
-  { name: "GTA V", image: "/games/gta5.jpg", fps: "+35 FPS", ping: "-24% độ trễ" },
+  { name: "Valorant", image: "/games/valorant.png" },
+  { name: "CS2", image: "/games/cs2.png" },
+  { name: "Fortnite", image: "/games/fortnite.png" },
+  { name: "Apex Legends", image: "/games/apex-legends.png" },
+  { name: "Overwatch 2", image: "/games/overwatch-2.png" },
+  { name: "League of Legends", image: "/games/league-of-legends.png" },
+  { name: "GTA V", image: "/games/gta5.jpg" },
 ];
 
 function GameCard({ game }: { game: Game }) {
@@ -35,18 +33,14 @@ function GameCard({ game }: { game: Game }) {
       {/* Black overlay at 75% opacity — Figma second fill */}
       <div className="absolute inset-0 bg-black/75" aria-hidden />
 
-      <h3 className="relative font-display text-xl">{game.name}</h3>
+      <div className="relative mt-auto">
+        <h3 className="font-display text-xl">{game.name}</h3>
 
-      <dl className="relative flex flex-col gap-3">
-        <div className="flex items-center justify-between border border-rduc-border py-2">
-          <dt className="text-[13px] text-rduc-muted">Tăng FPS</dt>
-          <dd className="font-mono text-sm font-bold text-rduc-red">{game.fps}</dd>
+        <div className="rduc-hover-content mt-4 flex items-center justify-between border-t border-rduc-red/60 pt-4">
+          <span className="font-mono text-xs uppercase tracking-wide text-rduc-muted">Sẵn sàng tối ưu</span>
+          <span className="font-mono text-sm font-bold text-rduc-red" aria-hidden>-&gt;</span>
         </div>
-        <div className="flex items-center justify-between">
-          <dt className="text-[13px] text-rduc-muted">Giảm độ trễ</dt>
-          <dd className="font-mono text-sm font-bold text-rduc-green">{game.ping}</dd>
-        </div>
-      </dl>
+      </div>
     </article>
   );
 }
@@ -69,7 +63,7 @@ export function Games() {
       </div>
 
       <div className="mt-16 pb-20 lg:pb-[120px]">
-        <Marquee speed={35} loop={false}>
+        <Marquee speed={35}>
           {games.map((game) => (
             <GameCard key={game.name} game={game} />
           ))}

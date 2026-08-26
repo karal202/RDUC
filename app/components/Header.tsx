@@ -1,12 +1,12 @@
-import Image from "next/image";
+import Link from "next/link";
 import { ButtonPrimary } from "./buttons";
 
+
 const navLinks = [
-  { label: "Tính năng", href: "#features" },
-  { label: "Trò chơi", href: "#games" },
-  { label: "Bảng giá", href: "#pricing" },
-  { label: "Hỏi đáp", href: "#faq" },
-  { label: "Liên hệ", href: "#contact" },
+  { label: "Danh mục", href: "/catalog" },
+  { label: "Tính năng", href: "/#features" },
+  { label: "Trò chơi", href: "/#games" },
+  { label: "Liên hệ", href: "/#contact" },
 ];
 
 /**
@@ -17,9 +17,11 @@ export function Header() {
   return (
     <header className="border-b border-rduc-border bg-black">
       <div className="mx-auto flex h-[84px] w-full max-w-[1440px] items-center justify-between gap-6 px-6 lg:px-24">
-        <a href="#" aria-label="RDUC home" className="shrink-0">
-          <Image src="/logo.png" alt="RDUC logo" width={103} height={44} priority />
-        </a>
+        <Link href="/" aria-label="DAWA SHOP home" className="shrink-0">
+          <span className="font-display text-xl tracking-[0.12em] text-white sm:text-2xl">
+            <span className="text-rduc-red">DAWA</span> SHOP
+          </span>
+        </Link>
 
         <nav aria-label="Main" className="hidden items-center gap-8 md:flex">
           {navLinks.map((link) => (
