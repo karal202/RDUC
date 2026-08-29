@@ -4,6 +4,7 @@ import { Download } from "lucide-react";
 type ButtonProps = {
   href?: string;
   children: ReactNode;
+  download?: boolean | string;
 };
 
 /**
@@ -14,10 +15,12 @@ export function ButtonPrimary({
   href = "#",
   children,
   withIcon = false,
+  download,
 }: ButtonProps & { withIcon?: boolean }) {
   return (
     <a
       href={href}
+      download={download}
       className="inline-flex items-center justify-center gap-2 rounded bg-rduc-red px-8 py-4 font-display text-sm text-white transition-colors hover:bg-[#ff3a49]"
     >
       {children}

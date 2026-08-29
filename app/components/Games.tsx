@@ -63,7 +63,7 @@ export function Games() {
       </div>
 
       <div className="mt-16 pb-20 lg:pb-[120px]">
-        <Marquee speed={35}>
+        <Marquee interval={5000} reserveSideBanners>
           {games.map((game) => (
             <GameCard key={game.name} game={game} />
           ))}

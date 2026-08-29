@@ -1,0 +1,8 @@
+RDUC DOWNLOAD
+==============
+
+This download placeholder is ready to be replaced with the official RDUC installer.
+
+For now, please contact the RDUC team to receive the correct installer for your system.
+
+Website: /

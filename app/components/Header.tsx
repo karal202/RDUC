@@ -35,7 +35,9 @@ export function Header() {
           ))}
         </nav>
 
-        <ButtonPrimary href="#download">Tải xuống</ButtonPrimary>
+        <ButtonPrimary href="/downloads/rduc-download-guide.txt" download>
+          Tải xuống
+        </ButtonPrimary>
       </div>
     </header>
   );

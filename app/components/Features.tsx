@@ -2,11 +2,12 @@ import {
   Activity,
   Cpu,
   RefreshCw,
-  Shield,
   SlidersHorizontal,
   Trash2,
   Wifi,
   Zap,
+  Gamepad2,
+  Shield,
   type LucideIcon,
 } from "lucide-react";
 import { Marquee } from "./Marquee";
@@ -46,7 +47,7 @@ const features: Feature[] = [
     desc: "Giải phóng ngay phần bộ nhớ bị các ứng dụng không hoạt động chiếm dụng.",
   },
   {
-    icon: Shield,
+    icon: Gamepad2,
     title: "Chế độ game",
     desc: "Dồn tài nguyên mạng và lõi xử lý cho tựa game cạnh tranh đang chơi.",
   },
@@ -56,7 +57,7 @@ const features: Feature[] = [
     desc: "Tối ưu đường truyền gói tin để hạn chế mất gói trong trận đấu.",
   },
   {
-    icon: RefreshCw,
+    icon: Shield,
     title: "Bảo vệ driver",
     desc: "Kiểm tra chuyên sâu để đảm bảo khả năng tương thích esports ổn định.",
   },
@@ -100,7 +101,7 @@ export function Features() {
       </div>
 
       <div className="mt-16 pb-20 lg:pb-[120px]">
-        <Marquee speed={30}>
+        <Marquee interval={5000} reserveSideBanners>
           {features.map((feature, index) => (
             <FeatureCard key={feature.title} feature={feature} index={index} />
           ))}
