@@ -29,7 +29,7 @@ function CatalogGroupSection({ group, groupIndex }: { group: CatalogGroup; group
   const Icon = group.icon;
 
   return (
-    <section id={`catalog-${groupIndex}`} className="border-t border-rduc-border pt-8 first:border-t-0">
+    <section id={`catalog-${groupIndex}`} className="scroll-mt-[96px] border-t border-rduc-border pt-8 first:border-t-0">
       <div className="flex items-center gap-3">
         <div className="flex size-12 items-center justify-center border border-rduc-red/60 bg-rduc-iconbg text-rduc-red">
           <Icon className="size-6" strokeWidth={1.8} aria-hidden />
@@ -45,6 +45,7 @@ function CatalogGroupSection({ group, groupIndex }: { group: CatalogGroup; group
           loop={group.items.length > 4}
           autoPlay={group.items.length > 4}
           centerContent={group.items.length <= 4}
+          prevSectionId={groupIndex > 0 ? `catalog-${groupIndex - 1}` : "catalog-top"}
           nextSectionId={groupIndex < catalogGroups.length - 1 ? `catalog-${groupIndex + 1}` : "contact"}
           className="rduc-catalog-carousel"
         >
@@ -65,7 +66,7 @@ export default function CatalogPage() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(34,92,169,0.22),_transparent_42%),_#050b13]">
+      <main id="catalog-top" className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(34,92,169,0.22),_transparent_42%),_#050b13]">
         <div className="mx-auto max-w-[1440px] px-6 pb-20 pt-16 lg:px-24 lg:pb-32 lg:pt-24">
           <div className="max-w-[760px]">
             <p className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-[0.16em] text-rduc-red">

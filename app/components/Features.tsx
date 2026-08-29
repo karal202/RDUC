@@ -101,7 +101,7 @@ export function Features() {
       </div>
 
       <div className="mt-16 pb-20 lg:pb-[120px]">
-        <Marquee interval={2000} reserveSideBanners nextSectionId="games">
+        <Marquee interval={2000} reserveSideBanners prevSectionId="catalog" nextSectionId="games">
           {features.map((feature, index) => (
             <FeatureCard key={feature.title} feature={feature} index={index} />
           ))}
