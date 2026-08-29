@@ -1,5 +1,15 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Image from "next/image";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ButtonOutline, ButtonPrimary } from "./buttons";
+
+const heroBanners = [
+  { src: "/banner/content2.png", alt: "Banner quảng cáo DAWA SHOP 1" },
+  { src: "/banner/content3.png", alt: "Banner quảng cáo DAWA SHOP 2" },
+  { src: "/banner/content4.png", alt: "Banner quảng cáo DAWA SHOP 3" },
+];
 
 /**
  * Hero — Figma spec (node 3:16): min-height 720, horizontal padding 96,
@@ -8,6 +18,23 @@ import { ButtonOutline, ButtonPrimary } from "./buttons";
  * Red ellipse glow: #ff1b2d at 20% opacity with 150px layer blur.
  */
 export function Hero() {
+  const [activeBanner, setActiveBanner] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+
+  useEffect(() => {
+    if (isPaused) return;
+
+    const timer = window.setInterval(() => {
+      setActiveBanner((current) => (current + 1) % heroBanners.length);
+    }, 5000);
+
+    return () => window.clearInterval(timer);
+  }, [isPaused]);
+
+  const showBanner = (direction: number) => {
+    setActiveBanner((current) => (current + direction + heroBanners.length) % heroBanners.length);
+  };
+
   return (
     <section className="relative overflow-hidden border-b border-rduc-border bg-black">
       <div className="absolute left-1/3 top-1/2 h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-rduc-red/10 blur-[150px]" aria-hidden />
@@ -37,24 +64,66 @@ export function Hero() {
         </div>
 
         <div
-          aria-label="Vị trí chờ banner quảng cáo"
-          className="relative w-full max-w-[600px] aspect-[1656/956] overflow-hidden rounded-lg border border-rduc-border bg-rduc-card/40 shadow-[0_0_40px_rgba(22,119,255,0.08)] mx-auto lg:mx-0 lg:ml-auto"
+          aria-label="Carousel banner quảng cáo"
+          aria-roledescription="carousel"
+          className="relative mx-auto aspect-[1656/956] w-full max-w-[600px] overflow-hidden rounded-lg border border-rduc-border bg-rduc-card/40 shadow-[0_0_40px_rgba(22,119,255,0.08)] lg:mx-0 lg:ml-auto"
+          onKeyDown={(event) => {
+            if (event.key === "ArrowLeft") showBanner(-1);
+            if (event.key === "ArrowRight") showBanner(1);
+          }}
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+          onFocus={() => setIsPaused(true)}
+          onBlur={() => setIsPaused(false)}
+          tabIndex={0}
         >
-          <Image
-            src="/content2.png"
-            alt="Banner quảng cáo DAWA SHOP"
-            fill
-            priority
-            sizes="(max-width: 1023px) 100vw, 40vw"
-            className="object-contain"
-          />
+          {heroBanners.map((banner, index) => (
+            <Image
+              key={banner.src}
+              src={banner.src}
+              alt={banner.alt}
+              fill
+              priority={index === 0}
+              sizes="(max-width: 1023px) 100vw, 40vw"
+              className={`object-contain transition-opacity duration-700 ${index === activeBanner ? "opacity-100" : "opacity-0"}`}
+            />
+          ))}
+          <button
+            type="button"
+            aria-label="Banner trước"
+            className="absolute left-3 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center border border-white/30 bg-black/60 text-white transition-colors hover:border-rduc-red hover:text-rduc-red"
+            onClick={() => showBanner(-1)}
+          >
+            <ChevronLeft className="size-5" aria-hidden />
+          </button>
+          <button
+            type="button"
+            aria-label="Banner tiếp theo"
+            className="absolute right-3 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center border border-white/30 bg-black/60 text-white transition-colors hover:border-rduc-red hover:text-rduc-red"
+            onClick={() => showBanner(1)}
+          >
+            <ChevronRight className="size-5" aria-hidden />
+          </button>
+          <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2" role="tablist" aria-label="Chọn banner">
+            {heroBanners.map((banner, index) => (
+              <button
+                key={banner.src}
+                type="button"
+                role="tab"
+                aria-label={`Chuyển đến banner ${index + 1}`}
+                aria-selected={index === activeBanner}
+                className={`h-1.5 transition-all ${index === activeBanner ? "w-8 bg-rduc-red" : "w-4 bg-white/50 hover:bg-white"}`}
+                onClick={() => setActiveBanner(index)}
+              />
+            ))}
+          </div>
         </div>
       </div>
       <a href="#catalog" className="rduc-side-banner rduc-side-banner-left" aria-label="Xem danh mục sản phẩm bên trái">
-        <Image src="/content.png" alt="" fill sizes="92px" className="object-cover" />
+        <Image src="/banner/content.png" alt="" fill sizes="110px" className="object-cover" />
       </a>
       <a href="#catalog" className="rduc-side-banner rduc-side-banner-right" aria-label="Xem danh mục sản phẩm bên phải">
-        <Image src="/content1.png" alt="" fill sizes="92px" className="object-cover" />
+        <Image src="/banner/content1.png" alt="" fill sizes="110px" className="object-cover" />
       </a>
     </section>
   );

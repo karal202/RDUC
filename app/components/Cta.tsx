@@ -25,7 +25,7 @@ export function Cta() {
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-4">
-          <ButtonPrimary href="#" withIcon>
+          <ButtonPrimary href="/downloads/rduc-download-guide.txt" download withIcon>
             Tải RDUC ngay
           </ButtonPrimary>
           <ButtonOutline href="#">Xem thông số hệ thống</ButtonOutline>

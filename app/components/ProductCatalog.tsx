@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, Cpu, Gamepad2, MonitorCog, Network, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, Cpu, Gamepad2, MonitorCog, Network, ShieldCheck, Settings, User } from "lucide-react";
 import { SectionHeader } from "./SectionHeader";
 
 export type CatalogGroup = {
@@ -10,29 +10,86 @@ export type CatalogGroup = {
 };
 
 export const catalogGroups: CatalogGroup[] = [
-  { title: "Setting", items: ["setting-dawa", "setting-window", "bios-setting", "highlight"], icon: Cpu },
+  { title: "Setting", items: ["setting-dawa", "setting-window", "bios-setting", "network-setting"], icon: Settings },
   { title: "Reshade-Mod2k", items: ["Reshade-Roleplay", "Reshade-Mod2K", "Reshade-Photo", "Review-Reshade"], icon: Gamepad2 },
-  { title: "Windows", items: ["Window-kenelos", "Window-ghost", "Window-imos", "Window-aura", "Window-atlas", "Window-revios", "Window-sapphi­reos", "Window-xlite", "Window-xos", "Window-kirbyos", "Window-10", "Window-11", "Review-Windows"], icon: MonitorCog },
+  { title: "Windows", items: ["Window-kenelos", "Window-ghost", "Window-imos", "Window-aura", "Window-atlas", "Window-revios", "Window-sapphi­reos", "Window-xlite", "Window-xos", "Window-kirbyos", "Window-10", "Window-11"], icon: MonitorCog },
   { title: "Edit", items: ["Edit-Video", "Video", "Review-Editvideo"], icon: Network },
   { title: "Bath Thailand", items: ["Notification-Bath", "Giá-Bath", "Chat", "Review"], icon: ShieldCheck },
-  { title: "Tài khoản Rockstar FiveM", items: ["Code-Rockstar", "Tài-Khoản-Rockstar", "Tài-Khoản-Steam", "Discord"], icon: ShieldCheck },
+  { title: "Tài khoản Rockstar FiveM", items: ["Code-Rockstar", "Tài-Khoản-Rockstar", "Tài-Khoản-Steam", "Discord"], icon: User },
 ];
 
 const catalogImages = ["/games/valorant.png", "/games/cs2.png", "/games/apex-legends.png", "/games/fortnite.png", "/games/league-of-legends.png", "/games/overwatch-2.png"];
+
+const groupImages: Record<string, string> = {
+  Windows: "/catalog/windows/win10.png",
+};
+
+export const windowsProductDetails: Record<string, { label: string; description: string }> = {
+  "Window-kenelos": {
+    label: "KernelOS",
+    description: "Phù hợp máy cấu hình thấp đến trung bình, đặc biệt dành cho game thủ. Giảm tiến trình chạy nền, giảm RAM và CPU, giảm input lag, đồng thời loại bỏ ứng dụng Windows cài sẵn không cần thiết.",
+  },
+  "Window-ghost": {
+    label: "Ghost",
+    description: "Tối ưu cho máy cấu hình thấp, giúp tăng FPS. Giảm tiến trình Windows khởi chạy ban đầu và giảm mức sử dụng RAM, CPU cho các tác vụ không cần thiết.",
+  },
+  "Window-imos": {
+    label: "iMoS",
+    description: "Phù hợp máy cấu hình thấp đến trung bình và game thủ. Giảm tiến trình chạy nền, giảm RAM và CPU, giảm input lag, loại bỏ các ứng dụng Windows cài sẵn không cần thiết.",
+  },
+  "Window-aura": {
+    label: "Aura",
+    description: "Phù hợp mọi cấu hình và được tối ưu cho gaming. Giảm tiến trình nền, RAM, CPU, input lag và độ trễ hệ thống xuống mức rất thấp. Không hỗ trợ Microsoft Store hoặc Win+Shift+S.",
+  },
+  "Window-atlas": {
+    label: "Atlas",
+    description: "Có thể cài đè lên Windows hiện tại, phù hợp mọi cấu hình mà không cần cài mới từ đầu. Giảm tải CPU, giảm RAM và CPU không cần thiết, giúp máy mượt hơn và giảm input lag.",
+  },
+  "Window-revios": {
+    label: "ReviOS",
+    description: "Có thể cài đè lên Windows hiện tại, phù hợp mọi cấu hình mà không cần cài mới từ đầu. Giảm tải CPU, giảm RAM và CPU không cần thiết, giúp máy mượt hơn và giảm input lag.",
+  },
+  "Window-sapphi­reos": {
+    label: "SapphireOS",
+    description: "Giảm các tiến trình Windows chạy nền, giảm mức sử dụng RAM và CPU không cần thiết, đồng thời giảm input lag và độ trễ hệ thống xuống mức rất thấp.",
+  },
+  "Window-xlite": {
+    label: "X-Lite",
+    description: "Phù hợp máy cấu hình thấp lẫn hệ thống hiệu năng cao. Giảm dịch vụ chạy nền, có thể cải thiện FPS, hạn chế telemetry, loại bỏ ứng dụng thừa và cho phép kiểm soát Defender, Edge, Store, Update.",
+  },
+  "Window-xos": {
+    label: "XOS",
+    description: "Ít tiến trình hơn Windows thông thường, tăng FPS và giúp hệ thống sạch, mượt hơn. Loại bỏ ứng dụng cài sẵn không cần thiết, phù hợp chơi game lẫn làm việc và có hỗ trợ trong quá trình sử dụng.",
+  },
+  "Window-kirbyos": {
+    label: "KirbyOS",
+    description: "Mượt hơn Windows tiêu chuẩn, giảm giật lag và drop FPS, giảm input lag, ổn định FPS, khởi động nhanh, loại bỏ phần mềm thừa và phù hợp với máy cấu hình thấp.",
+  },
+  "Window-10": {
+    label: "Windows 10",
+    description: "Cấu hình Windows được tối ưu hóa, cho hiệu năng chơi game và FPS cao hơn Windows 11, đồng thời tương thích với mọi cấu hình máy tính.",
+  },
+  "Window-11": {
+    label: "Windows 11",
+    description: "Cài đặt mới Windows 11, thiết lập các tùy chọn Windows, giúp hệ thống hoạt động mượt như máy tính mới và cài đặt các phần mềm cơ bản.",
+  },
+};
 
 function HomepageCatalogCard({ group, index }: { group: CatalogGroup; index: number }) {
   const Icon = group.icon;
 
   return (
-    <article className="group relative min-h-[230px] overflow-hidden rounded-lg border border-rduc-border bg-rduc-card transition-all duration-300 hover:border-rduc-red/70 hover:shadow-[0_18px_40px_rgba(22,119,255,0.16)]">
-      <Image
-        src={catalogImages[index]}
-        alt=""
-        fill
-        sizes="(max-width: 767px) 100vw, 50vw"
-        className="object-cover opacity-40 transition duration-500 group-hover:scale-105 group-hover:opacity-55"
-      />
-      <div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/20" aria-hidden />
+    <article className="group rduc-catalog-card relative min-h-[230px] overflow-visible rounded-lg border border-rduc-border bg-rduc-card transition-all duration-300 hover:z-10 hover:scale-[1.03] hover:border-rduc-red/70 hover:shadow-[0_18px_40px_rgba(22,119,255,0.16)]">
+      <div className="absolute inset-0 overflow-hidden rounded-lg">
+        <Image
+          src={groupImages[group.title] ?? catalogImages[index]}
+          alt=""
+          fill
+          sizes="(max-width: 767px) 100vw, 50vw"
+          className="object-cover opacity-40 transition duration-500 group-hover:scale-105 group-hover:opacity-55"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/20" aria-hidden />
+      </div>
       <div className="relative flex min-h-[230px] flex-col justify-between p-6 sm:p-7">
         <div className="flex items-start justify-between gap-4">
           <div className="flex size-11 items-center justify-center border border-rduc-red/60 bg-black/65 text-rduc-red">
@@ -41,15 +98,26 @@ function HomepageCatalogCard({ group, index }: { group: CatalogGroup; index: num
           <span className="font-mono text-xs font-bold text-rduc-red">0{index + 1}</span>
         </div>
         <div>
-          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-rduc-red">Mục lớn</p>
-          <h3 className="mt-1 font-display text-2xl sm:text-3xl">{group.title}</h3>
-          <div className="rduc-hover-content mt-3 max-w-[430px]">
-            <p className="text-sm leading-6 text-rduc-muted">{group.items.length} sản phẩm và dịch vụ trong danh mục này.</p>
-            <Link href="/catalog" className="mt-3 inline-flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wide text-white hover:text-rduc-red">
-              Xem chi tiết <ArrowUpRight className="size-4" aria-hidden />
-            </Link>
-          </div>
+          <h3 className="font-display text-2xl sm:text-3xl">{group.title}</h3>
         </div>
+      </div>
+      <div className="rduc-hover-content absolute inset-0 z-10 flex flex-col justify-end overflow-hidden rounded-lg bg-black p-6 sm:p-7">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="font-display text-xl sm:text-2xl">{group.title}</h3>
+          </div>
+          <ArrowUpRight className="mt-1 size-5 shrink-0 text-rduc-red" aria-hidden />
+        </div>
+        <div className="mt-4 grid grid-cols-[repeat(3,minmax(0,1fr))] gap-x-3 gap-y-1 border-t border-rduc-red/60 pt-3">
+          {group.items.map((item) => (
+            <span key={item} className="break-words font-mono text-[10px] leading-5 text-rduc-muted" title={item}>
+              {item}
+            </span>
+          ))}
+        </div>
+        <Link href="/catalog" className="mt-3 inline-flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wide text-white hover:text-rduc-red">
+          Xem danh mục <ArrowUpRight className="size-4" aria-hidden />
+        </Link>
       </div>
     </article>
   );
