@@ -79,14 +79,14 @@ function HomepageCatalogCard({ group, index }: { group: CatalogGroup; index: num
   const Icon = group.icon;
 
   return (
-    <article className="group rduc-catalog-card relative min-h-[230px] overflow-visible rounded-lg border border-rduc-border bg-rduc-card transition-all duration-300 hover:z-10 hover:scale-[1.03] hover:border-rduc-red/70 hover:shadow-[0_18px_40px_rgba(22,119,255,0.16)]">
+    <Link href={`/catalog#catalog-${index}`} className="group block rduc-catalog-card relative min-h-[230px] overflow-visible rounded-lg border border-rduc-border bg-rduc-card transition-all duration-300 hover:z-10 hover:scale-[1.03] hover:border-rduc-red/70 hover:shadow-[0_18px_40px_rgba(22,119,255,0.16)]">
       <div className="absolute inset-0 overflow-hidden rounded-lg">
         <Image
           src={groupImages[group.title] ?? catalogImages[index]}
           alt=""
           fill
           sizes="(max-width: 767px) 100vw, 50vw"
-          className="object-cover opacity-40 transition duration-500 group-hover:scale-105 group-hover:opacity-55"
+          className="rduc-image-bright object-cover opacity-40 transition duration-500 group-hover:scale-105 group-hover:opacity-55"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/20" aria-hidden />
       </div>
@@ -115,11 +115,11 @@ function HomepageCatalogCard({ group, index }: { group: CatalogGroup; index: num
             </span>
           ))}
         </div>
-        <Link href="/catalog" className="mt-3 inline-flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wide text-white hover:text-rduc-red">
+        <span className="mt-3 inline-flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wide text-white group-hover:text-rduc-red">
           Xem danh mục <ArrowUpRight className="size-4" aria-hidden />
-        </Link>
+        </span>
       </div>
-    </article>
+    </Link>
   );
 }
 

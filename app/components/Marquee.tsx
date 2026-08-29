@@ -15,6 +15,10 @@ type MarqueeProps = {
   reserveSideBanners?: boolean;
   /** Center content when the carousel is static and fits in the viewport. */
   centerContent?: boolean;
+  /** Optional next section to scroll into when reaching the end via arrow controls. */
+  nextSectionId?: string;
+  /** Optional previous section to scroll into when reaching the start via arrow controls. */
+  prevSectionId?: string;
   className?: string;
 };
 
@@ -31,11 +35,12 @@ type MarqueeProps = {
  */
 export function Marquee({
   children,
-  interval = 5000,
+  interval = 2000,
   loop = true,
   autoPlay = true,
   reserveSideBanners = false,
   centerContent = false,
+  nextSectionId,
   className = "",
 }: MarqueeProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -182,6 +187,13 @@ export function Marquee({
     if (!step) return;
 
     const slideCount = copy.children.length;
+    const atEnd = viewport.scrollLeft + viewport.clientWidth >= viewport.scrollWidth - 8;
+
+    if (direction > 0 && atEnd && nextSectionId) {
+      document.getElementById(nextSectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
     slideIndexRef.current = Math.max(0, Math.min(slideCount - 1, slideIndexRef.current + direction));
     viewport.scrollTo({ left: slideIndexRef.current * step, behavior: "smooth" });
   };

@@ -17,7 +17,7 @@ const testimonials: Testimonial[] = [
     handle: "@apexcarter_cs",
     avatar: "/avatar-4.png",
     quote:
-      "RDUC giúp tôi tiết kiệm hàng chục triệu đồng. Hệ thống GTX 1080 cũ tăng từ 120 FPS lên 240 FPS ổn định trong những khu vực đông người của Valorant.",
+      "DAWA giúp tôi tiết kiệm hàng chục triệu đồng. Hệ thống GTX 1080 cũ tăng từ 120 FPS lên 240 FPS ổn định trong những khu vực đông người của Valorant.",
     result: "Kết quả: tăng 120 FPS",
   },
   {
@@ -25,7 +25,7 @@ const testimonials: Testimonial[] = [
     handle: "@millerm_ow",
     avatar: "/avatar-5.png",
     quote:
-      "Độ trễ thao tác giảm từ 12ms xuống 3,8ms ngay sau khi khởi chạy RDUC. Trong trận đấu cạnh tranh, khác biệt đó quyết định ai ra đòn trước.",
+      "Độ trễ thao tác giảm từ 12ms xuống 3,8ms ngay sau khi khởi chạy DAWA. Trong trận đấu cạnh tranh, khác biệt đó quyết định ai ra đòn trước.",
     result: "Kết quả: giảm 8,2ms độ trễ",
   },
   {
@@ -49,7 +49,7 @@ export function Testimonials() {
       <div className="mx-auto w-full max-w-[1440px] px-6 py-20 lg:px-24 lg:py-[120px]">
         <SectionHeader
           badge="Game thủ xác nhận"
-          title="Cộng đồng esports nói gì về RDUC"
+          title="Cộng đồng esports nói gì về DAWA"
           sub="Khám phá cách game thủ chuyên nghiệp, streamer và người yêu phần cứng lấy lại hiệu năng tối đa cho PC."
         />
 
