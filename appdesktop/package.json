@@ -1,0 +1,29 @@
+{
+  "name": "rduc-system-check",
+  "version": "1.0.0",
+  "description": "RDUC system check desktop app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "debug": "electron . --inspect",
+    "build": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.rduc.systemcheck",
+    "productName": "RDUC System Check",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable",
+      "artifactName": "rduc-system-check-${version}.exe"
+    }
+  },
+  "dependencies": {
+    "systeminformation": "^5.33.6"
+  },
+  "devDependencies": {
+    "electron": "^44.0.0",
+    "electron-builder": "^26.15.3"
+  }
+}

@@ -34,7 +34,7 @@ export function Header() {
           ))}
         </nav>
 
-        <ButtonPrimary href="/downloads/rduc-download-guide.txt" download>
+        <ButtonPrimary href="/downloads/rduc-system-check-1.0.0.exe" download>
           Tải xuống
         </ButtonPrimary>
       </div>
