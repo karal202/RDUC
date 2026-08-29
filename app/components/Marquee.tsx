@@ -41,12 +41,41 @@ export function Marquee({
   reserveSideBanners = false,
   centerContent = false,
   nextSectionId,
+  prevSectionId,
   className = "",
 }: MarqueeProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const copyRef = useRef<HTMLDivElement>(null);
   const slideIndexRef = useRef(0);
+  const autoplayPauseRef = useRef(0);
   const marqueeConfig = `${interval}|${autoPlay ? "on" : "off"}`;
+
+  const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+  const smoothScrollTo = (targetLeft: number, duration = 520) => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    const startLeft = viewport.scrollLeft;
+    const delta = targetLeft - startLeft;
+    if (Math.abs(delta) < 1) return;
+
+    const startTime = performance.now();
+
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / duration);
+      const eased = easeOutCubic(progress);
+
+      viewport.scrollLeft = startLeft + delta * eased;
+
+      if (progress < 1) {
+        window.requestAnimationFrame(tick);
+      }
+    };
+
+    window.requestAnimationFrame(tick);
+  };
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -65,28 +94,26 @@ export function Marquee({
     };
 
     const moveToNextSlide = () => {
-      if (pausedByHover || performance.now() < pausedUntil) return;
+      if (pausedByHover || performance.now() < pausedUntil || performance.now() < autoplayPauseRef.current) return;
       const copy = copyRef.current;
       const step = getSlideStep();
       if (!copy || !step) return;
 
       const slideCount = copy.children.length;
+      if (slideCount <= 1) return;
+
+      if (loop && slideIndexRef.current >= slideCount - 1) {
+        slideIndexRef.current = 0;
+        smoothScrollTo(0, 420);
+        return;
+      }
+
       slideIndexRef.current += 1;
       if (!loop && slideIndexRef.current >= slideCount) {
         slideIndexRef.current = slideCount - 1;
       }
 
-      viewport.scrollTo({
-        left: slideIndexRef.current * step,
-        behavior: "smooth",
-      });
-
-      if (loop && slideIndexRef.current >= slideCount) {
-        window.setTimeout(() => {
-          slideIndexRef.current = 0;
-          viewport.scrollLeft = 0;
-        }, 650);
-      }
+      smoothScrollTo(slideIndexRef.current * step);
     };
 
     const timer = autoPlayValue === "on" ? window.setInterval(moveToNextSlide, Number(intervalValue)) : undefined;
@@ -101,6 +128,7 @@ export function Marquee({
       event.preventDefault();
       viewport.scrollLeft += delta;
       pausedUntil = performance.now() + 2000;
+      autoplayPauseRef.current = performance.now() + 2000;
     };
 
     // Drag to scroll (with a small threshold so clicks still work).
@@ -124,6 +152,7 @@ export function Marquee({
       if (moved) {
         viewport.scrollLeft = startScroll - dx;
         pausedUntil = performance.now() + 2000;
+        autoplayPauseRef.current = performance.now() + 2000;
       }
     };
 
@@ -142,6 +171,7 @@ export function Marquee({
 
     const onTouchStart = () => {
       pausedUntil = performance.now() + 2500;
+      autoplayPauseRef.current = performance.now() + 2500;
     };
 
     const onMouseEnter = () => {
@@ -186,7 +216,10 @@ export function Marquee({
     const step = (firstSlide?.getBoundingClientRect().width ?? 0) + gap;
     if (!step) return;
 
-    const slideCount = copy.children.length;
+    const shouldPauseAutoPlay = copy.children.length >= 5;
+    autoplayPauseRef.current = shouldPauseAutoPlay ? performance.now() + 700 : 0;
+
+    const atStart = viewport.scrollLeft <= 8;
     const atEnd = viewport.scrollLeft + viewport.clientWidth >= viewport.scrollWidth - 8;
 
     if (direction > 0 && atEnd && nextSectionId) {
@@ -194,8 +227,14 @@ export function Marquee({
       return;
     }
 
+    if (direction < 0 && atStart && prevSectionId) {
+      document.getElementById(prevSectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    const slideCount = copy.children.length;
     slideIndexRef.current = Math.max(0, Math.min(slideCount - 1, slideIndexRef.current + direction));
-    viewport.scrollTo({ left: slideIndexRef.current * step, behavior: "smooth" });
+    smoothScrollTo(slideIndexRef.current * step, 360);
   };
 
   return (
@@ -224,7 +263,6 @@ export function Marquee({
           <div ref={copyRef} className={`flex w-max gap-6 ${centerContent ? "" : `pl-6 pr-6 ${reserveSideBanners ? "xl:pl-0 xl:pr-0" : "lg:pl-[110px] lg:pr-[110px]"}`}`}>
             {children}
           </div>
-          {loop && <div className={`flex w-max gap-6 pl-6 pr-6 ${reserveSideBanners ? "xl:pl-0 xl:pr-0" : "lg:pl-[110px] lg:pr-[110px]"}`} aria-hidden="true">{children}</div>}
         </div>
       </div>
     </div>
