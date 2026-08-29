@@ -20,13 +20,13 @@ export function Cta() {
           </h2>
           <p className="text-lg leading-[1.6] text-rduc-muted">
             Khôi phục hiệu năng vốn có của phần cứng. Chạy chẩn đoán, bật tối ưu
-            hóa và nâng cao thứ hạng thi đấu cùng RDUC ngay hôm nay.
+            hóa và nâng cao thứ hạng thi đấu cùng DAWA ngay hôm nay.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-4">
           <ButtonPrimary href="/downloads/rduc-download-guide.txt" download withIcon>
-            Tải RDUC ngay
+            Tải DAWA ngay
           </ButtonPrimary>
           <ButtonOutline href="#">Xem thông số hệ thống</ButtonOutline>
         </div>

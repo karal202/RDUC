@@ -24,9 +24,17 @@
   --font-mono: var(--font-jetbrains-mono);
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background: #000000;
   color: #ffffff;
+}
+
+.rduc-image-bright {
+  filter: brightness(1.12) saturate(1.18) contrast(1.06);
 }
 
 .rduc-hover-content {
@@ -70,8 +78,8 @@ body {
 }
 
 .rduc-catalog-carousel:has(.rduc-catalog-card:hover) .rduc-catalog-card:not(:hover) {
-  opacity: 0.35;
-  filter: blur(1px);
+  opacity: 0.65;
+  filter: brightness(0.9) blur(0.6px);
 }
 
 @media (max-width: 1279px) {

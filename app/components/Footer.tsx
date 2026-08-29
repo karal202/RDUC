@@ -120,7 +120,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-20 flex flex-col items-start justify-between gap-4 border-t border-rduc-border pt-8 sm:flex-row sm:items-center">
           <p className="text-[13px] text-rduc-muted">
-            © 2026 RDUC Systems Inc. Bảo lưu mọi quyền. Tối ưu cho hệ điều hành Windows.
+            © 2026 DAWA Systems Inc. Bảo lưu mọi quyền. Tối ưu cho hệ điều hành Windows.
           </p>
           <div className="flex items-center gap-4">
             <SocialLink label="Twitter">

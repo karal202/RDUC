@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ButtonPrimary } from "./buttons";
 
@@ -17,10 +18,8 @@ export function Header() {
   return (
     <header className="border-b border-rduc-border bg-black">
       <div className="mx-auto flex h-[84px] w-full max-w-[1440px] items-center justify-between gap-6 px-6 lg:px-24">
-        <Link href="/" aria-label="DAWA SHOP home" className="shrink-0">
-          <span className="font-display text-xl tracking-[0.12em] text-white sm:text-2xl">
-            <span className="text-rduc-red">DAWA</span> SHOP
-          </span>
+        <Link href="/" aria-label="DAWA SHOP home" className="flex shrink-0 items-center">
+          <Image src="/logo.png" alt="DAWA SHOP" width={450} height={140} className="h-16 w-auto object-contain sm:h-20 md:h-[88px]" priority />
         </Link>
 
         <nav aria-label="Main" className="hidden items-center gap-8 md:flex">

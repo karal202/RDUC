@@ -41,10 +41,11 @@ function CatalogGroupSection({ group, groupIndex }: { group: CatalogGroup; group
       </div>
       <div className="mt-6">
         <Marquee
-          interval={5000}
+          interval={2000}
           loop={group.items.length > 4}
           autoPlay={group.items.length > 4}
           centerContent={group.items.length <= 4}
+          nextSectionId={groupIndex < catalogGroups.length - 1 ? `catalog-${groupIndex + 1}` : "contact"}
           className="rduc-catalog-carousel"
         >
           {group.items.map((item, itemIndex) => (
@@ -64,7 +65,7 @@ export default function CatalogPage() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-black">
+      <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(34,92,169,0.22),_transparent_42%),_#050b13]">
         <div className="mx-auto max-w-[1440px] px-6 pb-20 pt-16 lg:px-24 lg:pb-32 lg:pt-24">
           <div className="max-w-[760px]">
             <p className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-[0.16em] text-rduc-red">

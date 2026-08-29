@@ -13,9 +13,9 @@ export function CatalogItemCard({ item, image }: CatalogItemCardProps) {
 
   return (
     <article className="group/item rduc-catalog-card relative z-0 h-[360px] w-[220px] shrink-0 group-hover/item:z-10 sm:w-[250px]">
-      <div className="absolute inset-0 z-0 overflow-hidden rounded-lg border border-rduc-border bg-rduc-card">
-        <Image src={image} alt="" fill sizes="250px" className="object-cover opacity-35 transition duration-500 group-hover/item:opacity-60" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/75 to-black/10" aria-hidden />
+      <div className="absolute inset-0 z-0 overflow-hidden rounded-lg border border-rduc-border bg-[#121823] shadow-[0_0_30px_rgba(22,119,255,0.08)]">
+        <Image src={image} alt="" fill sizes="250px" className="object-cover scale-[1.04] opacity-70 brightness-110 saturate-110 contrast-110 transition duration-500 group-hover/item:opacity-90" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#05070b]/90 via-[#0b1220]/60 to-[#0b1220]/20" aria-hidden />
       </div>
       <div className="relative z-10 flex h-full w-full flex-col justify-end rounded-lg p-6">
         <div className="mb-auto flex size-10 items-center justify-center border border-rduc-red/60 bg-black/70 font-mono text-sm text-rduc-red">#</div>

@@ -26,7 +26,7 @@ export function Hero() {
 
     const timer = window.setInterval(() => {
       setActiveBanner((current) => (current + 1) % heroBanners.length);
-    }, 5000);
+    }, 2000);
 
     return () => window.clearInterval(timer);
   }, [isPaused]);
@@ -85,7 +85,7 @@ export function Hero() {
               fill
               priority={index === 0}
               sizes="(max-width: 1023px) 100vw, 40vw"
-              className={`object-contain transition-opacity duration-700 ${index === activeBanner ? "opacity-100" : "opacity-0"}`}
+              className={`rduc-image-bright object-contain transition-opacity duration-700 ${index === activeBanner ? "opacity-100" : "opacity-0"}`}
             />
           ))}
           <button

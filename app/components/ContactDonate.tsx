@@ -12,14 +12,6 @@ function DiscordIcon() {
   );
 }
 
-function FacebookIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-    </svg>
-  );
-}
-
 type ContactLink = {
   name: string;
   handle: string;
@@ -30,26 +22,20 @@ type ContactLink = {
 const contacts: ContactLink[] = [
   {
     name: "Discord",
-    handle: "discord.gg/rduc",
+    handle: "discord.gg/dawa",
     href: "https://discord.gg/tDe8UfztmE",
     icon: <DiscordIcon />,
   },
   {
-    name: "Facebook",
-    handle: "facebook.com/rduc",
-    href: "https://www.facebook.com/rduc",
-    icon: <FacebookIcon />,
-  },
-  {
     name: "Zypage",
-    handle: "zypage.vn/rduc",
-    href: "https://zypage.vn/rduc",
+    handle: "zypage.vn/dawa",
+    href: "https://zypage.vn/dawa",
     icon: <MessageCircle className="size-6 text-rduc-red" strokeWidth={2} aria-hidden />,
   },
   {
     name: "WeScan",
-    handle: "wescan.vn/rduc",
-    href: "https://wescan.vn/rduc",
+    handle: "wescan.vn/dawa",
+    href: "https://wescan.vn/dawa",
     icon: <ScanLine className="size-6 text-rduc-red" strokeWidth={2} aria-hidden />,
   },
 ];
@@ -81,22 +67,27 @@ function ContactCard({ contact }: { contact: ContactLink }) {
 }
 
 export function CommunityLinks() {
+  const communityContacts = contacts.filter((contact) => contact.name === "Discord");
+
   return (
     <section className="border-y border-rduc-border bg-[#0b0b0b]">
       <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-6 py-10 lg:flex-row lg:items-center lg:px-24 lg:py-12">
         <div className="rduc-rise-in lg:w-[38%]">
-          <p className="font-mono text-xs font-bold uppercase tracking-wide text-rduc-red">Cộng đồng RDUC</p>
+          <p className="font-mono text-xs font-bold uppercase tracking-wide text-rduc-red">Cộng đồng DAWA</p>
           <h2 className="mt-3 font-display text-2xl sm:text-3xl">Luôn kết nối cùng đội ngũ</h2>
           <p className="mt-3 max-w-[460px] text-sm leading-6 text-rduc-muted">
             Tham gia cộng đồng để nhận hỗ trợ, cập nhật phiên bản mới và chia sẻ trải nghiệm chơi game.
           </p>
         </div>
-        <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2">
-          {contacts.slice(0, 2).map((contact, index) => (
-            <div key={contact.name} className={`rduc-rise-in ${index === 0 ? "rduc-delay-1" : "rduc-delay-2"}`}>
-              <ContactCard contact={contact} />
-            </div>
-          ))}
+
+        <div className="flex flex-1 justify-center lg:justify-end">
+          <div className="w-full max-w-[560px]">
+            {communityContacts.map((contact, index) => (
+              <div key={contact.name} className={`rduc-rise-in ${index === 0 ? "rduc-delay-1" : "rduc-delay-2"}`}>
+                <ContactCard contact={contact} />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -111,16 +102,18 @@ export function ContactDonate() {
           <div className="rduc-rise-in">
             <SectionHeader
               badge="Liên hệ & Ủng hộ"
-              title="Chung tay xây dựng RDUC"
-              sub="Theo dõi các kênh của RDUC hoặc ủng hộ dự án để chúng tôi tiếp tục tối ưu trải nghiệm chơi game."
+              title="Chung tay xây dựng DAWA"
+              sub="Theo dõi các kênh của DAWA hoặc ủng hộ dự án để chúng tôi tiếp tục tối ưu trải nghiệm chơi game."
             />
 
             <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {contacts.slice(2).map((contact, index) => (
-                <div key={contact.name} className={`rduc-rise-in ${index === 0 ? "rduc-delay-1" : "rduc-delay-2"}`}>
-                  <ContactCard contact={contact} />
-                </div>
-              ))}
+              {contacts
+                .filter((contact) => contact.name !== "Discord")
+                .map((contact, index) => (
+                  <div key={contact.name} className={`rduc-rise-in ${index === 0 ? "rduc-delay-1" : "rduc-delay-2"}`}>
+                    <ContactCard contact={contact} />
+                  </div>
+                ))}
             </div>
           </div>
 
@@ -128,17 +121,17 @@ export function ContactDonate() {
             href="https://zypage.vn/rduc"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Mở trang ủng hộ RDUC"
+            aria-label="Mở trang ủng hộ DAWA"
             className="rduc-rise-in rduc-delay-2 group relative overflow-hidden rounded-lg border border-rduc-red/60 bg-black p-8 transition-all duration-300 hover:-translate-y-1 hover:border-rduc-red hover:shadow-[0_16px_45px_rgba(255,27,45,0.16)]"
           >
             <div className="pointer-events-none absolute -right-16 -top-16 size-44 rounded-full bg-rduc-red/10 blur-3xl" aria-hidden />
             <div className="relative flex flex-col items-center text-center">
               <span className="font-mono text-xs font-bold uppercase tracking-wide text-rduc-red">Ủng hộ dự án</span>
               <div className="mt-6 rounded-md bg-white p-3 transition-transform duration-300 group-hover:scale-105">
-                <Image src="/donate-qr.svg" alt="Mã QR mở trang ủng hộ RDUC" width={176} height={176} className="size-44" />
+                <Image src="/donate-qr.svg" alt="Mã QR mở trang ủng hộ DAWA" width={176} height={176} className="size-44 rduc-image-bright" />
               </div>
               <span className="mt-6 font-display text-xl">Quét mã để ủng hộ</span>
-              <span className="mt-2 text-sm leading-6 text-rduc-muted">Mỗi đóng góp giúp RDUC tiếp tục miễn phí cho cộng đồng game thủ.</span>
+              <span className="mt-2 text-sm leading-6 text-rduc-muted">Mỗi đóng góp giúp DAWA tiếp tục miễn phí cho cộng đồng game thủ.</span>
               <span className="rduc-pulse-line mt-6 h-1 w-24 rounded-full bg-rduc-red" aria-hidden />
             </div>
           </a>

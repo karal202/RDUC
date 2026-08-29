@@ -96,12 +96,12 @@ export function Features() {
         <SectionHeader
           badge="Tính năng lõi"
           title="Mọi thứ PC cần để chơi game tốt hơn"
-          sub="Được xây dựng bởi game thủ và kỹ sư, RDUC tác động trực tiếp vào hệ điều hành để loại bỏ điểm nghẽn độ trễ."
+          sub="Được xây dựng bởi game thủ và kỹ sư, DAWA tác động trực tiếp vào hệ điều hành để loại bỏ điểm nghẽn độ trễ."
         />
       </div>
 
       <div className="mt-16 pb-20 lg:pb-[120px]">
-        <Marquee interval={5000} reserveSideBanners>
+        <Marquee interval={2000} reserveSideBanners nextSectionId="games">
           {features.map((feature, index) => (
             <FeatureCard key={feature.title} feature={feature} index={index} />
           ))}
