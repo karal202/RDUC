@@ -19,7 +19,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DAWA SHOP — Tối ưu. Thống trị. Chiến thắng.",
+  title: "DAWA SHOP — Boost FPS",
   description:
     "Danh mục sản phẩm tối ưu PC, Windows, Network, BIOS và tài khoản game cho game thủ.",
 };
