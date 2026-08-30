@@ -18,8 +18,15 @@ export function Header() {
   return (
     <header className="border-b border-rduc-border bg-black">
       <div className="mx-auto flex h-[84px] w-full max-w-[1440px] items-center justify-between gap-6 px-6 lg:px-24">
-        <Link href="/" aria-label="DAWA SHOP home" className="flex shrink-0 items-center">
-          <Image src="/logo.png" alt="DAWA SHOP" width={450} height={140} className="h-16 w-auto object-contain sm:h-20 md:h-[88px]" priority />
+        <Link href="/" aria-label="DAWA SHOP home" className="flex shrink-0 items-center overflow-visible">
+          <Image
+            src="/logo.png"
+            alt="DAWA SHOP"
+            width={450}
+            height={140}
+            className="h-[72px] w-auto max-w-[260px] object-contain brightness-125 contrast-110 drop-shadow-[0_0_12px_rgba(255,255,255,0.35)] sm:h-[76px] sm:max-w-[290px] md:h-[84px] md:max-w-[320px]"
+            priority
+          />
         </Link>
 
         <nav aria-label="Main" className="hidden items-center gap-8 md:flex">

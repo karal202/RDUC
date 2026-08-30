@@ -11,8 +11,8 @@ export type CatalogGroup = {
 
 export const catalogGroups: CatalogGroup[] = [
   { title: "Setting", items: ["setting-dawa", "setting-window", "bios-setting", "network-setting"], icon: Settings },
-  { title: "Reshade-Mod2k", items: ["Reshade-Roleplay", "Reshade-Mod2K", "Reshade-Photo", "Review-Reshade"], icon: Gamepad2 },
   { title: "Windows", items: ["Window-kenelos", "Window-ghost", "Window-imos", "Window-aura", "Window-atlas", "Window-revios", "Window-sapphi­reos", "Window-xlite", "Window-xos", "Window-kirbyos", "Window-10", "Window-11"], icon: MonitorCog },
+  { title: "Reshade-Mod2k", items: ["Reshade-Roleplay", "Reshade-Mod2K", "Reshade-Photo", "Review-Reshade"], icon: Gamepad2 },
   { title: "Edit", items: ["Edit-Video", "Video", "Review-Editvideo"], icon: Network },
   { title: "Bath Thailand", items: ["Notification-Bath", "Giá-Bath", "Chat", "Review"], icon: ShieldCheck },
   { title: "Tài khoản Rockstar FiveM", items: ["Code-Rockstar", "Tài-Khoản-Rockstar", "Tài-Khoản-Steam", "Discord"], icon: User },

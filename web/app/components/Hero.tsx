@@ -46,9 +46,9 @@ export function Hero() {
               Phần mềm tối ưu PC
             </p>
             <h1 className="font-display text-[40px] leading-[1.05] sm:text-[56px] sm:leading-[1.05]">
-              BOOST FPS.
+              BOOST FPS
               <br />
-              REDUCE LATENCY.
+              REDUCE LATENCY
             </h1>
             <p className="max-w-[520px] text-lg leading-[1.6] text-rduc-muted">
               Tối ưu hiệu năng PC và trong game chỉ với một cú nhấp. Loại bỏ điểm nghẽn, khai phá sức mạnh phần cứng và đạt phản hồi tức thì.
