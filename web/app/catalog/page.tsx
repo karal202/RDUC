@@ -41,7 +41,7 @@ function CatalogGroupSection({ group, groupIndex }: { group: CatalogGroup; group
       </div>
       <div className="mt-6">
         <Marquee
-          interval={2000}
+          interval={1000}
           loop={group.items.length > 4}
           autoPlay={group.items.length > 4}
           centerContent={group.items.length <= 4}

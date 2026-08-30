@@ -35,7 +35,7 @@ type MarqueeProps = {
  */
 export function Marquee({
   children,
-  interval = 2000,
+  interval = 1000,
   loop = true,
   autoPlay = true,
   reserveSideBanners = false,
@@ -127,8 +127,8 @@ export function Marquee({
       if (delta === 0) return;
       event.preventDefault();
       viewport.scrollLeft += delta;
-      pausedUntil = performance.now() + 2000;
-      autoplayPauseRef.current = performance.now() + 2000;
+      pausedUntil = performance.now() + 3000;
+      autoplayPauseRef.current = performance.now() + 3000;
     };
 
     // Drag to scroll (with a small threshold so clicks still work).
@@ -151,8 +151,8 @@ export function Marquee({
       if (!moved && Math.abs(dx) > 5) moved = true;
       if (moved) {
         viewport.scrollLeft = startScroll - dx;
-        pausedUntil = performance.now() + 2000;
-        autoplayPauseRef.current = performance.now() + 2000;
+        pausedUntil = performance.now() + 3000;
+        autoplayPauseRef.current = performance.now() + 3000;
       }
     };
 
@@ -170,8 +170,8 @@ export function Marquee({
     };
 
     const onTouchStart = () => {
-      pausedUntil = performance.now() + 2500;
-      autoplayPauseRef.current = performance.now() + 2500;
+      pausedUntil = performance.now() + 3000;
+      autoplayPauseRef.current = performance.now() + 3000;
     };
 
     const onMouseEnter = () => {
@@ -217,7 +217,7 @@ export function Marquee({
     if (!step) return;
 
     const shouldPauseAutoPlay = copy.children.length >= 5;
-    autoplayPauseRef.current = shouldPauseAutoPlay ? performance.now() + 700 : 0;
+    autoplayPauseRef.current = shouldPauseAutoPlay ? performance.now() + 3000 : 0;
 
     const atStart = viewport.scrollLeft <= 8;
     const atEnd = viewport.scrollLeft + viewport.clientWidth >= viewport.scrollWidth - 8;
@@ -234,7 +234,12 @@ export function Marquee({
 
     const slideCount = copy.children.length;
     slideIndexRef.current = Math.max(0, Math.min(slideCount - 1, slideIndexRef.current + direction));
-    smoothScrollTo(slideIndexRef.current * step, 360);
+
+    // Bấm mũi tên sẽ dừng ngay auto-play và chỉ tiếp tục sau 3 giây nếu người
+    // dùng không tương tác thêm. Đây là behavior rõ ràng và không gây delay lạ.
+    autoplayPauseRef.current = performance.now() + 3000;
+
+    smoothScrollTo(slideIndexRef.current * step, 220);
   };
 
   return (
