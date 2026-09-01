@@ -1,0 +1,85 @@
+appId: com.dawa.optimizer
+productName: DAWA System Check
+directories:
+  buildResources: build
+  output: release
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml,package-lock.json}'
+  - '!**/*.map'
+  - '!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme,test,__tests__,tests,example,examples}'
+  - '!**/node_modules/**/test*/**'
+  - '!**/node_modules/**/*.{md,markdown,txt}'
+asar: true
+asarUnpack:
+  - resources/**
+compression: maximum
+removePackageScripts: true
+removePackageKeywords: true
+win:
+  executableName: dawa-system-check
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: ${productName}-${version}-${arch}-setup.${ext}
+  legalTrademarks: DAWA
+  sign: null
+  signingHashAlgorithms:
+    - sha256
+  rfc3161TimeStampServer: http://timestamp.digicert.com
+nsis:
+  artifactName: ${productName}-${version}-setup.${ext}
+  shortcutName: DAWA System Check
+  uninstallDisplayName: DAWA System Check
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  startMenuShortcutName: DAWA
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
+  differentialPackage: true
+  displayLanguageSelector: false
+  installerLanguages:
+    - en_US
+    - vi_VN
+  language: 1033
+  unicode: true
+  packElevateHelper: true
+  warningsAsErrors: false
+mac:
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    - NSCameraUsageDescription: Application requests access to the device's camera.
+    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
+    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
+    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+  notarize: false
+  target:
+    - dmg
+    - zip
+  category: public.app-category.utilities
+dmg:
+  artifactName: ${productName}-${version}-${arch}.${ext}
+linux:
+  target:
+    - AppImage
+    - deb
+  maintainer: DAWA Support
+  category: Utility
+  synopsis: DAWA System Optimizer and License Manager
+appImage:
+  artifactName: ${productName}-${version}-${arch}.${ext}
+npmRebuild: false
+nodeGypRebuild: false
+publish:
+  provider: generic
+  url: https://example.com/auto-updates
+electronDownload:
+  mirror: https://npmmirror.com/mirrors/electron/

@@ -1,29 +1,53 @@
 {
-  "name": "rduc-system-check",
+  "name": "dawa-system-check",
   "version": "1.0.0",
-  "description": "RDUC system check desktop app",
-  "main": "main.js",
-  "scripts": {
-    "start": "electron .",
-    "debug": "electron . --inspect",
-    "build": "electron-builder --win portable"
+  "description": "DAWA System Check — Công cụ tối ưu hệ thống, chẩn đoán phần cứng & quản lý license",
+  "main": "./out/main/index.js",
+  "author": "DAWA Team <support@dawa.vn>",
+  "publisher": "DAWA",
+  "homepage": "https://dawa.vn",
+  "license": "PROPRIETARY",
+  "keywords": [
+    "optimizer",
+    "system-check",
+    "gaming-boost",
+    "hardware-diagnostics",
+    "license-manager"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
   },
-  "build": {
-    "appId": "com.rduc.systemcheck",
-    "productName": "RDUC System Check",
-    "directories": {
-      "output": "dist"
-    },
-    "win": {
-      "target": "portable",
-      "artifactName": "rduc-system-check-${version}.exe"
-    }
+  "scripts": {
+    "format": "prettier --write .",
+    "lint": "eslint --cache .",
+    "start": "electron-vite preview",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "postinstall": "electron-builder install-app-deps",
+    "build:unpack": "npm run build && electron-builder --dir",
+    "build:win": "npm run build && electron-builder --win",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
+    "@electron-toolkit/preload": "^3.0.2",
+    "@electron-toolkit/utils": "^4.0.0",
+    "lucide-vue-next": "^1.0.0",
+    "socket.io-client": "^4.8.3",
     "systeminformation": "^5.33.6"
   },
   "devDependencies": {
-    "electron": "^44.0.0",
-    "electron-builder": "^26.15.3"
+    "@electron-toolkit/eslint-config": "^2.1.0",
+    "@electron-toolkit/eslint-config-prettier": "^3.0.0",
+    "@vitejs/plugin-vue": "^6.0.2",
+    "electron": "^39.2.6",
+    "electron-builder": "^26.0.12",
+    "electron-vite": "^5.0.0",
+    "eslint": "^9.39.1",
+    "eslint-plugin-vue": "^10.6.2",
+    "prettier": "^3.7.4",
+    "vite": "^7.2.6",
+    "vue": "^3.5.25",
+    "vue-eslint-parser": "^10.2.0"
   }
 }

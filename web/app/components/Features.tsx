@@ -91,7 +91,7 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
  */
 export function Features() {
   return (
-    <section id="features" className="scroll-mt-[84px] overflow-hidden bg-rduc-darker">
+    <section id="features" className="scroll-mt-[84px] overflow-hidden bg-transparent">
       <div className="mx-auto w-full max-w-[1440px] px-6 pt-20 lg:px-24 lg:pt-[120px]">
         <SectionHeader
           badge="Tính năng lõi"

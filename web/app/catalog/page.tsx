@@ -5,7 +5,7 @@ import { catalogGroups, type CatalogGroup } from "../components/ProductCatalog";
 import { Marquee } from "../components/Marquee";
 import { CatalogItemCard } from "../components/CatalogItemCard";
 
-const catalogImages = ["/games/valorant.png", "/games/cs2.png", "/games/apex-legends.png", "/games/fortnite.png", "/games/league-of-legends.png", "/games/overwatch-2.png"];
+const catalogImages = ["/banner5.jpg", "/banner5.jpg", "/banner5.jpg", "/banner5.jpg", "/banner5.jpg", "/banner5.jpg"];
 
 const settingImages = ["/setting/dawa.png", "/setting/window.png", "/setting/BIOS.png", "/setting/network.png"];
 
@@ -53,7 +53,7 @@ function CatalogGroupSection({ group, groupIndex }: { group: CatalogGroup; group
             <CatalogItemCard
               key={item}
               item={item}
-              image={group.title === "Windows" ? windowsImages[itemIndex] : group.title === "Setting" ? settingImages[itemIndex] : catalogImages[(groupIndex + itemIndex) % catalogImages.length]}
+              image={group.title === "Windows" ? windowsImages[itemIndex] : group.title === "Setting" ? settingImages[itemIndex] : "/banner5.jpg"}
             />
           ))}
         </Marquee>

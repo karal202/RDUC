@@ -1,27 +1,6 @@
-# Dependencies
-node_modules/
-
-# Build outputs
-/dist/
-/build/
-/out/
-
-# Electron cache / temp
-.cache/
-*.log
-npm-debug.log*
-
-# OS / editor files
+node_modules
+dist
+out
 .DS_Store
-Thumbs.db
-
-# Local environment
-.env
-.env.local
-
-# Windows shortcuts / installers (if not intentionally committed)
-*.exe
-*.dll
-
-# Optional: keep generated app files out of git
-win-unpacked/
+.eslintcache
+*.log*
