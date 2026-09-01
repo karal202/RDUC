@@ -28,10 +28,9 @@ function GameCard({ game }: { game: Game }) {
         alt=""
         fill
         sizes="(max-width: 640px) 320px, 400px"
-        className="object-cover transition-transform duration-300 group-hover:scale-105"
+        className="object-cover transition-all duration-300 group-hover:scale-105 group-hover:brightness-50 group-hover:saturate-50"
       />
-      {/* Black overlay at 75% opacity — Figma second fill */}
-      <div className="absolute inset-0 bg-black/75" aria-hidden />
+      <div className="absolute inset-0 bg-black/25 transition-opacity duration-300 group-hover:bg-black/80" aria-hidden />
 
       <div className="relative mt-auto">
         <h3 className="font-display text-xl">{game.name}</h3>
@@ -53,7 +52,7 @@ function GameCard({ game }: { game: Game }) {
  */
 export function Games() {
   return (
-    <section id="games" className="scroll-mt-[84px] overflow-hidden bg-black">
+    <section id="games" className="scroll-mt-[84px] overflow-hidden bg-transparent">
       <div className="mx-auto w-full max-w-[1440px] px-6 pt-20 lg:px-24 lg:pt-[120px]">
         <SectionHeader
           badge="Game được hỗ trợ"

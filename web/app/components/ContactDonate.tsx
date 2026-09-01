@@ -1,9 +1,7 @@
 import type { ReactNode } from "react";
-import { ArrowUpRight, MessageCircle, ScanLine } from "lucide-react";
+import { ArrowUpRight, ChevronDown } from "lucide-react";
 import Image from "next/image";
-import { SectionHeader } from "./SectionHeader";
 
-/* Biểu tượng thương hiệu dùng đường dẫn đơn giản, không cần thêm thư viện. */
 function DiscordIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -26,18 +24,6 @@ const contacts: ContactLink[] = [
     href: "https://discord.gg/tDe8UfztmE",
     icon: <DiscordIcon />,
   },
-  {
-    name: "Zypage",
-    handle: "zypage.vn/dawa",
-    href: "https://zypage.vn/dawa",
-    icon: <MessageCircle className="size-6 text-rduc-red" strokeWidth={2} aria-hidden />,
-  },
-  {
-    name: "WeScan",
-    handle: "wescan.vn/dawa",
-    href: "https://wescan.vn/dawa",
-    icon: <ScanLine className="size-6 text-rduc-red" strokeWidth={2} aria-hidden />,
-  },
 ];
 
 function ContactCard({ contact }: { contact: ContactLink }) {
@@ -46,19 +32,19 @@ function ContactCard({ contact }: { contact: ContactLink }) {
       href={contact.href}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex items-center justify-between gap-5 rounded-lg border border-rduc-border bg-rduc-card p-5 transition-all duration-300 hover:-translate-y-1 hover:border-rduc-red/60 hover:shadow-[0_12px_30px_rgba(255,27,45,0.12)] sm:p-6"
+      className="group flex items-center justify-between gap-5 rounded-[22px] border border-rduc-border bg-[#111111] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-all duration-300 hover:-translate-y-1 hover:border-[#1e72ff]/80 hover:shadow-[0_12px_30px_rgba(17,83,255,0.12)] sm:p-6"
     >
       <div className="flex items-center gap-4">
-        <div className="flex size-12 shrink-0 items-center justify-center rounded border border-rduc-border bg-rduc-iconbg text-white transition-colors group-hover:text-rduc-red">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-rduc-border bg-[#181818] text-white transition-colors group-hover:text-[#3ea1ff]">
           {contact.icon}
         </div>
         <div className="flex flex-col gap-1">
-          <span className="font-display text-lg">{contact.name}</span>
+          <span className="font-display text-lg text-white">{contact.name}</span>
           <span className="font-mono text-xs text-rduc-muted">{contact.handle}</span>
         </div>
       </div>
       <ArrowUpRight
-        className="size-5 shrink-0 text-rduc-muted transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-rduc-red"
+        className="size-5 shrink-0 text-rduc-muted transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#3ea1ff]"
         strokeWidth={2}
         aria-hidden
       />
@@ -66,75 +52,78 @@ function ContactCard({ contact }: { contact: ContactLink }) {
   );
 }
 
-export function CommunityLinks() {
-  const communityContacts = contacts.filter((contact) => contact.name === "Discord");
-
+function DonationCard() {
   return (
-    <section className="border-y border-rduc-border bg-[#0b0b0b]">
-      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-6 px-6 py-10 lg:flex-row lg:items-center lg:px-24 lg:py-12">
-        <div className="rduc-rise-in lg:w-[38%]">
-          <p className="font-mono text-xs font-bold uppercase tracking-wide text-rduc-red">Cộng đồng DAWA</p>
-          <h2 className="mt-3 font-display text-2xl sm:text-3xl">Luôn kết nối cùng đội ngũ</h2>
-          <p className="mt-3 max-w-[460px] text-sm leading-6 text-rduc-muted">
-            Tham gia cộng đồng để nhận hỗ trợ, cập nhật phiên bản mới và chia sẻ trải nghiệm chơi game.
-          </p>
+    <div className="rduc-stagger-item rduc-delay-2 w-full max-w-[620px] rounded-[28px] border border-[#1e72ff]/40 bg-[#0d1117] p-4 text-white shadow-[0_20px_40px_rgba(12,19,31,0.5)]">
+      <div className="flex items-center justify-between gap-3 rounded-[18px] border border-white/5 bg-[#121a24] px-5 py-4">
+        <div className="flex items-center gap-3">
+          <div className="flex size-12 items-center justify-center rounded-full bg-[#1d2b3a] text-xl text-[#3ea1ff] shadow-sm">✦</div>
+          <div className="font-display text-[20px] font-bold tracking-tight text-white sm:text-[22px]">TON THAT VO QUOC TIEN</div>
+        </div>
+        <ChevronDown className="size-6 shrink-0 text-[#cfe6ff]" strokeWidth={2.5} aria-hidden />
+      </div>
+
+      <div className="mt-4 grid gap-5 rounded-[22px] border border-[#1d2d44] bg-[#101821] p-4 sm:grid-cols-[170px_1fr] sm:p-6">
+        <div className="flex items-center justify-center rounded-[18px] bg-white p-3 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)]">
+          <Image src="/donate-qr.png" alt="Mã QR ủng hộ DAWA" width={170} height={170} className="h-[150px] w-[150px] object-contain sm:h-[170px] sm:w-[170px]" />
         </div>
 
-        <div className="flex flex-1 justify-center lg:justify-end">
-          <div className="w-full max-w-[560px]">
-            {communityContacts.map((contact, index) => (
-              <div key={contact.name} className={`rduc-rise-in ${index === 0 ? "rduc-delay-1" : "rduc-delay-2"}`}>
-                <ContactCard contact={contact} />
-              </div>
-            ))}
+        <div className="flex flex-col justify-center">
+          <div className="mb-4 flex items-center justify-between gap-2">
+            <div className="flex items-end gap-1 text-[24px] font-black leading-none tracking-tight sm:text-[28px]">
+              <span className="text-[#e63845]">VIET</span>
+              <span className="text-[#3ea1ff]">QR</span>
+            </div>
+            <div className="text-[20px] font-black tracking-tight text-[#3ea1ff] sm:text-[24px]">MB</div>
+          </div>
+
+          <div className="rounded-[12px] bg-[#f5f8ff] px-4 py-3 text-center shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]">
+            <p className="text-[18px] font-black tracking-[0.08em] text-[#111827] sm:text-[22px]">70511200799999</p>
+          </div>
+
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[#223247] pt-4 text-[13px] font-black text-white sm:text-[16px]">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[#d62839]">VIET</span>
+              <span className="text-[#3ea1ff]">QR</span>
+              <span className="text-[#dfe9f8]">Pay</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[#d62839]">VIET</span>
+              <span className="text-[#3ea1ff]">QR</span>
+              <span className="text-[#dfe9f8]">Global</span>
+            </div>
+            <div className="text-[#48d39b]">napas 247</div>
           </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
 
 export function ContactDonate() {
   return (
-    <section id="contact" className="scroll-mt-[84px] bg-rduc-darker">
-      <div className="mx-auto w-full max-w-[1440px] px-6 py-20 lg:px-24 lg:py-[120px]">
-        <div className="grid items-start gap-12 lg:grid-cols-[1fr_420px] lg:gap-20">
-          <div className="rduc-rise-in">
-            <SectionHeader
-              badge="Liên hệ & Ủng hộ"
-              title="Chung tay xây dựng DAWA"
-              sub="Theo dõi các kênh của DAWA hoặc ủng hộ dự án để chúng tôi tiếp tục tối ưu trải nghiệm chơi game."
-            />
+    <section id="contact" className="scroll-mt-[84px] bg-transparent">
+      <div className="mx-auto w-full max-w-[1440px] px-6 py-16 lg:px-24 lg:py-[120px]">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center">
+          <div className="rduc-stagger-item rduc-delay-1 w-full">
+            <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-[#3ea1ff]">Liên hệ & Ủng hộ</p>
+            <h2 className="mt-4 font-display text-4xl leading-tight text-white sm:text-5xl">Thông tin liên hệ & Phương thức chuyển khoản</h2>
+            <p className="mt-4 max-w-[520px] text-base leading-7 text-rduc-muted">
+              Theo dõi kênh của DAWA hoặc ủng hộ dự án để chúng tôi tiếp tục tối ưu trải nghiệm chơi game.
+            </p>
 
-            <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {contacts
-                .filter((contact) => contact.name !== "Discord")
-                .map((contact, index) => (
-                  <div key={contact.name} className={`rduc-rise-in ${index === 0 ? "rduc-delay-1" : "rduc-delay-2"}`}>
-                    <ContactCard contact={contact} />
-                  </div>
-                ))}
+            <div className="mt-8 max-w-[430px]">
+              {contacts.map((contact, index) => (
+                <div key={contact.name} className={`rduc-stagger-item ${index === 0 ? "rduc-delay-2" : "rduc-delay-3"}`}>
+                  <ContactCard contact={contact} />
+                </div>
+              ))}
             </div>
           </div>
 
-          <a
-            href="https://zypage.vn/rduc"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Mở trang ủng hộ DAWA"
-            className="rduc-rise-in rduc-delay-2 group relative overflow-hidden rounded-lg border border-rduc-red/60 bg-black p-8 transition-all duration-300 hover:-translate-y-1 hover:border-rduc-red hover:shadow-[0_16px_45px_rgba(255,27,45,0.16)]"
-          >
-            <div className="pointer-events-none absolute -right-16 -top-16 size-44 rounded-full bg-rduc-red/10 blur-3xl" aria-hidden />
-            <div className="relative flex flex-col items-center text-center">
-              <span className="font-mono text-xs font-bold uppercase tracking-wide text-rduc-red">Ủng hộ dự án</span>
-              <div className="mt-6 rounded-md bg-white p-3 transition-transform duration-300 group-hover:scale-105">
-                <Image src="/donate-qr.svg" alt="Mã QR mở trang ủng hộ DAWA" width={176} height={176} className="size-44 rduc-image-bright" />
-              </div>
-              <span className="mt-6 font-display text-xl">Quét mã để ủng hộ</span>
-              <span className="mt-2 text-sm leading-6 text-rduc-muted">Mỗi đóng góp giúp DAWA tiếp tục miễn phí cho cộng đồng game thủ.</span>
-              <span className="rduc-pulse-line mt-6 h-1 w-24 rounded-full bg-rduc-red" aria-hidden />
-            </div>
-          </a>
+          <div className="rduc-stagger-item rduc-delay-2 w-full lg:flex lg:justify-center">
+            <DonationCard />
+          </div>
         </div>
       </div>
     </section>

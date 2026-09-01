@@ -18,10 +18,11 @@ export const catalogGroups: CatalogGroup[] = [
   { title: "Tài khoản Rockstar FiveM", items: ["Code-Rockstar", "Tài-Khoản-Rockstar", "Tài-Khoản-Steam", "Discord"], icon: User },
 ];
 
-const catalogImages = ["/games/valorant.png", "/games/cs2.png", "/games/apex-legends.png", "/games/fortnite.png", "/games/league-of-legends.png", "/games/overwatch-2.png"];
+const catalogImages = ["/banner5.jpg", "/banner5.jpg", "/banner5.jpg", "/banner5.jpg", "/banner5.jpg", "/banner5.jpg"];
 
 const groupImages: Record<string, string> = {
-  Windows: "/catalog/windows/win10.png",
+  Windows: "/banner5.jpg",
+  Setting: "/banner5.jpg",
 };
 
 export const windowsProductDetails: Record<string, { label: string; description: string }> = {
@@ -86,9 +87,9 @@ function HomepageCatalogCard({ group, index }: { group: CatalogGroup; index: num
           alt=""
           fill
           sizes="(max-width: 767px) 100vw, 50vw"
-          className="rduc-image-bright object-cover opacity-40 transition duration-500 group-hover:scale-105 group-hover:opacity-55"
+          className="object-cover opacity-100 transition duration-500 group-hover:scale-105 group-hover:brightness-50 group-hover:saturate-50"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/75 to-black/20" aria-hidden />
+        <div className="absolute inset-0 bg-black/25 transition-opacity duration-300 group-hover:bg-black/80" aria-hidden />
       </div>
       <div className="relative flex min-h-[230px] flex-col justify-between p-6 sm:p-7">
         <div className="flex items-start justify-between gap-4">
@@ -101,7 +102,7 @@ function HomepageCatalogCard({ group, index }: { group: CatalogGroup; index: num
           <h3 className="font-display text-2xl sm:text-3xl">{group.title}</h3>
         </div>
       </div>
-      <div className="rduc-hover-content absolute inset-0 z-10 flex flex-col justify-end overflow-hidden rounded-lg bg-black p-6 sm:p-7">
+      <div className="rduc-hover-content absolute inset-0 z-10 flex flex-col justify-end overflow-hidden rounded-lg border border-white/10 bg-white/5 p-6 backdrop-blur-[1px] sm:p-7">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="font-display text-xl sm:text-2xl">{group.title}</h3>
@@ -125,7 +126,7 @@ function HomepageCatalogCard({ group, index }: { group: CatalogGroup; index: num
 
 export function ProductCatalog() {
   return (
-    <section id="catalog" className="scroll-mt-[84px] border-b border-rduc-border bg-rduc-darker">
+    <section id="catalog" className="scroll-mt-[84px] border-b border-rduc-border bg-transparent">
       <div className="mx-auto w-full max-w-[1440px] px-6 py-20 lg:px-24 lg:py-[120px]">
         <SectionHeader
           badge="Danh mục sản phẩm"

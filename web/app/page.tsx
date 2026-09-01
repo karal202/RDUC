@@ -4,7 +4,7 @@ import { Features } from "./components/Features";
 import { Games } from "./components/Games";
 import { ProductCatalog } from "./components/ProductCatalog";
 import { Cta } from "./components/Cta";
-import { CommunityLinks, ContactDonate } from "./components/ContactDonate";
+import { ContactDonate } from "./components/ContactDonate";
 import { Footer } from "./components/Footer";
 
 /**
@@ -17,12 +17,12 @@ export default function Home() {
       <Header />
       <main className="flex-1">
         <Hero />
-        <CommunityLinks />
+        <ContactDonate />
         <ProductCatalog />
         <Features />
         <Games />
         <Cta />
-        <ContactDonate />
+        
       </main>
       <Footer />
     </>

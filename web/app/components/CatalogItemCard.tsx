@@ -14,14 +14,14 @@ export function CatalogItemCard({ item, image }: CatalogItemCardProps) {
   return (
     <article className="group/item rduc-catalog-card relative z-0 h-[360px] w-[220px] shrink-0 group-hover/item:z-10 sm:w-[250px]">
       <div className="absolute inset-0 z-0 overflow-hidden rounded-lg border border-rduc-border bg-[#121823] shadow-[0_0_30px_rgba(22,119,255,0.08)]">
-        <Image src={image} alt="" fill sizes="250px" className="object-cover scale-[1.04] opacity-70 brightness-110 saturate-110 contrast-110 transition duration-500 group-hover/item:opacity-90" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#05070b]/90 via-[#0b1220]/60 to-[#0b1220]/20" aria-hidden />
+        <Image src={image} alt="" fill sizes="250px" className="object-cover scale-[1.04] opacity-100 brightness-100 saturate-100 contrast-100 transition duration-500 group-hover/item:brightness-50 group-hover/item:saturate-50" />
+        <div className="absolute inset-0 bg-black/25 transition-opacity duration-300 group-hover/item:bg-black/80" aria-hidden />
       </div>
       <div className="relative z-10 flex h-full w-full flex-col justify-end rounded-lg p-6">
         <div className="mb-auto flex size-10 items-center justify-center border border-rduc-red/60 bg-black/70 font-mono text-sm text-rduc-red">#</div>
         <h3 className="mt-2 break-words font-display text-lg leading-tight">{details?.label ?? item}</h3>
       </div>
-      <div className="rduc-hover-content absolute inset-0 z-10 flex flex-col justify-end overflow-y-auto rounded-lg bg-black p-6">
+      <div className="rduc-hover-content absolute inset-0 z-10 flex flex-col justify-end overflow-y-auto rounded-lg border border-white/10 bg-white/5 p-6 backdrop-blur-[1px]">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h3 className="break-words font-display text-lg leading-tight">{details?.label ?? item}</h3>

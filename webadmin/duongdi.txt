@@ -1,0 +1,6 @@
+[Web tĩnh] --> [Nút Download] --> file .exe
+                                      |
+                                nhập Key --> gọi API (Backend) --> kiểm tra trong Database
+                                                                         |
+                                                                    trả về: hợp lệ/không hợp lệ
+                                                                    đây là của theo hứng của tui 
