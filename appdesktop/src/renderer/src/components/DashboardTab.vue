@@ -3,7 +3,14 @@ import { ref, onMounted, onUnmounted } from 'vue'
 
 const stats = ref({
   cpu: { brand: 'Intel / AMD CPU', usagePercent: 0, speed: 0, cores: 0, temp: null },
-  gpu: { model: 'NVIDIA / AMD GPU', vram: 'N/A', usagePercent: null, temp: null },
+  gpu: {
+    model: 'NVIDIA / AMD GPU',
+    vendor: 'N/A',
+    vram: 'N/A',
+    usagePercent: null,
+    temp: null,
+    hasDiscreteGpu: false
+  },
   ram: { totalGB: '0', usedGB: '0', freeGB: '0', usagePercent: 0 },
   system: { platform: 'win32', hostname: 'PC-HOST', uptimeSeconds: 0, arch: 'x64' }
 })
@@ -36,7 +43,7 @@ const formatUptime = (seconds) => {
 
 onMounted(() => {
   fetchStats()
-  timer = setInterval(fetchStats, 1500)
+  timer = setInterval(fetchStats, 2000)
 })
 
 onUnmounted(() => {
@@ -49,10 +56,7 @@ onUnmounted(() => {
     <!-- Header Summary Banner -->
     <div
       class="dashboard-card"
-      style="
-        background: linear-gradient(135deg, rgba(255, 27, 45, 0.12), rgba(13, 18, 29, 0.8));
-        border-color: rgba(255, 27, 45, 0.3);
-      "
+      style="border-color: rgba(22, 119, 255, 0.2);"
     >
       <div style="display: flex; align-items: center; justify-content: space-between">
         <div>
@@ -60,14 +64,14 @@ onUnmounted(() => {
             style="
               font-size: 11px;
               font-family: var(--font-mono);
-              color: var(--accent-red);
-              font-weight: 700;
+              color: var(--accent-primary);
+              font-weight: 600;
               text-transform: uppercase;
               letter-spacing: 1px;
               margin-bottom: 4px;
             "
           >
-            🔴 REAL-TIME MONITORING MODE
+            REAL-TIME MONITORING
           </div>
           <h2 style="font-size: 20px; font-weight: 800; color: #ffffff">
             THÔNG SỐ PHẦN CỨNG MÁY TÍNH
@@ -130,7 +134,7 @@ onUnmounted(() => {
               style="
                 font-size: 22px;
                 font-weight: 800;
-                color: var(--accent-red);
+                color: var(--accent-primary);
                 font-family: var(--font-mono);
               "
             >
@@ -254,7 +258,7 @@ onUnmounted(() => {
     <!-- Secondary Grid: GPU & OS Specs -->
     <div class="grid-2">
       <!-- GPU Card -->
-      <div class="dashboard-card">
+      <div v-if="stats.gpu.hasDiscreteGpu" class="dashboard-card">
         <div class="card-header">
           <div class="card-title">
             <div
@@ -264,7 +268,7 @@ onUnmounted(() => {
               🖥️
             </div>
             <div>
-              <div>CARD ĐỒ HỌA (GPU)</div>
+              <div>CARD ĐỒ HỌA RỜI (GPU)</div>
               <div style="font-size: 11px; font-weight: 400; color: var(--text-muted)">
                 {{ stats.gpu.model }}
               </div>
@@ -275,7 +279,7 @@ onUnmounted(() => {
         <div
           style="
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 10px;
             margin-top: 12px;
             font-size: 12px;
@@ -294,11 +298,17 @@ onUnmounted(() => {
             </div>
           </div>
           <div>
+            <div style="color: var(--text-dim); font-size: 10px">TỶ LỆ SỬ DỤNG</div>
+            <div style="font-weight: 700; font-family: var(--font-mono); color: var(--accent-green)">
+              {{ stats.gpu.usagePercent != null ? stats.gpu.usagePercent + '%' : 'N/A' }}
+            </div>
+          </div>
+          <div>
             <div style="color: var(--text-dim); font-size: 10px">NHIỆT ĐỘ GPU</div>
             <div
               style="font-weight: 700; font-family: var(--font-mono); color: var(--accent-amber)"
             >
-              {{ stats.gpu.temp ? stats.gpu.temp + ' °C' : 'Chuẩn GPU' }}
+              {{ stats.gpu.temp != null ? stats.gpu.temp + ' °C' : 'N/A' }}
             </div>
           </div>
         </div>
