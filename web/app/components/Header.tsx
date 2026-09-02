@@ -41,7 +41,7 @@ export function Header() {
           ))}
         </nav>
 
-            <ButtonPrimary href="/downloads/dawa-system-check-1.0.0.exe?v=20260902" download>
+            <ButtonPrimary href="https://github.com/karal202/RDUC/releases/download/v1.0.0/DAWA.System.Check.Setup.1.0.0.exe" download>
           Tải xuống
         </ButtonPrimary>
       </div>
