@@ -25,7 +25,7 @@ export function Cta() {
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-4">
-          <ButtonPrimary href="/downloads/dawa-system-check-1.0.0.exe?v=20260902" download withIcon>
+          <ButtonPrimary href="https://github.com/karal202/RDUC/releases/download/v1.0.0/DAWA.System.Check.Setup.1.0.0.exe" download withIcon>
             Tải DAWA ngay
           </ButtonPrimary>
           <ButtonOutline href="#">Xem thông số hệ thống</ButtonOutline>
