@@ -56,7 +56,7 @@ export function Hero() {
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
-            <ButtonPrimary href="/downloads/dawa-system-check-1.0.0.exe" download withIcon>
+            <ButtonPrimary href="/downloads/dawa-system-check-1.0.0.exe?v=20260902" download withIcon>
               Tải xuống miễn phí
             </ButtonPrimary>
             <ButtonOutline href="#features">Xem thêm</ButtonOutline>

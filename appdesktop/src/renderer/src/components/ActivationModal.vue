@@ -57,25 +57,39 @@ const handleActivate = async () => {
 <template>
   <div class="modal-overlay">
     <div class="key-modal">
-      <div style="font-size: 40px; margin-bottom: 12px">🛡️</div>
-      <h2 style="font-size: 22px; font-weight: 800; color: #ffffff; margin-bottom: 6px">
-        KÍCH HOẠT BẢN QUYỀN DAWA SYSTEM
+      <div
+        style="
+          width: 36px; height: 36px; border-radius: 6px;
+          background-color: var(--accent-primary-ghost);
+          color: var(--accent-primary);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 18px; margin: 0 auto 16px;
+          border: 1px solid rgba(22, 119, 255, 0.2);
+        "
+      >
+        🛡️
+      </div>
+      <h2 style="font-family: var(--font-display); font-size: 20px; font-weight: 800; color: #ffffff; margin-bottom: 6px">
+        KÍCH HOẠT BẢN QUYỀN
       </h2>
-      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 24px">
-        Vui lòng nhập License Key chính hãng để kích hoạt đầy đủ tính năng ứng dụng.
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.5">
+        Nhập License Key để kích hoạt đầy đủ tính năng ứng dụng.
       </p>
 
       <div style="margin-bottom: 20px; text-align: left">
         <label
           style="
             display: block;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
-            color: var(--text-muted);
+            color: var(--text-dim);
             margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: var(--font-mono);
           "
         >
-          MÃ KEY KÍCH HOẠT (12 KÝ TỰ HOẶC ĐỊNH DẠNG XXXX-XXXX-XXXX)
+          MÃ KEY KÍCH HOẠT
         </label>
         <input
           v-model="keyCode"
@@ -125,8 +139,8 @@ const handleActivate = async () => {
         :disabled="isLoading"
         @click="handleActivate"
       >
-        <span v-if="isLoading">⏳ ĐANG XÁC THỰC VỚI SERVER...</span>
-        <span v-else>🚀 KÍCH HOẠT VÀ VÀO APP</span>
+        <span v-if="isLoading">Đang xác thực...</span>
+        <span v-else>KÍCH HOẠT</span>
       </button>
 
       <div
@@ -141,7 +155,7 @@ const handleActivate = async () => {
       >
         <div style="display: flex; justify-content: space-between; margin-bottom: 8px">
           <span style="font-weight: 600; color: var(--text-dim); font-size: 12px"
-            >🌐 IP MÁY TÍNH:</span
+            >IP MÁY TÍNH:</span
           >
           <span style="color: #38bdf8; font-weight: 700; font-family: monospace">{{
             deviceIp || '127.0.0.1'
@@ -182,7 +196,7 @@ const handleActivate = async () => {
           gap: 6px;
         "
       >
-        <span>🛡️ Hardware-Bound Activation by DAWA Security</span>
+        <span>Hardware-Bound Activation by DAWA Security</span>
       </div>
     </div>
   </div>

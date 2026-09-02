@@ -27,12 +27,11 @@ const handleRestartBIOS = async () => {
 
 <template>
   <div style="display: flex; flex-direction: column; gap: 20px">
-    <div class="dashboard-card" style="border-color: rgba(255, 27, 45, 0.4)">
+    <div class="dashboard-card">
       <div class="card-header">
         <div class="card-title">
           <div
             class="card-icon"
-            style="background-color: rgba(255, 27, 45, 0.2); color: var(--accent-red)"
           >
             ⚙️
           </div>

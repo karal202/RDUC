@@ -5,6 +5,7 @@ import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import path from "path";
 import rootRouter from "./src/routers/root.router.js";
 
 dotenv.config();
@@ -32,8 +33,20 @@ app.use(
 app.use(express.json({ limit: "1mb" }));
 app.use(cors({ origin: true, credentials: true }));
 
+const releaseDir = path.resolve(process.cwd(), "../../appdesktop/release");
+
 app.get("/health", (req, res) => {
   res.json({ success: true, message: "Backend is running" });
+});
+
+app.use("/updates", express.static(releaseDir));
+app.get("/updates", (req, res) => {
+  res.json({
+    success: true,
+    message: "Update directory is active.",
+    path: releaseDir,
+    files: [],
+  });
 });
 
 app.use("/api", rootRouter);

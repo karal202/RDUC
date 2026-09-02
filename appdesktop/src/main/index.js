@@ -1,221 +1,66 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import fs from 'fs'
 import path from 'path'
-import crypto from 'crypto'
 import os from 'os'
 import { execFile } from 'child_process'
 import si from 'systeminformation'
+import {
+  formatGpuVram,
+  getDiscreteGpuController,
+  getStaticInfo,
+  isLikelyDiscreteGpu
+} from './services/systemInfo'
+import {
+  createLicenseStore,
+  getHardwareHash,
+  validateWithBackend,
+  verifyLocalLicense
+} from './services/licenseService'
+import { ALLOWED_DAWA_SCRIPTS, runDawaScript } from './services/dawaScripts'
 
-const SECRET_SALT = 'DAWA_SECURITY_KEY_SALT_2026_x98f'
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3069/api/license/validate'
+const APP_VERSION_URL = process.env.APP_VERSION_URL || 'http://localhost:3069/api/app-version'
 const LICENSE_FILE_PATH = path.join(app.getPath('userData'), 'dawa_license_vault.dat')
+const WINDOWS_SHUTDOWN_PATH = path.join(
+  process.env.SystemRoot || 'C:\\Windows',
+  'System32',
+  'shutdown.exe'
+)
+const licenseStore = createLicenseStore(LICENSE_FILE_PATH)
 
-const ALLOWED_DAWA_SCRIPTS = Object.freeze({
-  'dawa-gaming-boost': {
-    description: 'Tối ưu Gaming High Performance',
-    commands: [
-      ['powercfg', ['/s', '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c']],
-      ['sc', ['config', 'SysMain', 'start=', 'disabled']],
-      ['sc', ['config', 'DiagTrack', 'start=', 'disabled']],
-      [
-        'reg',
-        [
-          'add',
-          'HKCU\\Software\\Microsoft\\GameBar',
-          '/v',
-          'AutoGameModeEnabled',
-          '/t',
-          'REG_DWORD',
-          '/d',
-          '1',
-          '/f'
-        ]
-      ]
-    ]
-  },
-  'dawa-cleaner': {
-    description: 'Dọn dẹp bộ nhớ tạm & Cache',
-    commands: [
-      ['cmd.exe', ['/c', 'del /q /s %TEMP%\\*.* 2>nul']],
-      ['cmd.exe', ['/c', 'del /q /s C:\\Windows\\Prefetch\\*.* 2>nul']],
-      [
-        'rundll32.exe',
-        ['advpack.dll,LaunchINFSection', 'C:\\Windows\\inf\\cleanmgr.inf', 'DefaultInstall']
-      ]
-    ]
-  },
-  'dawa-power-plan': {
-    description: 'Kích hoạt Power Plan Tối Thượng',
-    commands: [
-      ['powercfg', ['/s', '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c']],
-      ['powercfg', ['/change', 'monitor-timeout-ac', '0']],
-      ['powercfg', ['/change', 'standby-timeout-ac', '0']]
-    ]
+function compareVersions(currentVersion, latestVersion) {
+  const coerce = (value) => {
+    const normalized = `${value || '0'}`.trim().replace(/[^0-9.]+/g, '')
+    const parts = normalized.split('.').map((part) => Number(part || 0))
+    while (parts.length < 3) parts.push(0)
+    return parts
   }
-})
 
-async function getHardwareHash() {
+  const a = coerce(currentVersion)
+  const b = coerce(latestVersion)
+
+  for (let index = 0; index < 3; index += 1) {
+    if (a[index] > b[index]) return 1
+    if (a[index] < b[index]) return -1
+  }
+
+  return 0
+}
+
+async function getLatestAppVersion() {
   try {
-    const system = await si.system()
-    const cpu = await si.cpu()
-    const osInfo = await si.osInfo()
-
-    const rawHardwareString = `${system.uuid || ''}-${system.serial || ''}-${cpu.manufacturer || ''}-${cpu.brand || ''}-${osInfo.serial || ''}-${os.hostname()}`
-    return crypto
-      .createHash('sha256')
-      .update(rawHardwareString || 'fallback_hwid')
-      .digest('hex')
-  } catch {
-    const fallbackString = `${os.hostname()}-${os.arch()}-${os.platform()}-${os.cpus()[0]?.model || ''}`
-    return crypto.createHash('sha256').update(fallbackString).digest('hex')
-  }
-}
-
-function calculateSignature(keyCode, deviceHash, timestamp) {
-  const data = `${keyCode}:${deviceHash}:${timestamp}:${SECRET_SALT}`
-  return crypto.createHmac('sha256', SECRET_SALT).update(data).digest('hex')
-}
-
-function verifyLocalLicense(licenseData, currentDeviceHash) {
-  if (!licenseData || !licenseData.keyCode || !licenseData.deviceHash || !licenseData.signature) {
-    return { valid: false, message: 'Dữ liệu license không hợp lệ' }
-  }
-
-  if (licenseData.deviceHash !== currentDeviceHash) {
-    return { valid: false, message: 'License không tương thích với thiết bị này (HWID Mismatch)' }
-  }
-
-  const expectedSig = calculateSignature(
-    licenseData.keyCode,
-    licenseData.deviceHash,
-    licenseData.timestamp
-  )
-  if (licenseData.signature !== expectedSig) {
-    return { valid: false, message: 'Phát hiện can thiệp vào file license (Signature Invalid)' }
-  }
-
-  if (licenseData.expiresAt && new Date(licenseData.expiresAt).getTime() < Date.now()) {
-    return { valid: false, message: 'Key kích hoạt đã hết hạn' }
-  }
-
-  return { valid: true, keyCode: licenseData.keyCode, activatedAt: licenseData.activatedAt }
-}
-
-function saveLocalLicense(keyCode, deviceHash, expiresAt = null) {
-  const timestamp = Date.now()
-  const signature = calculateSignature(keyCode, deviceHash, timestamp)
-  const data = {
-    keyCode,
-    deviceHash,
-    timestamp,
-    activatedAt: new Date().toISOString(),
-    expiresAt,
-    signature
-  }
-  const dir = path.dirname(LICENSE_FILE_PATH)
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-  fs.writeFileSync(LICENSE_FILE_PATH, JSON.stringify(data), { encoding: 'utf-8', mode: 0o600 })
-  return data
-}
-
-function clearLocalLicense() {
-  if (fs.existsSync(LICENSE_FILE_PATH)) {
-    try {
-      fs.unlinkSync(LICENSE_FILE_PATH)
-    } catch (err) {
-      console.error('Failed to remove license file:', err)
-    }
-  }
-}
-
-function getStoredLicense() {
-  if (!fs.existsSync(LICENSE_FILE_PATH)) return null
-  try {
-    const raw = fs.readFileSync(LICENSE_FILE_PATH, 'utf-8')
-    return JSON.parse(raw)
-  } catch {
-    return null
-  }
-}
-
-async function validateWithBackend(keyCode, deviceHash) {
-  const osInfo = `${os.type()} ${os.release()} (${os.arch()})`
-  const deviceName = os.hostname()
-
-  try {
-    const response = await fetch(BACKEND_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        key_code: keyCode,
-        device_hash: deviceHash,
-        device_name: deviceName,
-        os_info: osInfo
-      })
-    })
-
+    const response = await fetch(APP_VERSION_URL, { method: 'GET' })
+    if (!response.ok) return { success: false }
     const data = await response.json()
-    return data
+    return {
+      success: true,
+      version: data?.version || app.getVersion(),
+      name: data?.name || app.getName()
+    }
   } catch (error) {
-    console.error('Backend connection failed:', error.message)
-    return {
-      success: false,
-      valid: false,
-      isOffline: true,
-      message:
-        'Không thể kết nối đến máy chủ xác thực key. Kiểm tra kết nối mạng hoặc server backend.'
-    }
-  }
-}
-
-function runWhitelistedCommand(file, args) {
-  return new Promise((resolve) => {
-    const child = execFile(
-      file,
-      args,
-      { windowsHide: true, timeout: 60000 },
-      (error, stdout, stderr) => {
-        resolve({
-          success: !error,
-          code: error?.code ?? 0,
-          stdout: stdout?.toString() ?? '',
-          stderr: stderr?.toString() ?? ''
-        })
-      }
-    )
-    child.unref()
-  })
-}
-
-async function runDawaScript(scriptKey) {
-  const script = ALLOWED_DAWA_SCRIPTS[scriptKey]
-  if (!script) {
-    return {
-      success: false,
-      message: `Script [${scriptKey}] không nằm trong danh sách được phép thực thi.`
-    }
-  }
-
-  const outputs = []
-  for (const [file, args] of script.commands) {
-    const res = await runWhitelistedCommand(file, args)
-    outputs.push({ file, args: args.join(' '), ...res })
-    if (!res.success) {
-      return {
-        success: false,
-        message: `Lỗi khi thực thi bước ${file} ${args.join(' ')}: ${res.stderr}`,
-        stepResults: outputs
-      }
-    }
-  }
-
-  return {
-    success: true,
-    message: `Đã thực thi thành công script [${script.description}]`,
-    stepResults: outputs
+    return { success: false, message: error.message }
   }
 }
 
@@ -280,9 +125,70 @@ function createWindow() {
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.dawa.optimizer')
 
+  // Warm-up static cache ngay khi app khởi động
+  // → khi user vào Dashboard, CPU/GPU info đã sẵn, không cần fetch lại
+  getStaticInfo().catch(() => {})
+
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
+
+  ipcMain.handle('app:check-version', async () => {
+    const currentVersion = app.getVersion()
+    const latestVersionInfo = await getLatestAppVersion()
+
+    if (!latestVersionInfo.success) {
+      return {
+        currentVersion,
+        latestVersion: null,
+        isOutdated: false,
+        message: 'Không thể kiểm tra phiên bản mới từ server.'
+      }
+    }
+
+    const latestVersion = latestVersionInfo.version || currentVersion
+    const isOutdated = compareVersions(currentVersion, latestVersion) < 0
+
+    return {
+      currentVersion,
+      latestVersion,
+      isOutdated,
+      message: isOutdated
+        ? `Đã có phiên bản mới ${latestVersion}. Vui lòng cập nhật ứng dụng.`
+        : 'Bạn đang chạy phiên bản mới nhất.'
+    }
+  })
+
+  autoUpdater.on('checking-for-update', () => {
+    console.log('Checking for app update...')
+  })
+
+  autoUpdater.on('update-available', (info) => {
+    console.log('Update available:', info.version)
+  })
+
+  autoUpdater.on('update-not-available', () => {
+    console.log('No app update available.')
+  })
+
+  autoUpdater.on('error', (error) => {
+    console.error('AutoUpdater error:', error)
+  })
+
+  autoUpdater.on('download-progress', (progressObj) => {
+    console.log('Download progress:', progressObj.percent)
+  })
+
+  autoUpdater.on('update-downloaded', () => {
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Cập nhật đã sẵn sàng',
+      message: 'Một bản cập nhật mới đã được tải xuống. Ứng dụng sẽ được cập nhật khi đóng lại.',
+      buttons: ['OK']
+    })
+  })
+
+  autoUpdater.checkForUpdatesAndNotify()
 
   ipcMain.handle('license:get-device-hash', async () => {
     const hwid = await getHardwareHash()
@@ -301,7 +207,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('license:check-status', async () => {
     const currentDeviceHash = await getHardwareHash()
-    const stored = getStoredLicense()
+    const stored = licenseStore.get()
 
     if (!stored) {
       return { isActivated: false, message: 'Chưa kích hoạt bản quyền' }
@@ -309,13 +215,13 @@ app.whenReady().then(() => {
 
     const localCheck = verifyLocalLicense(stored, currentDeviceHash)
     if (!localCheck.valid) {
-      clearLocalLicense()
+      licenseStore.clear()
       return { isActivated: false, message: localCheck.message }
     }
 
     const remoteResult = await validateWithBackend(stored.keyCode, currentDeviceHash)
     if (remoteResult.success && remoteResult.valid) {
-      saveLocalLicense(stored.keyCode, currentDeviceHash, remoteResult.data?.expires_at)
+      licenseStore.save(stored.keyCode, currentDeviceHash, remoteResult.data?.expires_at)
       return {
         isActivated: true,
         keyCode: stored.keyCode,
@@ -331,7 +237,7 @@ app.whenReady().then(() => {
         message: 'Đã xác thực offline theo chứng thư phần cứng'
       }
     } else {
-      clearLocalLicense()
+      licenseStore.clear()
       return {
         isActivated: false,
         message: remoteResult.message || 'Key của bạn đã bị vô hiệu hóa hoặc thu hồi từ máy chủ'
@@ -350,7 +256,7 @@ app.whenReady().then(() => {
     const result = await validateWithBackend(cleanKey, currentDeviceHash)
 
     if (result.success && result.valid) {
-      saveLocalLicense(cleanKey, currentDeviceHash, result.data?.expires_at)
+      licenseStore.save(cleanKey, currentDeviceHash, result.data?.expires_at)
       return {
         success: true,
         message: result.message || 'Kích hoạt bản quyền thành công!',
@@ -366,44 +272,49 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('license:deactivate', async () => {
-    clearLocalLicense()
+    licenseStore.clear()
     return { success: true }
   })
 
   ipcMain.handle('system:get-stats', async () => {
     try {
-      const currentLoad = await si.currentLoad()
-      const mem = await si.mem()
-      const cpu = await si.cpu()
-      const cpuTemp = await si.cpuTemperature()
-      const graphics = await si.graphics()
+      // Chạy song song: load + mem + cpuTemp + gpuTemp (dynamic data)
+      const [currentLoad, mem, cpuTemp, graphics] = await Promise.all([
+        si.currentLoad(),
+        si.mem(),
+        si.cpuTemperature(),
+        si.graphics()
+      ])
 
-      const primaryGpu = graphics.controllers[0] || { model: 'N/A', vendor: 'N/A', memoryTotal: 0 }
+      // Lấy static info từ cache (không fetch lại mỗi poll)
+      const staticInfo = await getStaticInfo()
+
+      const gpuController = getDiscreteGpuController(graphics) || graphics.controllers[0] || {}
+      const hasDiscreteGpu = isLikelyDiscreteGpu(gpuController)
 
       return {
         success: true,
         cpu: {
-          manufacturer: cpu.manufacturer,
-          brand: cpu.brand,
-          speed: cpu.speed,
-          cores: cpu.cores,
+          ...staticInfo.cpu,
           usagePercent: Math.round(currentLoad.currentLoad),
-          temp: cpuTemp.main || null
+          temp: cpuTemp.main ?? cpuTemp.cores?.[0] ?? null
         },
         gpu: {
-          model: primaryGpu.model || 'Card màn hình',
-          vendor: primaryGpu.vendor || 'N/A',
-          vram: primaryGpu.memoryTotal ? `${Math.round(primaryGpu.memoryTotal / 1024)} GB` : 'N/A',
-          usagePercent: primaryGpu.utilizationGpu || null,
-          temp: primaryGpu.temperatureGpu || null
+          ...staticInfo.gpu,
+          model: gpuController.model || 'Card màn hình',
+          vendor: gpuController.vendor || 'N/A',
+          vram: formatGpuVram(gpuController.memoryTotal),
+          usagePercent: gpuController.utilizationGpu ?? null,
+          temp: gpuController.temperatureGpu ?? null,
+          hasDiscreteGpu
         },
         ram: {
           totalBytes: mem.total,
           usedBytes: mem.active || mem.total - mem.free,
           freeBytes: mem.free,
-          totalGB: (mem.total / (1024 * 1024 * 1024)).toFixed(1),
-          usedGB: ((mem.active || mem.total - mem.free) / (1024 * 1024 * 1024)).toFixed(1),
-          freeGB: (mem.free / (1024 * 1024 * 1024)).toFixed(1),
+          totalGB: (mem.total / 1073741824).toFixed(1),
+          usedGB: ((mem.active || mem.total - mem.free) / 1073741824).toFixed(1),
+          freeGB: (mem.free / 1073741824).toFixed(1),
           usagePercent: Math.round(((mem.active || mem.total - mem.free) / mem.total) * 100)
         },
         system: {
@@ -416,10 +327,7 @@ app.whenReady().then(() => {
       }
     } catch (err) {
       console.error('Failed to gather system stats:', err)
-      return {
-        success: false,
-        error: err.message
-      }
+      return { success: false, error: err.message }
     }
   })
 
@@ -429,7 +337,7 @@ app.whenReady().then(() => {
         return resolve({ success: false, message: 'Chức năng này chỉ hỗ trợ Windows.' })
       }
       const child = execFile(
-        'shutdown.exe',
+        WINDOWS_SHUTDOWN_PATH,
         ['/r', '/fw', '/t', '5'],
         { windowsHide: true, timeout: 15000 },
         (error, stdout, stderr) => {

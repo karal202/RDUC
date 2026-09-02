@@ -1,0 +1,23 @@
+# Dependencies and generated output
+**/node_modules/
+**/dist/
+**/out/
+**/.next/
+**/.cache/
+
+# Environment files and local secrets
+.env
+.env.*
+!.env.example
+
+# Logs and local tooling
+*.log
+.eslintcache
+.DS_Store
+
+# Electron and web release artifacts
+appdesktop/release/
+web/public/downloads/*.exe
+web/public/downloads/*.blockmap
+webadmin/frontend/public/downloads/*.exe
+webadmin/frontend/public/downloads/*.blockmap

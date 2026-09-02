@@ -5,6 +5,7 @@ const api = {
   checkLicenseStatus: () => ipcRenderer.invoke('license:check-status'),
   activateLicense: (keyCode) => ipcRenderer.invoke('license:activate', keyCode),
   deactivateLicense: () => ipcRenderer.invoke('license:deactivate'),
+  checkAppVersion: () => ipcRenderer.invoke('app:check-version'),
 
   getSystemStats: () => ipcRenderer.invoke('system:get-stats'),
   restartToBios: () => ipcRenderer.invoke('system:restart-to-bios'),

@@ -1,0 +1,3 @@
+export default function DownloadTab({ onOpenValidation }) {
+  return <div className="panel" style={{ background: "linear-gradient(135deg, #101625, #1e293b)" }}><div className="panel-header"><h3>🌐 Web Tải Ứng Dụng Tĩnh</h3></div><p style={{ color: "var(--text-muted)", marginBottom: 16 }}>Người dùng tải file .exe, cài đặt và nhập Key kích hoạt do Admin cấp.</p><div style={{ display: "flex", gap: 12 }}><a className="btn-primary" href="/downloads/dawa-system-check-1.0.0.exe" download style={{ textDecoration: "none" }}>🚀 Tải File .EXE</a><button className="btn-secondary" onClick={onOpenValidation}>🔐 Test Nhập Key qua API</button></div></div>;
+}

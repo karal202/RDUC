@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useSocket } from './composables/useSocket'
 import ActivationModal from './components/ActivationModal.vue'
 import DashboardTab from './components/DashboardTab.vue'
@@ -10,10 +10,26 @@ import MouseKeyboardTab from './components/MouseKeyboardTab.vue'
 import RestoreDefaultTab from './components/RestoreDefaultTab.vue'
 
 const activeTab = ref('dashboard')
+const tabComponents = {
+  dashboard: DashboardTab,
+  dawa: DawaTab,
+  bios: BiosTab,
+  network: NetworkTab,
+  mouse: MouseKeyboardTab,
+  restore: RestoreDefaultTab
+}
+const activeComponent = computed(() => tabComponents[activeTab.value])
 const isActivated = ref(false)
 const licenseInfo = ref(null)
 const isCheckingLicense = ref(true)
 const revokedAlert = ref(false)
+
+const latestVersionInfo = ref({
+  currentVersion: '0.0.0',
+  latestVersion: null,
+  isOutdated: false,
+  message: ''
+})
 
 const checkLicense = async () => {
   isCheckingLicense.value = true
@@ -36,6 +52,16 @@ const checkLicense = async () => {
     isActivated.value = false
   } finally {
     isCheckingLicense.value = false
+  }
+}
+
+const checkAppVersion = async () => {
+  try {
+    if (!window.api?.checkAppVersion) return
+    const res = await window.api.checkAppVersion()
+    latestVersionInfo.value = res
+  } catch (err) {
+    console.error('App version check error:', err)
   }
 }
 
@@ -81,6 +107,7 @@ const { connected: socketConnected } = useSocket({
 
 onMounted(() => {
   checkLicense()
+  checkAppVersion()
 })
 </script>
 
@@ -106,11 +133,11 @@ onMounted(() => {
         v-if="revokedAlert"
         style="
           position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
-          background: linear-gradient(90deg, #7f1d1d, #991b1b);
-          color: #fecaca; padding: 14px 24px;
-          display: flex; align-items: center; gap: 12px;
-          font-size: 14px; font-weight: 600;
-          border-bottom: 1px solid #f87171;
+          background: #1a0505;
+          color: #fca5a5; padding: 12px 24px;
+          display: flex; align-items: center; gap: 10px;
+          font-size: 13px; font-weight: 600;
+          border-bottom: 1px solid rgba(244, 63, 94, 0.3);
         "
       >
         <span style="font-size: 20px">🚨</span>
@@ -211,8 +238,25 @@ onMounted(() => {
               white-space: nowrap;
             "
           >
-            {{ licenseInfo?.keyCode || 'RDUC-ACTIVE-KEY' }}
+            {{ licenseInfo?.keyCode || 'DAWA-ACTIVE-KEY' }}
           </div>
+
+          <div
+            v-if="latestVersionInfo.isOutdated"
+            style="
+              margin-top: 10px;
+              padding: 6px 8px;
+              border-radius: 6px;
+              background: rgba(251, 191, 36, 0.12);
+              border: 1px solid rgba(251, 191, 36, 0.35);
+              color: #fcd34d;
+              font-size: 10px;
+              line-height: 1.5;
+            "
+          >
+            BẢN MỚI: {{ latestVersionInfo.latestVersion }}
+          </div>
+
           <!-- Socket realtime dot -->
           <div
             :style="{
@@ -239,14 +283,12 @@ onMounted(() => {
         <!-- Top Bar -->
         <header class="topbar">
           <div class="page-title">
-            <span v-if="activeTab === 'dashboard'"
-              >📊 DASHBOARD — THÔNG TIN MÁY THEO THỜI GIAN THỰC</span
-            >
-            <span v-else-if="activeTab === 'dawa'">⚡ MỤC SETTING / DAWA OPTIMIZER</span>
-            <span v-else-if="activeTab === 'bios'">⚙️ MỤC SETTING / BIOS CONTROL</span>
-            <span v-else-if="activeTab === 'network'">🌐 MỤC SETTING / NETWORK & PING</span>
-            <span v-else-if="activeTab === 'mouse'">🖱️ MỤC SETTING / MOUSE & KEYBOARD</span>
-            <span v-else-if="activeTab === 'restore'">🔄 MỤC SETTING / RESTORE DEFAULT</span>
+          <span v-if="activeTab === 'dashboard'">DASHBOARD — THÔNG SỐ MÁY</span>
+            <span v-else-if="activeTab === 'dawa'">DAWA OPTIMIZER</span>
+            <span v-else-if="activeTab === 'bios'">BIOS CONTROL</span>
+            <span v-else-if="activeTab === 'network'">NETWORK &amp; PING</span>
+            <span v-else-if="activeTab === 'mouse'">MOUSE &amp; KEYBOARD</span>
+            <span v-else-if="activeTab === 'restore'">RESTORE DEFAULT</span>
           </div>
 
           <div class="topbar-actions">
@@ -261,22 +303,19 @@ onMounted(() => {
 
             <button
               class="btn-secondary"
-              style="padding: 6px 12px; font-size: 12px"
+              style="padding: 5px 12px; font-size: 12px"
               @click="handleDeactivate"
             >
-              🔒 KHÓA KEY
+              KHÓA KEY
             </button>
           </div>
         </header>
 
         <!-- Dynamic Content Body -->
         <div class="tab-container">
-          <DashboardTab v-if="activeTab === 'dashboard'" />
-          <DawaTab v-else-if="activeTab === 'dawa'" />
-          <BiosTab v-else-if="activeTab === 'bios'" />
-          <NetworkTab v-else-if="activeTab === 'network'" />
-          <MouseKeyboardTab v-else-if="activeTab === 'mouse'" />
-          <RestoreDefaultTab v-else-if="activeTab === 'restore'" />
+          <KeepAlive>
+            <component :is="activeComponent" />
+          </KeepAlive>
         </div>
       </main>
     </div>
