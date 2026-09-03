@@ -1,4 +1,4 @@
-export default function AdminSidebar({ activeTab, setActiveTab, dbHealth }) {
+export default function AdminSidebar({ activeTab, setActiveTab, dbHealth, onLogout }) {
   const items = [
     ["dashboard", "📊", "Dashboard Tổng quan"],
     ["users", "👤", "Quản lý Người dùng & Key"],
@@ -24,6 +24,9 @@ export default function AdminSidebar({ activeTab, setActiveTab, dbHealth }) {
           <span className={`status-dot ${dbHealth.success ? "connected" : "disconnected"}`} />
           <span>DB: {dbHealth.success ? "Sequelize ORM Ready" : "Disconnected"}</span>
         </div>
+        <button className="nav-item logout-button" type="button" onClick={onLogout}>
+          <span className="nav-icon">↪</span><span>Đăng xuất</span>
+        </button>
       </div>
     </aside>
   );
