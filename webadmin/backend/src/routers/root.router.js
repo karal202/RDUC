@@ -2,6 +2,7 @@ import express from "express";
 import fs from "fs";
 import path from "path";
 import licenseRouter from "./license.router.js";
+import authRouter from "./auth.router.js";
 
 const rootRouter = express.Router();
 
@@ -28,5 +29,6 @@ rootRouter.get("/app-version", (req, res) => {
 });
 
 rootRouter.use("/license", licenseRouter);
+rootRouter.use("/auth", authRouter);
 
 export default rootRouter;
