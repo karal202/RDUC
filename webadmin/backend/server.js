@@ -36,10 +36,19 @@ const allowedOrigins = (process.env.CORS_ORIGINS || "")
   .map((origin) => origin.trim())
   .filter(Boolean);
 
-app.use(cors({
-  origin: allowedOrigins.length ? allowedOrigins : false,
+const corsOptions = {
+  origin: (requestOrigin, callback) => {
+    if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
+      return callback(null, true);
+    }
+    return callback(new Error("Origin không được phép bởi CORS."));
+  },
   credentials: true,
-}));
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+app.use(cors(corsOptions));
 
 const releaseDir = path.resolve(process.cwd(), "../../appdesktop/release");
 
@@ -69,7 +78,7 @@ app.use((err, req, res, next) => {
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-  cors: { origin: allowedOrigins.length ? allowedOrigins : false, credentials: true },
+  cors: corsOptions,
 });
 
 app.set("io", io);
