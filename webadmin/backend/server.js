@@ -31,7 +31,15 @@ app.use(
 );
 
 app.use(express.json({ limit: "1mb" }));
-app.use(cors({ origin: true, credentials: true }));
+const allowedOrigins = (process.env.CORS_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin: allowedOrigins.length ? allowedOrigins : false,
+  credentials: true,
+}));
 
 const releaseDir = path.resolve(process.cwd(), "../../appdesktop/release");
 
@@ -61,7 +69,7 @@ app.use((err, req, res, next) => {
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-  cors: { origin: true, credentials: true },
+  cors: { origin: allowedOrigins.length ? allowedOrigins : false, credentials: true },
 });
 
 app.set("io", io);

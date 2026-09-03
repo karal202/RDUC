@@ -11,10 +11,12 @@ import {
   checkDesktopLicense,
 } from "../controllers/license.controller.js";
 import { desktopLicenseMiddleware } from "../common/middleware/desktopLicense.middleware.js";
+import { authMiddleware } from "../common/middleware/auth.middleware.js";
 
 const router = express.Router();
 
 router.get("/health", getDatabaseHealth);
+router.use(["/dashboard", "/licenses", "/logs"], authMiddleware);
 router.get("/dashboard", getDashboard);
 router.get("/licenses", getLicenses);
 router.post("/licenses", createLicense);
