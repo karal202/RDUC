@@ -71,6 +71,13 @@ export async function refreshDesktopToken(req, res) {
     if (!license || license.status !== "active" || (license.expires_at && new Date(license.expires_at).getTime() < Date.now())) {
       return res.status(403).json({ success: false, message: "Key đã hết hạn hoặc bị vô hiệu hóa." });
     }
+    const device = await Device.findOne({ where: { device_hash: claims.deviceHash } });
+    const mapping = device
+      ? await KeyDeviceMap.findOne({ where: { key_id: license.id, device_id: device.id, is_active: true } })
+      : null;
+    if (!mapping) {
+      return res.status(403).json({ success: false, message: "Thiết bị không còn được kích hoạt cho key." });
+    }
     const accessToken = signDesktopAccessToken({ licenseId: claims.licenseId, deviceHash: claims.deviceHash });
     return res.json({ success: true, accessToken });
   } catch {
@@ -322,8 +329,6 @@ export async function validateLicense(req, res) {
 
     const allLicenses = await LicenseKey.findAll();
 
-    console.log(`[VALIDATE KEY] Input raw: "${rawInputKey}", norm: "${normInputKey}", normNoPrefix: "${normInputKeyNoPrefix}", Total DB Keys: ${allLicenses.length}`);
-
     const matchedLicense = allLicenses.find((row) => {
       const decrypted = decryptKey(row.key_code);
       const normDecrypted = normalizeKeyCode(decrypted);
@@ -341,12 +346,6 @@ export async function validateLicense(req, res) {
     });
 
     if (!matchedLicense) {
-      const dbKeySummary = allLicenses.map((r) => {
-        const dec = decryptKey(r.key_code);
-        return `#${r.id}: dec="${dec}" (normDec="${normalizeKeyCode(dec)}", raw="${r.key_code}")`;
-      });
-      console.log("[VALIDATE KEY FAILED] Key entered not found in DB. DB key list:", dbKeySummary);
-
       await logActivation({ keyCode: plainInputKey, deviceHash, ipAddress, result: "invalid_key" });
       return res.status(400).json({
         success: false,

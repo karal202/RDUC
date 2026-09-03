@@ -2,9 +2,14 @@ const BACKEND_URL = (import.meta.env.VITE_API_BACKEND_URL || "http://localhost:3
 const API_BASE = `${BACKEND_URL}/api/license`;
 
 export async function fetchJson(url, options = {}) {
+  const accessToken = localStorage.getItem("accessToken");
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...(options.headers || {}),
+    },
   });
 
   const text = await res.text();
