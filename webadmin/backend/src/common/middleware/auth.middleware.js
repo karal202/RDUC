@@ -1,6 +1,6 @@
 import { UnauthorizedError } from "../helpers/exception.helper.js";
 import { verifyAccessToken } from "../helpers/jwt.helper.js";
-import { prisma } from "../prisma/connect.prisma.js";
+import Admin from "../../models/admin.model.js";
 
 // nhận request từ client
 export const authMiddleware = async (req, res, next) => {
@@ -24,10 +24,8 @@ export const authMiddleware = async (req, res, next) => {
   //   req.user = decoded;
 
   // cách 2:
-  const userExist = await prisma.users.findUnique({
-    where: {
-      id: decoded.userId,
-    },
+  const userExist = await Admin.findByPk(decoded.userId, {
+    attributes: { exclude: ["password_hash"] },
   });
 
   if (!userExist) {
