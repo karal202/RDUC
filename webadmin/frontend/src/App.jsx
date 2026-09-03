@@ -15,8 +15,7 @@ const defaultLicenseForm = { customer_name: "", customer_contact: "", key_code: 
 const defaultValidationForm = { key_code: "", device_hash: "", device_name: "", os_info: "" };
 const formatDate = (value) => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? value : date.toLocaleString("vi-VN"); };
 
-function App() {
-  const [authenticated, setAuthenticated] = useState(() => Boolean(localStorage.getItem("accessToken")));
+function AdminDashboard({ onLogout }) {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [dashboard, setDashboard] = useState({});
   const [licenses, setLicenses] = useState([]);
@@ -33,7 +32,7 @@ function App() {
   const [realtimeFlash, setRealtimeFlash] = useState(false);
   const logout = () => {
     localStorage.removeItem("accessToken");
-    setAuthenticated(false);
+    onLogout();
   };
 
   const loadData = useCallback(async () => {
@@ -44,23 +43,19 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!authenticated) return undefined;
     let cancelled = false;
     queueMicrotask(() => {
       if (!cancelled) loadData();
     });
     return () => { cancelled = true; };
-  }, [authenticated, loadData]);
+  }, [loadData]);
   useEffect(() => {
-    if (!authenticated) return undefined;
     const socket = io(SOCKET_URL, { transports: ["websocket"], reconnectionDelay: 1000, reconnectionDelayMax: 5000 });
     socket.on("connect", () => setSocketConnected(true));
     socket.on("disconnect", () => setSocketConnected(false));
     socket.on("license_updated", () => { setRealtimeFlash(true); setTimeout(() => setRealtimeFlash(false), 1200); loadData(); });
     return () => socket.disconnect();
-  }, [authenticated, loadData]);
-
-  if (!authenticated) return <AdminLogin onLogin={() => setAuthenticated(true)} />;
+  }, [loadData]);
 
   const generateKey = () => { const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let raw = ""; for (let index = 0; index < 12; index += 1) raw += chars[Math.floor(Math.random() * chars.length)]; return `${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`; };
   const setError = (error) => setStatusMessage({ type: "error", text: error.message });
@@ -71,6 +66,16 @@ function App() {
   const titles = { dashboard: "📊 Dashboard Tổng quan", users: "👤 Quản lý Người dùng & Key", logs: "📜 Nhật ký Kích hoạt & IP", download: "🌐 Web Tải App & Test Key" };
 
   return <div className="admin-container"><AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} dbHealth={dbHealth} onLogout={logout} /><main className="main-content"><header className="top-header"><div><h1>{titles[activeTab]}</h1><p>Hệ thống Quản trị Bản quyền Kích hoạt Hardware Bound DAWA System</p></div><span className="status-badge activated">{realtimeFlash ? "⚡ CẬP NHẬT!" : socketConnected ? "LIVE" : "OFFLINE"}</span></header>{statusMessage.text && <div className={`status-toast ${statusMessage.type}`}>{statusMessage.text}</div>}{activeTab === "dashboard" && <DashboardTab dashboard={dashboard} loading={loading} loadData={loadData} setActiveTab={setActiveTab} />}{activeTab === "users" && <UsersTab form={licenseForm} setForm={setLicenseForm} licenses={licenses} searchTerm={userSearchTerm} setSearchTerm={setUserSearchTerm} onSubmit={submitLicense} onToggle={toggleLicenseStatus} onReset={resetBoundIp} generateKey={generateKey} formatDate={formatDate} />}{activeTab === "logs" && <LogsTab logs={logs} filter={ipFilter} setFilter={setIpFilter} formatDate={formatDate} />}{activeTab === "download" && <DownloadTab onOpenValidation={() => setShowKeyModal(true)} />}{showKeyModal && <ValidationModal form={validationForm} setForm={setValidationForm} onSubmit={submitValidation} onClose={() => setShowKeyModal(false)} />}</main></div>;
+}
+
+function App() {
+  const [authenticated, setAuthenticated] = useState(() => Boolean(localStorage.getItem("accessToken")));
+
+  if (!authenticated) {
+    return <AdminLogin onLogin={() => setAuthenticated(true)} />;
+  }
+
+  return <AdminDashboard onLogout={() => setAuthenticated(false)} />;
 }
 
 export default App;
