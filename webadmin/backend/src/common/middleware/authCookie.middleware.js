@@ -1,6 +1,6 @@
 import { UnauthorizedError } from "../helpers/exception.helper.js";
 import { verifyAccessToken } from "../helpers/jwt.helper.js";
-import { prisma } from "../prisma/connect.prisma.js";
+import Admin from "../../models/admin.model.js";
 
 export const authCookie = async (req, res, next) => {
   const { accessToken } = req.cookies;
@@ -13,10 +13,8 @@ export const authCookie = async (req, res, next) => {
   const decode = verifyAccessToken(accessToken);
 
   // kiểm tra người dùng có trong db hay không
-  const userExits = await prisma.users.findUnique({
-    where: {
-      id: decode.userId,
-    },
+  const userExits = await Admin.findByPk(decode.userId, {
+    attributes: { exclude: ["password_hash"] },
   });
 
   if (!userExits) {
