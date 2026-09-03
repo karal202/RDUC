@@ -31,7 +31,7 @@ app.use(
 );
 
 app.use(express.json({ limit: "1mb" }));
-const allowedOrigins = (process.env.CORS_ORIGINS || "")
+const allowedOrigins = (process.env.CORS_ORIGINS || "https://rductest.vercel.app,http://localhost:5173")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
