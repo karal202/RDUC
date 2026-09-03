@@ -31,6 +31,10 @@ function App() {
   const [ipFilter, setIpFilter] = useState("");
   const [socketConnected, setSocketConnected] = useState(false);
   const [realtimeFlash, setRealtimeFlash] = useState(false);
+  const logout = () => {
+    localStorage.removeItem("accessToken");
+    setAuthenticated(false);
+  };
 
   if (!authenticated) return <AdminLogin onLogin={() => setAuthenticated(true)} />;
 
@@ -64,7 +68,7 @@ function App() {
   const submitValidation = async (event) => { event.preventDefault(); try { const result = await fetchJson(`${API_BASE}/validate`, { method: "POST", body: JSON.stringify({ ...validationForm, device_hash: validationForm.device_hash || "TEST-HWID-001" }) }); setStatusMessage({ type: result.valid ? "success" : "error", text: result.message }); setValidationForm(defaultValidationForm); await loadData(); setShowKeyModal(false); } catch (error) { setError(error); } };
   const titles = { dashboard: "📊 Dashboard Tổng quan", users: "👤 Quản lý Người dùng & Key", logs: "📜 Nhật ký Kích hoạt & IP", download: "🌐 Web Tải App & Test Key" };
 
-  return <div className="admin-container"><AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} dbHealth={dbHealth} /><main className="main-content"><header className="top-header"><div><h1>{titles[activeTab]}</h1><p>Hệ thống Quản trị Bản quyền Kích hoạt Hardware Bound DAWA System</p></div><span className="status-badge activated">{realtimeFlash ? "⚡ CẬP NHẬT!" : socketConnected ? "LIVE" : "OFFLINE"}</span></header>{statusMessage.text && <div className={`status-toast ${statusMessage.type}`}>{statusMessage.text}</div>}{activeTab === "dashboard" && <DashboardTab dashboard={dashboard} loading={loading} loadData={loadData} setActiveTab={setActiveTab} />}{activeTab === "users" && <UsersTab form={licenseForm} setForm={setLicenseForm} licenses={licenses} searchTerm={userSearchTerm} setSearchTerm={setUserSearchTerm} onSubmit={submitLicense} onToggle={toggleLicenseStatus} onReset={resetBoundIp} generateKey={generateKey} formatDate={formatDate} />}{activeTab === "logs" && <LogsTab logs={logs} filter={ipFilter} setFilter={setIpFilter} formatDate={formatDate} />}{activeTab === "download" && <DownloadTab onOpenValidation={() => setShowKeyModal(true)} />}{showKeyModal && <ValidationModal form={validationForm} setForm={setValidationForm} onSubmit={submitValidation} onClose={() => setShowKeyModal(false)} />}</main></div>;
+  return <div className="admin-container"><AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} dbHealth={dbHealth} onLogout={logout} /><main className="main-content"><header className="top-header"><div><h1>{titles[activeTab]}</h1><p>Hệ thống Quản trị Bản quyền Kích hoạt Hardware Bound DAWA System</p></div><span className="status-badge activated">{realtimeFlash ? "⚡ CẬP NHẬT!" : socketConnected ? "LIVE" : "OFFLINE"}</span></header>{statusMessage.text && <div className={`status-toast ${statusMessage.type}`}>{statusMessage.text}</div>}{activeTab === "dashboard" && <DashboardTab dashboard={dashboard} loading={loading} loadData={loadData} setActiveTab={setActiveTab} />}{activeTab === "users" && <UsersTab form={licenseForm} setForm={setLicenseForm} licenses={licenses} searchTerm={userSearchTerm} setSearchTerm={setUserSearchTerm} onSubmit={submitLicense} onToggle={toggleLicenseStatus} onReset={resetBoundIp} generateKey={generateKey} formatDate={formatDate} />}{activeTab === "logs" && <LogsTab logs={logs} filter={ipFilter} setFilter={setIpFilter} formatDate={formatDate} />}{activeTab === "download" && <DownloadTab onOpenValidation={() => setShowKeyModal(true)} />}{showKeyModal && <ValidationModal form={validationForm} setForm={setValidationForm} onSubmit={submitValidation} onClose={() => setShowKeyModal(false)} />}</main></div>;
 }
 
 export default App;
