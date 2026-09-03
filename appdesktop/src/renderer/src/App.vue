@@ -108,6 +108,12 @@ const { connected: socketConnected } = useSocket({
 onMounted(() => {
   checkLicense()
   checkAppVersion()
+  window.api?.onLicenseRevoked?.(() => {
+    revokedAlert.value = true
+    isActivated.value = false
+    licenseInfo.value = null
+    setTimeout(() => { revokedAlert.value = false }, 8000)
+  })
 })
 </script>
 

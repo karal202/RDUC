@@ -6,6 +6,12 @@ const api = {
   activateLicense: (keyCode) => ipcRenderer.invoke('license:activate', keyCode),
   deactivateLicense: () => ipcRenderer.invoke('license:deactivate'),
   checkAppVersion: () => ipcRenderer.invoke('app:check-version'),
+  getAccessToken: () => ipcRenderer.invoke('license:get-access-token'),
+  onLicenseRevoked: (callback) => {
+    const listener = () => callback()
+    ipcRenderer.on('license:revoked', listener)
+    return () => ipcRenderer.removeListener('license:revoked', listener)
+  },
 
   getSystemStats: () => ipcRenderer.invoke('system:get-stats'),
   restartToBios: () => ipcRenderer.invoke('system:restart-to-bios'),

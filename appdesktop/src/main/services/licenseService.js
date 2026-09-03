@@ -3,9 +3,11 @@ import path from 'path'
 import crypto from 'crypto'
 import os from 'os'
 import si from 'systeminformation'
+import { safeStorage } from 'electron'
 
 const SECRET_SALT = 'DAWA_SECURITY_KEY_SALT_2026_x98f'
 const BACKEND_URL = process.env.BACKEND_URL || 'https://rduc.onrender.com/api/license/validate'
+const BACKEND_ORIGIN = new URL(BACKEND_URL).origin
 
 export async function getHardwareHash() {
   try {
@@ -34,6 +36,7 @@ export function verifyLocalLicense(licenseData, currentDeviceHash) {
 }
 
 export function createLicenseStore(licenseFilePath) {
+  const tokenFilePath = `${licenseFilePath}.tokens`
   return {
     save(keyCode, deviceHash, expiresAt = null) {
       const timestamp = Date.now()
@@ -47,10 +50,26 @@ export function createLicenseStore(licenseFilePath) {
       if (fs.existsSync(licenseFilePath)) {
         try { fs.unlinkSync(licenseFilePath) } catch (error) { console.error('Failed to remove license file:', error) }
       }
+      if (fs.existsSync(tokenFilePath)) {
+        try { fs.unlinkSync(tokenFilePath) } catch (error) { console.error('Failed to remove token file:', error) }
+      }
     },
     get() {
       if (!fs.existsSync(licenseFilePath)) return null
       try { return JSON.parse(fs.readFileSync(licenseFilePath, 'utf-8')) } catch { return null }
+    },
+    saveTokens(tokens) {
+      if (!tokens?.accessToken || !tokens?.refreshToken || !safeStorage.isEncryptionAvailable()) return false
+      const encrypted = safeStorage.encryptString(JSON.stringify(tokens)).toString('base64')
+      fs.writeFileSync(tokenFilePath, encrypted, { encoding: 'utf-8', mode: 0o600 })
+      return true
+    },
+    getTokens() {
+      if (!safeStorage.isEncryptionAvailable() || !fs.existsSync(tokenFilePath)) return null
+      try {
+        const encrypted = Buffer.from(fs.readFileSync(tokenFilePath, 'utf-8'), 'base64')
+        return JSON.parse(safeStorage.decryptString(encrypted))
+      } catch { return null }
     }
   }
 }
@@ -64,4 +83,18 @@ export async function validateWithBackend(keyCode, deviceHash) {
     console.error('Backend connection failed:', error.message)
     return { success: false, valid: false, isOffline: true, message: 'Không thể kết nối đến máy chủ xác thực key. Kiểm tra kết nối mạng hoặc server backend.' }
   }
+}
+
+export async function refreshWithBackend(refreshToken) {
+  const response = await fetch(`${BACKEND_ORIGIN}/api/license/desktop/refresh`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken })
+  })
+  return response.json()
+}
+
+export async function checkWithBackend(accessToken) {
+  const response = await fetch(`${BACKEND_ORIGIN}/api/license/desktop/check`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  })
+  return { status: response.status, data: await response.json() }
 }

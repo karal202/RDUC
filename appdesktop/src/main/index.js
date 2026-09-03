@@ -17,6 +17,8 @@ import {
 import {
   createLicenseStore,
   getHardwareHash,
+  refreshWithBackend,
+  checkWithBackend,
   validateWithBackend,
   verifyLocalLicense
 } from './services/licenseService'
@@ -104,6 +106,13 @@ function createWindow() {
     }
     return { action: 'deny' }
   })
+
+  if (!is.dev) {
+    mainWindow.webContents.on('devtools-opened', () => mainWindow.webContents.closeDevTools())
+    mainWindow.webContents.on('before-input-event', (_, input) => {
+      if (input.type === 'keyDown' && input.key === 'F12') mainWindow.webContents.closeDevTools()
+    })
+  }
 
   mainWindow.webContents.session.webRequest.onBeforeRequest((details, callback) => {
     if (!is.dev) {
@@ -220,31 +229,49 @@ app.whenReady().then(() => {
       return { isActivated: false, message: localCheck.message }
     }
 
-    const remoteResult = await validateWithBackend(stored.keyCode, currentDeviceHash)
-    if (remoteResult.success && remoteResult.valid) {
-      licenseStore.save(stored.keyCode, currentDeviceHash, remoteResult.data?.expires_at)
+    let tokens = licenseStore.getTokens()
+    let remoteResult = tokens
+      ? await checkWithBackend(tokens.accessToken).catch(() => ({ status: 0, data: {} }))
+      : null
+    if (remoteResult?.status === 401 && tokens?.refreshToken) {
+      const refreshed = await refreshWithBackend(tokens.refreshToken).catch(() => null)
+      if (refreshed?.success) {
+        tokens = { ...tokens, accessToken: refreshed.accessToken }
+        licenseStore.saveTokens(tokens)
+        remoteResult = await checkWithBackend(tokens.accessToken).catch(() => ({
+          status: 0,
+          data: {}
+        }))
+      }
+    }
+    if (!remoteResult || remoteResult.status === 0) {
+      const activation = await validateWithBackend(stored.keyCode, currentDeviceHash)
+      if (activation.success && activation.valid) {
+        tokens = { accessToken: activation.accessToken, refreshToken: activation.refreshToken }
+        licenseStore.saveTokens(tokens)
+        remoteResult = { data: activation }
+      } else {
+        remoteResult = { data: activation }
+      }
+    }
+    if (remoteResult?.data?.success && remoteResult.data.valid) {
       return {
         isActivated: true,
         keyCode: stored.keyCode,
         activatedAt: stored.activatedAt,
         data: remoteResult.data
       }
-    } else if (remoteResult.isOffline) {
-      return {
-        isActivated: true,
-        keyCode: stored.keyCode,
-        activatedAt: stored.activatedAt,
-        offlineMode: true,
-        message: 'Đã xác thực offline theo chứng thư phần cứng'
-      }
     } else {
       licenseStore.clear()
       return {
         isActivated: false,
-        message: remoteResult.message || 'Key của bạn đã bị vô hiệu hóa hoặc thu hồi từ máy chủ'
+        message:
+          remoteResult.data?.message || 'Key của bạn đã bị vô hiệu hóa hoặc thu hồi từ máy chủ'
       }
     }
   })
+
+  ipcMain.handle('license:get-access-token', () => licenseStore.getTokens()?.accessToken || null)
 
   ipcMain.handle('license:activate', async (_, keyCode) => {
     if (!keyCode || typeof keyCode !== 'string' || !keyCode.trim()) {
@@ -258,6 +285,10 @@ app.whenReady().then(() => {
 
     if (result.success && result.valid) {
       licenseStore.save(cleanKey, currentDeviceHash, result.data?.expires_at)
+      licenseStore.saveTokens({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken
+      })
       return {
         success: true,
         message: result.message || 'Kích hoạt bản quyền thành công!',
@@ -276,6 +307,26 @@ app.whenReady().then(() => {
     licenseStore.clear()
     return { success: true }
   })
+
+  setInterval(
+    async () => {
+      const tokens = licenseStore.getTokens()
+      if (!tokens?.accessToken) return
+      let result = await checkWithBackend(tokens.accessToken).catch(() => null)
+      if (result?.status === 401 && tokens.refreshToken) {
+        const refreshed = await refreshWithBackend(tokens.refreshToken).catch(() => null)
+        if (refreshed?.success) {
+          licenseStore.saveTokens({ ...tokens, accessToken: refreshed.accessToken })
+          result = await checkWithBackend(refreshed.accessToken).catch(() => null)
+        }
+      }
+      if (!result?.data?.success || !result.data.valid) {
+        licenseStore.clear()
+        mainWindow?.webContents.send('license:revoked')
+      }
+    },
+    5 * 60 * 1000
+  )
 
   ipcMain.handle('system:get-stats', async () => {
     try {
