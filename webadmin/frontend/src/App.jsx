@@ -36,8 +36,6 @@ function App() {
     setAuthenticated(false);
   };
 
-  if (!authenticated) return <AdminLogin onLogin={() => setAuthenticated(true)} />;
-
   const loadData = useCallback(async () => {
     setLoading(true);
     try { const data = await loadLicenseData(); setDbHealth(data.health); setDashboard(data.dashboard); setLicenses(data.licenses); setLogs(data.logs); }
@@ -46,19 +44,23 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!authenticated) return undefined;
     let cancelled = false;
     queueMicrotask(() => {
       if (!cancelled) loadData();
     });
     return () => { cancelled = true; };
-  }, [loadData]);
+  }, [authenticated, loadData]);
   useEffect(() => {
+    if (!authenticated) return undefined;
     const socket = io(SOCKET_URL, { transports: ["websocket"], reconnectionDelay: 1000, reconnectionDelayMax: 5000 });
     socket.on("connect", () => setSocketConnected(true));
     socket.on("disconnect", () => setSocketConnected(false));
     socket.on("license_updated", () => { setRealtimeFlash(true); setTimeout(() => setRealtimeFlash(false), 1200); loadData(); });
     return () => socket.disconnect();
-  }, [loadData]);
+  }, [authenticated, loadData]);
+
+  if (!authenticated) return <AdminLogin onLogin={() => setAuthenticated(true)} />;
 
   const generateKey = () => { const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let raw = ""; for (let index = 0; index < 12; index += 1) raw += chars[Math.floor(Math.random() * chars.length)]; return `${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`; };
   const setError = (error) => setStatusMessage({ type: "error", text: error.message });
