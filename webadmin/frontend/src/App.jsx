@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import "./App.css";
-import { API_BASE, fetchJson, loadLicenseData } from "./api/licenseApi";
+import { API_BASE, BACKEND_URL, fetchJson, loadLicenseData } from "./api/licenseApi";
 import AdminSidebar from "./components/AdminSidebar";
 import DashboardTab from "./components/DashboardTab";
 import UsersTab from "./components/UsersTab";
@@ -9,7 +9,7 @@ import LogsTab from "./components/LogsTab";
 import DownloadTab from "./components/DownloadTab";
 import ValidationModal from "./components/ValidationModal";
 
-const SOCKET_URL = "http://localhost:3069";
+const SOCKET_URL = BACKEND_URL;
 const defaultLicenseForm = { customer_name: "", customer_contact: "", key_code: "", max_devices: 1, expires_at: "", created_by: 1, note: "" };
 const defaultValidationForm = { key_code: "", device_hash: "", device_name: "", os_info: "" };
 const formatDate = (value) => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? value : date.toLocaleString("vi-VN"); };
