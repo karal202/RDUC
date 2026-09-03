@@ -33,15 +33,18 @@ app.use(
 app.use(express.json({ limit: "1mb" }));
 const allowedOrigins = (process.env.CORS_ORIGINS || "https://rductest.vercel.app,http://localhost:5173")
   .split(",")
-  .map((origin) => origin.trim())
+  .map((origin) => origin.trim().replace(/\/+$/, ""))
   .filter(Boolean);
+if (!allowedOrigins.includes("https://rductest.vercel.app")) {
+  allowedOrigins.push("https://rductest.vercel.app");
+}
 
 const corsOptions = {
   origin: (requestOrigin, callback) => {
     if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
       return callback(null, true);
     }
-    return callback(new Error("Origin không được phép bởi CORS."));
+    return callback(null, false);
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
