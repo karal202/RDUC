@@ -22,7 +22,7 @@ import {
 } from './services/licenseService'
 import { ALLOWED_DAWA_SCRIPTS, runDawaScript } from './services/dawaScripts'
 
-const APP_VERSION_URL = process.env.APP_VERSION_URL || 'http://localhost:3069/api/app-version'
+const APP_VERSION_URL = process.env.APP_VERSION_URL || 'https://rduc.onrender.com/api/app-version'
 const LICENSE_FILE_PATH = path.join(app.getPath('userData'), 'dawa_license_vault.dat')
 const WINDOWS_SHUTDOWN_PATH = path.join(
   process.env.SystemRoot || 'C:\\Windows',

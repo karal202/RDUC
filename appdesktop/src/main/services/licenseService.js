@@ -5,7 +5,7 @@ import os from 'os'
 import si from 'systeminformation'
 
 const SECRET_SALT = 'DAWA_SECURITY_KEY_SALT_2026_x98f'
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3069/api/license/validate'
+const BACKEND_URL = process.env.BACKEND_URL || 'https://rduc.onrender.com/api/license/validate'
 
 export async function getHardwareHash() {
   try {

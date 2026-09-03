@@ -1,7 +1,7 @@
 import { ref, onUnmounted } from 'vue'
 import { io } from 'socket.io-client'
 
-const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3069'
+const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || 'https://rduc.onrender.com'
 
 // Singleton socket — dùng chung toàn app
 let _socket = null
