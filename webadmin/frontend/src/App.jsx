@@ -8,6 +8,7 @@ import UsersTab from "./components/UsersTab";
 import LogsTab from "./components/LogsTab";
 import DownloadTab from "./components/DownloadTab";
 import ValidationModal from "./components/ValidationModal";
+import AdminLogin from "./components/AdminLogin";
 
 const SOCKET_URL = BACKEND_URL;
 const defaultLicenseForm = { customer_name: "", customer_contact: "", key_code: "", max_devices: 1, expires_at: "", created_by: 1, note: "" };
@@ -15,6 +16,7 @@ const defaultValidationForm = { key_code: "", device_hash: "", device_name: "", 
 const formatDate = (value) => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? value : date.toLocaleString("vi-VN"); };
 
 function App() {
+  const [authenticated, setAuthenticated] = useState(() => Boolean(localStorage.getItem("accessToken")));
   const [activeTab, setActiveTab] = useState("dashboard");
   const [dashboard, setDashboard] = useState({});
   const [licenses, setLicenses] = useState([]);
@@ -29,6 +31,8 @@ function App() {
   const [ipFilter, setIpFilter] = useState("");
   const [socketConnected, setSocketConnected] = useState(false);
   const [realtimeFlash, setRealtimeFlash] = useState(false);
+
+  if (!authenticated) return <AdminLogin onLogin={() => setAuthenticated(true)} />;
 
   const loadData = useCallback(async () => {
     setLoading(true);

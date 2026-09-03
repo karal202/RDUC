@@ -1,37 +1,31 @@
 import { BadRequestError } from "../common/helpers/exception.helper.js";
+import Admin from "../models/admin.model.js";
 import {
   signAccessToken,
   signRefreshToken,
   verifyAccessToken,
   verifyRefreshToken,
 } from "../common/helpers/jwt.helper.js";
-import { prisma } from "../common/prisma/connect.prisma.js";
 import bcrypt from "bcrypt";
 // crypto
 import crypto from "crypto";
 
 export const authService = {
   async login(req) {
-    const { email, password } = req.body;
+    const { username, email, password } = req.body || {};
+    const loginName = String(username || email || "").trim();
     // console.log(email, password);
     //kiểm tra email xem có tồn tại không
     //nếu chưa tồn tại thì trả lỗi, kêu người dùng đăng ký
     //nếu đã tồn tại thì so sánh password
-    const existingUser = await prisma.users.findUnique({
-      where: {
-        email: email,
-      },
-      omit: {
-        password: false,
-      },
-    });
+    const existingUser = await Admin.findOne({ where: { username: loginName } });
 
     if (!existingUser) {
       // throw new BadRequestError(`Account not valid, please try again`);
       throw new BadRequestError(`Người dùng không tồn tại, vui lòng đăng ký`);
     }
 
-    const isPasswordValid = bcrypt.compareSync(password, existingUser.password); //true
+    const isPasswordValid = await bcrypt.compare(password || "", existingUser.password_hash);
 
     if (!isPasswordValid) {
       // throw new BadRequestError(`Account not valid, please try again.`);
@@ -44,7 +38,8 @@ export const authService = {
     // B1: tạo payload chứa thông tin: userId, email
     const payload = {
       userId: existingUser.id,
-      email: existingUser.email,
+      username: existingUser.username,
+      role: existingUser.role,
     };
     // B2: tạo access token từ payload
     const accessToken = signAccessToken(payload);
