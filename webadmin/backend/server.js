@@ -66,6 +66,18 @@ const io = new Server(httpServer, {
 
 app.set("io", io);
 
+httpServer.on("error", (error) => {
+  if (error.code === "EADDRINUSE") {
+    console.error(`Backend cannot start: port ${PORT} is already in use.`);
+    console.error("Stop the existing backend process or set a different PORT in .env.");
+    process.exitCode = 1;
+    return;
+  }
+
+  console.error("Backend server error:", error);
+  process.exitCode = 1;
+});
+
 io.on("connection", (socket) => {
   console.log("Client connected via socket:", socket.id);
   

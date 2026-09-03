@@ -1,4 +1,5 @@
-const API_BASE = "http://localhost:3069/api/license";
+const BACKEND_URL = (import.meta.env.VITE_API_BACKEND_URL || "http://localhost:3069").replace(/\/+$/, "");
+const API_BASE = `${BACKEND_URL}/api/license`;
 
 export async function fetchJson(url, options = {}) {
   const res = await fetch(url, {
@@ -34,4 +35,4 @@ export async function loadLicenseData() {
   };
 }
 
-export { API_BASE };
+export { API_BASE, BACKEND_URL };
