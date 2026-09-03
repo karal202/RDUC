@@ -31,3 +31,15 @@ export const signRefreshToken = (payload) => {
 export const verifyRefreshToken = (token) => {
   return jwt.verify(token, JWT_REFRESH_SECRET_KEY);
 };
+
+export const signDesktopAccessToken = (payload) => {
+  return jwt.sign({ ...payload, type: "desktop-access" }, JWT_SECRET_KEY, { expiresIn: "15m" });
+};
+
+export const signDesktopRefreshToken = (payload) => {
+  return jwt.sign({ ...payload, type: "desktop-refresh" }, JWT_REFRESH_SECRET_KEY, { expiresIn: "30d" });
+};
+
+export const verifyDesktopRefreshToken = (token) => {
+  return jwt.verify(token, JWT_REFRESH_SECRET_KEY);
+};

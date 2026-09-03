@@ -4,6 +4,7 @@ import LicenseKey from "../models/licenseKey.model.js";
 import Device from "../models/device.model.js";
 import KeyDeviceMap from "../models/keyDeviceMap.model.js";
 import ActivationLog from "../models/activationLog.model.js";
+import { signDesktopAccessToken, signDesktopRefreshToken, verifyDesktopRefreshToken } from "../common/helpers/jwt.helper.js";
 import {
   ensureKeyFormat,
   generateLicenseKey,
@@ -57,6 +58,28 @@ export async function getDatabaseHealth(req, res) {
       message: error.message,
     });
   }
+}
+
+export async function refreshDesktopToken(req, res) {
+  try {
+    const { refreshToken } = req.body || {};
+    const claims = verifyDesktopRefreshToken(refreshToken || "");
+    if (claims.type !== "desktop-refresh" || !claims.licenseId || !claims.deviceHash) {
+      return res.status(401).json({ success: false, message: "Refresh token không hợp lệ." });
+    }
+    const license = await LicenseKey.findByPk(claims.licenseId);
+    if (!license || license.status !== "active" || (license.expires_at && new Date(license.expires_at).getTime() < Date.now())) {
+      return res.status(403).json({ success: false, message: "Key đã hết hạn hoặc bị vô hiệu hóa." });
+    }
+    const accessToken = signDesktopAccessToken({ licenseId: claims.licenseId, deviceHash: claims.deviceHash });
+    return res.json({ success: true, accessToken });
+  } catch {
+    return res.status(401).json({ success: false, message: "Refresh token hết hạn, vui lòng kích hoạt lại." });
+  }
+}
+
+export async function checkDesktopLicense(req, res) {
+  return res.json({ success: true, valid: true, data: { expires_at: req.desktopLicense.expires_at, status: req.desktopLicense.status } });
 }
 
 export async function getDashboard(req, res) {
@@ -431,9 +454,15 @@ export async function validateLicense(req, res) {
     const io = req.app.get("io");
     if (io) io.emit("license_updated");
 
+    const tokenPayload = { licenseId: license.id, deviceHash };
+    const accessToken = signDesktopAccessToken(tokenPayload);
+    const refreshToken = signDesktopRefreshToken(tokenPayload);
+
     return res.json({
       success: true,
       valid: true,
+      accessToken,
+      refreshToken,
       message: `Kích hoạt thành công cho người dùng ${license.customer_name || 'Khách hàng'}!${!boundIpNorm && currentIpNorm ? ` (Đã ràng buộc IP ${currentIpNorm} cho key này)` : ''}`,
       data: {
         key_code: plainInputKey,
