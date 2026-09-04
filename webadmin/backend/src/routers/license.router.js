@@ -6,6 +6,7 @@ import {
   getLicenses,
   getLogs,
   updateLicense,
+  deleteLicense,
   validateLicense,
   refreshDesktopToken,
   checkDesktopLicense,
@@ -21,6 +22,7 @@ router.get("/dashboard", getDashboard);
 router.get("/licenses", getLicenses);
 router.post("/licenses", createLicense);
 router.put("/licenses/:id", updateLicense);
+router.delete("/licenses/:id", deleteLicense);
 router.post("/validate", validateLicense);
 router.post("/licenses/validate", validateLicense);
 router.post("/desktop/refresh", refreshDesktopToken);

@@ -304,6 +304,33 @@ export async function updateLicense(req, res) {
   }
 }
 
+export async function deleteLicense(req, res) {
+  try {
+    const { id } = req.params;
+    const license = await LicenseKey.findByPk(id);
+    if (!license) {
+      return res.status(404).json({ success: false, message: "License key không tồn tại" });
+    }
+
+    const plainKeyCode = decryptKey(license.key_code);
+    await KeyDeviceMap.destroy({ where: { key_id: license.id } });
+    await license.destroy();
+
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("license_revoked", { keyCode: plainKeyCode, keyId: license.id });
+      io.emit("license_updated");
+    }
+
+    return res.json({
+      success: true,
+      message: "Đã xóa license key và ngắt quyền sử dụng trên các thiết bị đang kết nối.",
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
 export async function validateLicense(req, res) {
   try {
     const body = req.body || {};
