@@ -20,17 +20,6 @@ app.use(
   }),
 );
 
-app.use(
-  rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 120,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: "Too many requests from this IP, please try again later.",
-  }),
-);
-
-app.use(express.json({ limit: "1mb" }));
 const allowedOrigins = (process.env.CORS_ORIGINS || "https://rductest.vercel.app,http://localhost:5173")
   .split(",")
   .map((origin) => origin.trim().replace(/\/+$/, ""))
@@ -52,6 +41,20 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
+
+app.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 120,
+    skip: (req) => req.method === "OPTIONS",
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: "Too many requests from this IP, please try again later.",
+  }),
+);
+
+app.use(express.json({ limit: "1mb" }));
 
 const releaseDir = path.resolve(process.cwd(), "../../appdesktop/release");
 
