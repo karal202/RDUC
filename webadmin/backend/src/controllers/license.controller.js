@@ -285,8 +285,12 @@ export async function updateLicense(req, res) {
     const io = req.app.get("io");
     if (io) {
       io.emit("license_updated");
-      // Nếu admin vô hiệu hoặc thu hồi key → notify app desktop logout ngay
-      if (updateData.status === "disabled" || updateData.status === "revoked") {
+      const shouldRevokeSession =
+        reset_bound_ip === true ||
+        body.bound_ip_address === null ||
+        updateData.status === "disabled" ||
+        updateData.status === "revoked";
+      if (shouldRevokeSession) {
         const plainKeyCode = decryptKey(license.key_code);
         io.emit("license_revoked", { keyCode: plainKeyCode, keyId: license.id });
       }
@@ -295,7 +299,7 @@ export async function updateLicense(req, res) {
     return res.json({
       success: true,
       message: reset_bound_ip === true
-        ? "Đã reset IP ràng buộc. Người dùng có thể kích hoạt trên IP mới."
+        ? "Đã reset IP và đăng xuất thiết bị đang sử dụng realtime. Người dùng có thể kích hoạt trên IP mới."
         : "Cập nhật thông tin Người dùng / Key thành công!",
       data: license,
     });
