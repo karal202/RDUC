@@ -17,8 +17,11 @@ const stats = ref({
 
 const isLoading = ref(true)
 let timer = null
+let isFetching = false
 
 const fetchStats = async () => {
+  if (isFetching || document.hidden) return
+  isFetching = true
   try {
     if (window.api?.getSystemStats) {
       const res = await window.api.getSystemStats()
@@ -30,7 +33,12 @@ const fetchStats = async () => {
     console.error('Failed to get system stats:', err)
   } finally {
     isLoading.value = false
+    isFetching = false
   }
+}
+
+const handleVisibilityChange = () => {
+  if (!document.hidden) fetchStats()
 }
 
 const formatUptime = (seconds) => {
@@ -43,11 +51,13 @@ const formatUptime = (seconds) => {
 
 onMounted(() => {
   fetchStats()
-  timer = setInterval(fetchStats, 2000)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  timer = setInterval(fetchStats, 5000)
 })
 
 onUnmounted(() => {
   if (timer) clearInterval(timer)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 
@@ -77,7 +87,7 @@ onUnmounted(() => {
             THÔNG SỐ PHẦN CỨNG MÁY TÍNH
           </h2>
           <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px">
-            Cập nhật trạng thái CPU, GPU, RAM & Nhiệt độ theo thời gian thực (1.5s/chu kỳ)
+            Cập nhật trạng thái CPU, GPU, RAM & Nhiệt độ theo thời gian thực (5s/chu kỳ)
           </p>
         </div>
         <div style="display: flex; gap: 12px; text-align: right">
