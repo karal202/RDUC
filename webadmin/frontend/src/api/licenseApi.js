@@ -29,7 +29,7 @@ export async function loadLicenseData() {
   try {
     healthRes = await fetchJson(`${API_BASE}/health`);
   } catch (error) {
-    throw new Error("Không kết nối được với backend/database. Vui lòng kiểm tra máy chủ Render và cấu hình CORS.", { cause: error });
+    throw new Error("Không kết nối được với backend/database. Vui lòng kiểm tra máy chủ.", { cause: error });
   }
 
   if (!healthRes.success || healthRes.database !== "connected") {
