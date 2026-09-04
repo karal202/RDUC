@@ -20,7 +20,7 @@ app.use(
   }),
 );
 
-const allowedOrigins = (process.env.CORS_ORIGINS || "https://rductest.vercel.app,http://localhost:5173")
+const allowedOrigins = (process.env.CORS || "")
   .split(",")
   .map((origin) => origin.trim().replace(/\/+$/, ""))
   .filter(Boolean);
