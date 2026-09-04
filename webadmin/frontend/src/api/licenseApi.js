@@ -25,12 +25,29 @@ export async function fetchJson(url, options = {}) {
 }
 
 export async function loadLicenseData() {
-  const [healthRes, statsRes, licensesRes, logsRes] = await Promise.all([
-    fetchJson(`${API_BASE}/health`).catch(() => ({ success: false, database: "disconnected" })),
-    fetchJson(`${API_BASE}/dashboard`),
-    fetchJson(`${API_BASE}/licenses`),
-    fetchJson(`${API_BASE}/logs`),
-  ]);
+  let healthRes;
+  try {
+    healthRes = await fetchJson(`${API_BASE}/health`);
+  } catch (error) {
+    throw new Error("Không kết nối được với backend/database. Vui lòng kiểm tra máy chủ Render và cấu hình CORS.", { cause: error });
+  }
+
+  if (!healthRes.success || healthRes.database !== "connected") {
+    throw new Error(`Không kết nối được với database${healthRes.message ? `: ${healthRes.message}` : "."}`);
+  }
+
+  let statsRes;
+  let licensesRes;
+  let logsRes;
+  try {
+    [statsRes, licensesRes, logsRes] = await Promise.all([
+      fetchJson(`${API_BASE}/dashboard`),
+      fetchJson(`${API_BASE}/licenses`),
+      fetchJson(`${API_BASE}/logs`),
+    ]);
+  } catch (error) {
+    throw new Error(`Không tải được dữ liệu từ backend/database: ${error.message}`, { cause: error });
+  }
 
   return {
     health: healthRes,
