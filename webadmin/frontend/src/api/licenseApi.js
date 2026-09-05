@@ -20,6 +20,11 @@ export async function fetchJson(url, options = {}) {
     throw new Error("Server trả về dữ liệu không hợp lệ", { cause: parseErr });
   }
 
+  const serverMessage = String(json?.message || "").toLowerCase();
+  if (res.status === 401 || serverMessage.includes("jwt expired") || serverMessage.includes("token expired")) {
+    window.dispatchEvent(new Event("auth-expired"));
+  }
+
   if (!res.ok) throw new Error(json?.message || "Request failed");
   return json;
 }

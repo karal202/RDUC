@@ -72,6 +72,16 @@ function AdminDashboard({ onLogout }) {
 function App() {
   const [authenticated, setAuthenticated] = useState(() => Boolean(localStorage.getItem("accessToken")));
 
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      localStorage.removeItem("accessToken");
+      setAuthenticated(false);
+    };
+
+    window.addEventListener("auth-expired", handleAuthExpired);
+    return () => window.removeEventListener("auth-expired", handleAuthExpired);
+  }, []);
+
   if (!authenticated) {
     return <AdminLogin onLogin={() => setAuthenticated(true)} />;
   }
