@@ -61,54 +61,30 @@ const runDawaScript = async (scriptKey, description) => {
 </script>
 
 <template>
-  <div style="display: flex; flex-direction: column; gap: 20px">
-    <div class="dashboard-card">
-      <div class="card-header">
-        <div class="card-title">
-          <div class="card-icon">⚡</div>
-          <div>
-            <div>TỐI ƯU HỆ THỐNG DAWA OPTIMIZER</div>
-            <div style="font-size: 11px; font-weight: 400; color: var(--text-muted)">
-              Các công cụ tinh chỉnh hiệu năng Windows & Game Mode
-            </div>
-          </div>
+  <div class="dawa-optimizer-page">
+    <section class="dashboard-card dawa-script-panel">
+      <div class="dawa-section-heading dawa-script-heading">
+        <div>
+          <span class="eyebrow">CẤU HÌNH TỐI ƯU</span>
+          <h3>Công cụ DAWA</h3>
+          <p>Chọn cấu hình tối ưu đã được ký và whitelist sẵn.</p>
         </div>
+        <span class="script-security">WHITELIST SECURED</span>
       </div>
-
-      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px">
-        Chọn cấu hình tối ưu để thực thi lệnh đã được DAWA ký và whitelist sẵn. Toàn bộ command chạy
-        dưới user-mode với quyền đã đăng nhập.
-      </p>
-
       <div class="grid-3">
-        <div
-          v-for="s in DAWA_SCRIPTS"
-          :key="s.key"
-          style="
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            gap: 12px;
-          "
-        >
+        <div v-for="s in DAWA_SCRIPTS" :key="s.key" class="dawa-loadout">
           <div>
-            <div style="font-weight: 700; color: #fff; font-size: 14px">{{ s.title }}</div>
-            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px">
-              {{ s.desc }}
-            </div>
+            <div class="dawa-loadout-title">{{ s.title.replace(/^.{2}/, '') }}</div>
+            <div class="dawa-loadout-desc">{{ s.desc }}</div>
           </div>
           <button :class="s.btnClass" :disabled="isRunning" @click="runDawaScript(s.key, s.title)">
             {{ s.btnLabel }}
           </button>
         </div>
       </div>
-    </div>
+    </section>
 
-    <div class="dashboard-card" style="background-color: #05080e">
+    <div class="dashboard-card dawa-console" style="background-color: #05080e">
       <div
         style="
           font-size: 12px;

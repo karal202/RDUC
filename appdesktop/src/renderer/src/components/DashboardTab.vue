@@ -1,5 +1,8 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { Cpu, MemoryStick, CircuitBoard, Monitor } from 'lucide-vue-next'
+import BannerCarousel from './BannerCarousel.vue'
+import { landscapeBanners } from '../assets/banners'
 
 const stats = ref({
   cpu: { brand: 'Intel / AMD CPU', usagePercent: 0, speed: 0, cores: 0, temp: null },
@@ -19,6 +22,20 @@ const isLoading = ref(true)
 let timer = null
 let isFetching = false
 
+// Đồng hồ uptime chạy thật theo giây, đồng bộ lại mỗi lần fetch thành công
+const liveUptime = ref(0)
+let liveTimer = null
+
+const pad = (n) => String(n).padStart(2, '0')
+const uptimeParts = computed(() => {
+  const total = liveUptime.value || 0
+  return {
+    hh: pad(Math.floor(total / 3600)),
+    mm: pad(Math.floor((total % 3600) / 60)),
+    ss: pad(total % 60)
+  }
+})
+
 const fetchStats = async () => {
   if (isFetching || document.hidden) return
   isFetching = true
@@ -27,6 +44,7 @@ const fetchStats = async () => {
       const res = await window.api.getSystemStats()
       if (res && res.success) {
         stats.value = res
+        liveUptime.value = res.system.uptimeSeconds || 0
       }
     }
   } catch (err) {
@@ -41,339 +59,132 @@ const handleVisibilityChange = () => {
   if (!document.hidden) fetchStats()
 }
 
-const formatUptime = (seconds) => {
-  if (!seconds) return '0 phút'
-  const hrs = Math.floor(seconds / 3600)
-  const mins = Math.floor((seconds % 3600) / 60)
-  const secs = seconds % 60
-  return `${hrs} giờ ${mins} phút ${secs} giây`
+const gaugeStyle = (pct, color) => {
+  const clamped = Math.min(Math.max(Number(pct) || 0, 0), 100)
+  return {
+    background: `conic-gradient(${color} ${clamped * 3.6}deg, var(--border-color) 0deg)`
+  }
 }
 
 onMounted(() => {
   fetchStats()
   document.addEventListener('visibilitychange', handleVisibilityChange)
   timer = setInterval(fetchStats, 5000)
+  liveTimer = setInterval(() => { liveUptime.value++ }, 1000)
 })
 
 onUnmounted(() => {
   if (timer) clearInterval(timer)
+  if (liveTimer) clearInterval(liveTimer)
   document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
 
 <template>
-  <div style="display: flex; flex-direction: column; gap: 20px">
-    <!-- Header Summary Banner -->
-    <div
-      class="dashboard-card"
-      style="border-color: rgba(22, 119, 255, 0.2);"
-    >
-      <div style="display: flex; align-items: center; justify-content: space-between">
-        <div>
-          <div
-            style="
-              font-size: 11px;
-              font-family: var(--font-mono);
-              color: var(--accent-primary);
-              font-weight: 600;
-              text-transform: uppercase;
-              letter-spacing: 1px;
-              margin-bottom: 4px;
-            "
-          >
-            REAL-TIME MONITORING
+  <div class="dash-page">
+    <section class="dash-hero">
+      <div class="dash-hero-copy">
+        <h2>Boost FPS<br />giảm độ trễ khi chơi game</h2>
+        <p>Theo dõi CPU, GPU, RAM theo thời gian thực. Chạy tối ưu từ tab DAWA khi sẵn sàng.</p>
+
+        <div class="dash-hero-uptime">
+          <span class="dash-hero-uptime-dot"></span>
+          <div class="dash-hero-uptime-clock">
+            <span>{{ uptimeParts.hh }}</span><b>:</b><span>{{ uptimeParts.mm }}</span><b>:</b><span>{{ uptimeParts.ss }}</span>
           </div>
-          <h2 style="font-size: 20px; font-weight: 800; color: #ffffff">
-            THÔNG SỐ PHẦN CỨNG MÁY TÍNH
-          </h2>
-          <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px">
-            Cập nhật trạng thái CPU, GPU, RAM & Nhiệt độ theo thời gian thực (5s/chu kỳ)
-          </p>
-        </div>
-        <div style="display: flex; gap: 12px; text-align: right">
-          <div
-            style="
-              background: rgba(0, 0, 0, 0.4);
-              padding: 8px 14px;
-              border-radius: 8px;
-              border: 1px solid var(--border-color);
-            "
-          >
-            <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono)">
-              HOSTNAME
-            </div>
-            <div style="font-size: 13px; font-weight: 700; color: var(--accent-cyan)">
-              {{ stats.system.hostname }}
-            </div>
-          </div>
-          <div
-            style="
-              background: rgba(0, 0, 0, 0.4);
-              padding: 8px 14px;
-              border-radius: 8px;
-              border: 1px solid var(--border-color);
-            "
-          >
-            <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono)">
-              UPTIME
-            </div>
-            <div style="font-size: 13px; font-weight: 700; color: #ffffff">
-              {{ formatUptime(stats.system.uptimeSeconds) }}
-            </div>
-          </div>
+          <span class="dash-hero-uptime-sep"></span>
+          <span class="dash-hero-uptime-host">{{ stats.system.hostname }}</span>
         </div>
       </div>
-    </div>
+      <BannerCarousel :banners="landscapeBanners" variant="landscape" />
+    </section>
 
-    <!-- Main Gauges Grid -->
-    <div class="grid-2">
-      <!-- CPU Card -->
-      <div class="dashboard-card">
-        <div class="card-header">
-          <div class="card-title">
-            <div class="card-icon">⚡</div>
-            <div>
-              <div>VI XỬ LÝ (CPU)</div>
-              <div style="font-size: 11px; font-weight: 400; color: var(--text-muted)">
-                {{ stats.cpu.brand || 'Processor' }}
+    <section class="telemetry-panel">
+      <div class="telemetry-panel-head">
+        <h3>Thông số hệ thống</h3>
+        <span class="telemetry-live" :class="{ 'is-loading': isLoading }">
+          <span class="telemetry-live-dot"></span>
+          Cập nhật mỗi 5 giây
+        </span>
+      </div>
+
+      <div class="telemetry-grid" :class="{ 'has-gpu': stats.gpu.hasDiscreteGpu }">
+        <div class="telemetry-col">
+          <div class="telemetry-col-head">
+            <Cpu :size="15" :stroke-width="1.8" />
+            <span>Bộ xử lý</span>
+          </div>
+          <div class="telemetry-gauge">
+            <div class="gauge-ring" :style="gaugeStyle(stats.cpu.usagePercent, 'var(--accent-primary)')">
+              <div class="gauge-ring-inner">
+                <strong>{{ stats.cpu.usagePercent }}<span>%</span></strong>
               </div>
             </div>
+            <div class="telemetry-col-name">{{ stats.cpu.brand || 'Processor' }}</div>
           </div>
-          <div style="text-align: right">
-            <span
-              style="
-                font-size: 22px;
-                font-weight: 800;
-                color: var(--accent-primary);
-                font-family: var(--font-mono);
-              "
-            >
-              {{ stats.cpu.usagePercent }}%
-            </span>
-          </div>
+          <dl class="telemetry-specs">
+            <div><dt>Xung nhịp</dt><dd>{{ stats.cpu.speed ? stats.cpu.speed + ' GHz' : 'N/A' }}</dd></div>
+            <div><dt>Số nhân</dt><dd>{{ stats.cpu.cores || 'N/A' }}</dd></div>
+            <div><dt>Nhiệt độ</dt><dd class="accent-amber">{{ stats.cpu.temp ? stats.cpu.temp + ' °C' : 'Tự động' }}</dd></div>
+          </dl>
         </div>
 
-        <div class="progress-bar-bg">
-          <div class="progress-bar-fill" :style="{ width: stats.cpu.usagePercent + '%' }"></div>
-        </div>
-
-        <div
-          style="
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-top: 18px;
-            padding-top: 14px;
-            border-top: 1px solid var(--border-color);
-            font-size: 12px;
-          "
-        >
-          <div>
-            <div style="color: var(--text-dim); font-size: 10px">TỐC ĐỘ XUNG</div>
-            <div style="font-weight: 700; font-family: var(--font-mono); color: #fff">
-              {{ stats.cpu.speed ? stats.cpu.speed + ' GHz' : 'N/A' }}
-            </div>
+        <div class="telemetry-col">
+          <div class="telemetry-col-head">
+            <MemoryStick :size="15" :stroke-width="1.8" />
+            <span>Bộ nhớ</span>
           </div>
-          <div>
-            <div style="color: var(--text-dim); font-size: 10px">SỐ NHÂN CORES</div>
-            <div style="font-weight: 700; font-family: var(--font-mono); color: #fff">
-              {{ stats.cpu.cores ? stats.cpu.cores + ' Nhân' : 'N/A' }}
-            </div>
-          </div>
-          <div>
-            <div style="color: var(--text-dim); font-size: 10px">NHIỆT ĐỘ</div>
-            <div
-              style="font-weight: 700; font-family: var(--font-mono); color: var(--accent-amber)"
-            >
-              {{ stats.cpu.temp ? stats.cpu.temp + ' °C' : 'Tự động' }}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- RAM Card -->
-      <div class="dashboard-card">
-        <div class="card-header">
-          <div class="card-title">
-            <div
-              class="card-icon"
-              style="background-color: rgba(0, 240, 255, 0.15); color: var(--accent-cyan)"
-            >
-              💾
-            </div>
-            <div>
-              <div>BỘ NHỚ RAM</div>
-              <div style="font-size: 11px; font-weight: 400; color: var(--text-muted)">
-                DDR4 / DDR5 System Memory
+          <div class="telemetry-gauge">
+            <div class="gauge-ring" :style="gaugeStyle(stats.ram.usagePercent, 'var(--accent-cyan)')">
+              <div class="gauge-ring-inner">
+                <strong>{{ stats.ram.usagePercent }}<span>%</span></strong>
               </div>
             </div>
+            <div class="telemetry-col-name">RAM hệ thống</div>
           </div>
-          <div style="text-align: right">
-            <span
-              style="
-                font-size: 22px;
-                font-weight: 800;
-                color: var(--accent-cyan);
-                font-family: var(--font-mono);
-              "
-            >
-              {{ stats.ram.usagePercent }}%
-            </span>
-          </div>
+          <dl class="telemetry-specs">
+            <div><dt>Đã dùng</dt><dd>{{ stats.ram.usedGB }} GB</dd></div>
+            <div><dt>Còn trống</dt><dd class="accent-green">{{ stats.ram.freeGB }} GB</dd></div>
+            <div><dt>Tổng dung lượng</dt><dd>{{ stats.ram.totalGB }} GB</dd></div>
+          </dl>
         </div>
 
-        <div class="progress-bar-bg">
-          <div
-            class="progress-bar-fill"
-            style="background: linear-gradient(90deg, #10b981, #00f0ff)"
-            :style="{ width: stats.ram.usagePercent + '%' }"
-          ></div>
-        </div>
-
-        <div
-          style="
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-top: 18px;
-            padding-top: 14px;
-            border-top: 1px solid var(--border-color);
-            font-size: 12px;
-          "
-        >
-          <div>
-            <div style="color: var(--text-dim); font-size: 10px">ĐÃ SỬ DỤNG</div>
-            <div style="font-weight: 700; font-family: var(--font-mono); color: #fff">
-              {{ stats.ram.usedGB }} GB
-            </div>
+        <div v-if="stats.gpu.hasDiscreteGpu" class="telemetry-col">
+          <div class="telemetry-col-head">
+            <CircuitBoard :size="15" :stroke-width="1.8" />
+            <span>Đồ họa</span>
           </div>
-          <div>
-            <div style="color: var(--text-dim); font-size: 10px">CÒN TRỐNG</div>
-            <div
-              style="font-weight: 700; font-family: var(--font-mono); color: var(--accent-green)"
-            >
-              {{ stats.ram.freeGB }} GB
-            </div>
-          </div>
-          <div>
-            <div style="color: var(--text-dim); font-size: 10px">TỔNG BỘ NHỚ</div>
-            <div style="font-weight: 700; font-family: var(--font-mono); color: #fff">
-              {{ stats.ram.totalGB }} GB
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Secondary Grid: GPU & OS Specs -->
-    <div class="grid-2">
-      <!-- GPU Card -->
-      <div v-if="stats.gpu.hasDiscreteGpu" class="dashboard-card">
-        <div class="card-header">
-          <div class="card-title">
-            <div
-              class="card-icon"
-              style="background-color: rgba(16, 185, 129, 0.15); color: var(--accent-green)"
-            >
-              🖥️
-            </div>
-            <div>
-              <div>CARD ĐỒ HỌA RỜI (GPU)</div>
-              <div style="font-size: 11px; font-weight: 400; color: var(--text-muted)">
-                {{ stats.gpu.model }}
+          <div class="telemetry-gauge">
+            <div class="gauge-ring" :style="gaugeStyle(stats.gpu.usagePercent, 'var(--accent-green)')">
+              <div class="gauge-ring-inner">
+                <strong>{{ stats.gpu.usagePercent != null ? stats.gpu.usagePercent : '—' }}<span v-if="stats.gpu.usagePercent != null">%</span></strong>
               </div>
             </div>
+            <div class="telemetry-col-name">{{ stats.gpu.model }}</div>
           </div>
+          <dl class="telemetry-specs">
+            <div><dt>VRAM</dt><dd>{{ stats.gpu.vram }}</dd></div>
+            <div><dt>Hãng sản xuất</dt><dd>{{ stats.gpu.vendor }}</dd></div>
+            <div><dt>Nhiệt độ</dt><dd class="accent-amber">{{ stats.gpu.temp != null ? stats.gpu.temp + ' °C' : 'N/A' }}</dd></div>
+          </dl>
         </div>
 
-        <div
-          style="
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 10px;
-            margin-top: 12px;
-            font-size: 12px;
-          "
-        >
-          <div>
-            <div style="color: var(--text-dim); font-size: 10px">BỘ NHỚ VRAM</div>
-            <div style="font-weight: 700; font-family: var(--font-mono); color: #fff">
-              {{ stats.gpu.vram }}
-            </div>
+        <div class="telemetry-col">
+          <div class="telemetry-col-head">
+            <Monitor :size="15" :stroke-width="1.8" />
+            <span>Hệ thống</span>
           </div>
-          <div>
-            <div style="color: var(--text-dim); font-size: 10px">NHÀ SẢN XUẤT</div>
-            <div style="font-weight: 700; font-family: var(--font-mono); color: #fff">
-              {{ stats.gpu.vendor }}
-            </div>
+          <div class="telemetry-status">
+            <span class="telemetry-status-dot"></span>
+            Đang hoạt động ổn định
           </div>
-          <div>
-            <div style="color: var(--text-dim); font-size: 10px">TỶ LỆ SỬ DỤNG</div>
-            <div style="font-weight: 700; font-family: var(--font-mono); color: var(--accent-green)">
-              {{ stats.gpu.usagePercent != null ? stats.gpu.usagePercent + '%' : 'N/A' }}
-            </div>
-          </div>
-          <div>
-            <div style="color: var(--text-dim); font-size: 10px">NHIỆT ĐỘ GPU</div>
-            <div
-              style="font-weight: 700; font-family: var(--font-mono); color: var(--accent-amber)"
-            >
-              {{ stats.gpu.temp != null ? stats.gpu.temp + ' °C' : 'N/A' }}
-            </div>
-          </div>
+          <dl class="telemetry-specs">
+            <div><dt>Hệ điều hành</dt><dd>Windows {{ stats.system.arch }}</dd></div>
+            <div><dt>Phiên bản</dt><dd>{{ stats.system.release || '10 / 11' }}</dd></div>
+            <div><dt>Kiến trúc</dt><dd>{{ stats.system.arch || 'x64' }}</dd></div>
+          </dl>
         </div>
       </div>
-
-      <!-- System Details Card -->
-      <div class="dashboard-card">
-        <div class="card-header">
-          <div class="card-title">
-            <div
-              class="card-icon"
-              style="background-color: rgba(245, 158, 11, 0.15); color: var(--accent-amber)"
-            >
-              ⚙️
-            </div>
-            <div>
-              <div>HỆ ĐIỀU HÀNH & HỆ THỐNG</div>
-              <div style="font-size: 11px; font-weight: 400; color: var(--text-muted)">
-                Windows Environment Info
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div
-          style="
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-top: 12px;
-            font-size: 12px;
-          "
-        >
-          <div>
-            <div style="color: var(--text-dim); font-size: 10px">NỀN TẢNG OS</div>
-            <div style="font-weight: 700; font-family: var(--font-mono); color: #fff">
-              Windows {{ stats.system.arch }}
-            </div>
-          </div>
-          <div>
-            <div style="color: var(--text-dim); font-size: 10px">RELEASE VER</div>
-            <div style="font-weight: 700; font-family: var(--font-mono); color: #fff">
-              {{ stats.system.release || '10/11' }}
-            </div>
-          </div>
-          <div>
-            <div style="color: var(--text-dim); font-size: 10px">TRẠNG THÁI BOOT</div>
-            <div
-              style="font-weight: 700; font-family: var(--font-mono); color: var(--accent-green)"
-            >
-              HOẠT ĐỘNG
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    </section>
   </div>
 </template>

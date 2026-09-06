@@ -2,12 +2,26 @@
 import { computed, ref, onMounted } from 'vue'
 import { useSocket } from './composables/useSocket'
 import ActivationModal from './components/ActivationModal.vue'
+import RocketLaunch from './components/RocketLaunch.vue'
+import BannerCarousel from './components/BannerCarousel.vue'
 import DashboardTab from './components/DashboardTab.vue'
 import DawaTab from './components/DawaTab.vue'
 import BiosTab from './components/BiosTab.vue'
 import NetworkTab from './components/NetworkTab.vue'
 import MouseKeyboardTab from './components/MouseKeyboardTab.vue'
 import RestoreDefaultTab from './components/RestoreDefaultTab.vue'
+import CmdTab from './components/CmdTab.vue'
+import logo from './assets/logo.png'
+import { verticalBanners } from './assets/banners'
+import {
+  Code2,
+  LayoutDashboard,
+  MousePointer2,
+  Network,
+  Power,
+  RotateCcw,
+  Sparkles
+} from 'lucide-vue-next'
 
 const activeTab = ref('dashboard')
 const tabComponents = {
@@ -16,12 +30,34 @@ const tabComponents = {
   bios: BiosTab,
   network: NetworkTab,
   mouse: MouseKeyboardTab,
-  restore: RestoreDefaultTab
+  restore: RestoreDefaultTab,
+  cmd: CmdTab
 }
 const activeComponent = computed(() => tabComponents[activeTab.value])
+const pageTitle = computed(() => ({
+  dashboard: 'Dashboard',
+  dawa: 'Optimize',
+  bios: 'BIOS',
+  network: 'Network',
+  mouse: 'Input',
+  restore: 'Restore',
+  cmd: 'CMD'
+}[activeTab.value] || 'Dashboard'))
+const coreNav = [
+  { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { key: 'dawa', label: 'Optimize', icon: Sparkles }
+]
+const toolNav = [
+  { key: 'bios', label: 'BIOS', icon: Power },
+  { key: 'network', label: 'Network', icon: Network },
+  { key: 'mouse', label: 'Input', icon: MousePointer2 },
+  { key: 'restore', label: 'Restore', icon: RotateCcw },
+  { key: 'cmd', label: 'CMD', icon: Code2 }
+]
 const isActivated = ref(false)
 const licenseInfo = ref(null)
 const isCheckingLicense = ref(true)
+const isLaunching = ref(false)
 const revokedAlert = ref(false)
 
 const latestVersionInfo = ref({
@@ -31,8 +67,11 @@ const latestVersionInfo = ref({
   message: ''
 })
 
-const checkLicense = async () => {
-  isCheckingLicense.value = true
+const SPLASH_MIN_MS = 2400
+
+const checkLicense = async ({ splash = false } = {}) => {
+  if (splash) isCheckingLicense.value = true
+  const startedAt = Date.now()
   try {
     if (window.api?.checkLicenseStatus) {
       const res = await window.api.checkLicenseStatus()
@@ -44,14 +83,19 @@ const checkLicense = async () => {
         licenseInfo.value = null
       }
     } else {
-      // Fallback mode if running outside electron preload
       isActivated.value = true
     }
   } catch (err) {
     console.error('License check error:', err)
     isActivated.value = false
   } finally {
-    isCheckingLicense.value = false
+    if (splash) {
+      const remain = Math.max(0, SPLASH_MIN_MS - (Date.now() - startedAt))
+      if (remain) await new Promise((resolve) => setTimeout(resolve, remain))
+      isLaunching.value = true
+      await new Promise((resolve) => setTimeout(resolve, 820))
+      isCheckingLicense.value = false
+    }
   }
 }
 
@@ -91,7 +135,9 @@ const { connected: socketConnected } = useSocket({
     if (!currentKey || (keyCode && keyCode !== currentKey)) return
     try {
       await window.api?.deactivateLicense?.()
-    } catch (_) {}
+    } catch (error) {
+      console.warn('Unable to deactivate revoked license:', error)
+    }
     revokedAlert.value = true
     isActivated.value = false
     licenseInfo.value = null
@@ -106,7 +152,7 @@ const { connected: socketConnected } = useSocket({
 })
 
 onMounted(() => {
-  checkLicense()
+  checkLicense({ splash: true })
   checkAppVersion()
   window.api?.onLicenseRevoked?.(() => {
     revokedAlert.value = true
@@ -119,15 +165,7 @@ onMounted(() => {
 
 
 <template>
-  <div v-if="isCheckingLicense" class="modal-overlay">
-    <div style="text-align: center; color: #fff">
-      <div style="font-size: 32px; margin-bottom: 12px">🛡️</div>
-      <div style="font-size: 16px; font-weight: 700">ĐANG XÁC THỰC BẢO MẬT BẢN QUYỀN HWID...</div>
-      <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px">
-        Vui lòng chờ trong giây lát
-      </div>
-    </div>
-  </div>
+  <RocketLaunch v-if="isCheckingLicense" :launching="isLaunching" />
 
   <template v-else>
     <!-- Activation Modal Screen if not activated -->
@@ -137,193 +175,95 @@ onMounted(() => {
     <Transition name="slide-down">
       <div
         v-if="revokedAlert"
-        style="
-          position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
-          background: #1a0505;
-          color: #fca5a5; padding: 12px 24px;
-          display: flex; align-items: center; gap: 10px;
-          font-size: 13px; font-weight: 600;
-          border-bottom: 1px solid rgba(244, 63, 94, 0.3);
-        "
+        class="revoked-alert"
       >
-        <span style="font-size: 20px">🚨</span>
-        <span>Key bản quyền của bạn đã bị Admin thu hồi hoặc vô hiệu hóa. Vui lòng liên hệ để được hỗ trợ.</span>
+        <span>Key bản quyền đã bị thu hồi hoặc vô hiệu hóa. Liên hệ hỗ trợ để kích hoạt lại.</span>
       </div>
     </Transition>
 
-    <!-- Main App Interface when activated -->
-    <div v-if="isActivated" class="app-container">
-      <!-- Navigation Sidebar -->
-      <aside class="sidebar">
-        <div class="brand-header">
-          <div class="brand-logo">D</div>
-          <div class="brand-text">
-            <h1>DAWA APP</h1>
-            <span>PRO OPTIMIZER</span>
-          </div>
-        </div>
+    <div v-if="isActivated" class="app-shell">
+      <div class="hud-grid" aria-hidden="true"></div>
 
-        <nav class="nav-list">
-          <div
-            class="nav-item"
-            :class="{ active: activeTab === 'dashboard' }"
-            @click="activeTab = 'dashboard'"
-          >
-            <span class="nav-icon">📊</span>
-            <span>Dashboard</span>
-          </div>
+      <header class="hud-top">
+        <img class="hud-logo" :src="logo" alt="DAWA" />
 
-          <div
-            style="
-              margin-top: 14px;
-              margin-bottom: 6px;
-              font-size: 10px;
-              font-family: var(--font-mono);
-              color: var(--text-dim);
-              padding-left: 10px;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-            "
+        <nav class="hud-nav" aria-label="Main navigation">
+          <button
+            v-for="item in coreNav"
+            :key="item.key"
+            class="hud-tab hud-tab-core"
+            :class="{ active: activeTab === item.key }"
+            type="button"
+            @click="activeTab = item.key"
           >
-            Mục Setting
-          </div>
-
-          <div
-            class="nav-item"
-            :class="{ active: activeTab === 'dawa' }"
-            @click="activeTab = 'dawa'"
+            <component :is="item.icon" :size="15" :stroke-width="1.8" />
+            {{ item.label }}
+          </button>
+          <span class="hud-nav-split" aria-hidden="true"></span>
+          <button
+            v-for="item in toolNav"
+            :key="item.key"
+            class="hud-tab"
+            :class="{ active: activeTab === item.key }"
+            type="button"
+            @click="activeTab = item.key"
           >
-            <span class="nav-icon">⚡</span>
-            <span>DAWA</span>
-          </div>
-
-          <div
-            class="nav-item"
-            :class="{ active: activeTab === 'bios' }"
-            @click="activeTab = 'bios'"
-          >
-            <span class="nav-icon">⚙️</span>
-            <span>BIOS</span>
-          </div>
-
-          <div
-            class="nav-item"
-            :class="{ active: activeTab === 'network' }"
-            @click="activeTab = 'network'"
-          >
-            <span class="nav-icon">🌐</span>
-            <span>Network</span>
-          </div>
-
-          <div
-            class="nav-item"
-            :class="{ active: activeTab === 'mouse' }"
-            @click="activeTab = 'mouse'"
-          >
-            <span class="nav-icon">🖱️</span>
-            <span>Mouse & Keyboard</span>
-          </div>
-
-          <div
-            class="nav-item"
-            :class="{ active: activeTab === 'restore' }"
-            @click="activeTab = 'restore'"
-          >
-            <span class="nav-icon">🔄</span>
-            <span>Restore Default</span>
-          </div>
+            <component :is="item.icon" :size="14" :stroke-width="1.8" />
+            {{ item.label }}
+          </button>
         </nav>
 
-        <div class="sidebar-footer">
-          <div>LICENSE ACTIVATED</div>
-          <div
-            style="
-              color: var(--accent-cyan);
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-            "
-          >
-            {{ licenseInfo?.keyCode || 'DAWA-ACTIVE-KEY' }}
+        <div class="hud-top-right">
+          <div v-if="licenseInfo?.offlineMode" class="status-badge offline">
+            <span class="status-dot"></span>
+            OFFLINE
           </div>
-
-          <div
-            v-if="latestVersionInfo.isOutdated"
-            style="
-              margin-top: 10px;
-              padding: 6px 8px;
-              border-radius: 6px;
-              background: rgba(251, 191, 36, 0.12);
-              border: 1px solid rgba(251, 191, 36, 0.35);
-              color: #fcd34d;
-              font-size: 10px;
-              line-height: 1.5;
-            "
-          >
-            BẢN MỚI: {{ latestVersionInfo.latestVersion }}
+          <div v-else class="status-badge activated">
+            <span class="status-dot"></span>
+            LICENSED
           </div>
+          <button class="btn-lock" type="button" @click="handleDeactivate">KHÓA KEY</button>
+        </div>
+      </header>
 
-          <!-- Socket realtime dot -->
-          <div
-            :style="{
-              display: 'flex', alignItems: 'center', gap: '5px',
-              marginTop: '8px', fontSize: '10px',
-              color: socketConnected ? '#6ee7b7' : '#fca5a5',
-            }"
-          >
-            <span
-              :style="{
-                width: '6px', height: '6px', borderRadius: '50%',
-                background: socketConnected ? '#6ee7b7' : '#fca5a5',
-                boxShadow: socketConnected ? '0 0 5px #6ee7b7' : 'none',
-                display: 'inline-block',
-              }"
-            />
+      <div class="hud-body">
+        <main class="hud-stage">
+          <div class="hud-frame">
+            <div class="hud-frame-mark">DAWA / {{ pageTitle }}</div>
+            <div class="tab-container">
+              <KeepAlive>
+                <component :is="activeComponent" />
+              </KeepAlive>
+            </div>
+          </div>
+        </main>
+
+        <aside class="hud-promo" aria-label="DAWA SHOP">
+          <BannerCarousel :banners="verticalBanners" variant="portrait" :interval="4000" />
+        </aside>
+      </div>
+
+      <footer class="hud-bar">
+        <div class="hud-bar-item">
+          <span>KEY</span>
+          <strong class="sidebar-key">{{ licenseInfo?.keyCode || 'DAWA-ACTIVE-KEY' }}</strong>
+        </div>
+        <div class="hud-bar-item">
+          <span>LINK</span>
+          <strong :class="socketConnected ? 'accent-green' : 'accent-rose'">
             {{ socketConnected ? 'SERVER LIVE' : 'OFFLINE' }}
-          </div>
+          </strong>
         </div>
-      </aside>
-
-      <!-- Main Content Area -->
-      <main class="main-content">
-        <!-- Top Bar -->
-        <header class="topbar">
-          <div class="page-title">
-          <span v-if="activeTab === 'dashboard'">DASHBOARD — THÔNG SỐ MÁY</span>
-            <span v-else-if="activeTab === 'dawa'">DAWA OPTIMIZER</span>
-            <span v-else-if="activeTab === 'bios'">BIOS CONTROL</span>
-            <span v-else-if="activeTab === 'network'">NETWORK &amp; PING</span>
-            <span v-else-if="activeTab === 'mouse'">MOUSE &amp; KEYBOARD</span>
-            <span v-else-if="activeTab === 'restore'">RESTORE DEFAULT</span>
-          </div>
-
-          <div class="topbar-actions">
-            <div v-if="licenseInfo?.offlineMode" class="status-badge offline">
-              <span class="status-dot"></span>
-              OFFLINE VERIFIED
-            </div>
-            <div v-else class="status-badge activated">
-              <span class="status-dot"></span>
-              BẢN QUYỀN HỢP LỆ
-            </div>
-
-            <button
-              class="btn-secondary"
-              style="padding: 5px 12px; font-size: 12px"
-              @click="handleDeactivate"
-            >
-              KHÓA KEY
-            </button>
-          </div>
-        </header>
-
-        <!-- Dynamic Content Body -->
-        <div class="tab-container">
-          <KeepAlive>
-            <component :is="activeComponent" />
-          </KeepAlive>
+        <div v-if="latestVersionInfo.isOutdated" class="hud-bar-item hud-bar-update">
+          <span>UPDATE</span>
+          <strong>{{ latestVersionInfo.latestVersion }}</strong>
         </div>
-      </main>
+        <div class="hud-bar-spacer"></div>
+        <div class="hud-bar-item">
+          <span>BUILD</span>
+          <strong>{{ latestVersionInfo.currentVersion }}</strong>
+        </div>
+      </footer>
     </div>
   </template>
 </template>

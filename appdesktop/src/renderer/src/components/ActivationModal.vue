@@ -1,5 +1,7 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { KeyRound, ShieldCheck, ShieldAlert, CheckCircle2 } from 'lucide-vue-next'
+import { verticalBanners } from '../assets/banners'
 
 const emit = defineEmits(['activated'])
 
@@ -9,6 +11,13 @@ const deviceIp = ref('')
 const isLoading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
+const artSrc = verticalBanners[0].src
+
+const markState = computed(() => {
+  if (successMessage.value) return 'success'
+  if (errorMessage.value) return 'error'
+  return 'default'
+})
 
 onMounted(async () => {
   try {
@@ -28,7 +37,7 @@ onMounted(async () => {
 
 const handleActivate = async () => {
   if (!keyCode.value.trim()) {
-    errorMessage.value = 'Vui lòng nhập Mã Key kích hoạt!'
+    errorMessage.value = 'Vui lòng nhập mã key kích hoạt.'
     return
   }
 
@@ -39,7 +48,7 @@ const handleActivate = async () => {
   try {
     const res = await window.api.activateLicense(keyCode.value.trim())
     if (res.success) {
-      successMessage.value = res.message || 'Kích hoạt bản quyền thành công!'
+      successMessage.value = res.message || 'Kích hoạt bản quyền thành công.'
       setTimeout(() => {
         emit('activated', res)
       }, 800)
@@ -55,149 +64,70 @@ const handleActivate = async () => {
 </script>
 
 <template>
-  <div class="modal-overlay">
-    <div class="key-modal">
-      <div
-        style="
-          width: 36px; height: 36px; border-radius: 6px;
-          background-color: var(--accent-primary-ghost);
-          color: var(--accent-primary);
-          display: flex; align-items: center; justify-content: center;
-          font-size: 18px; margin: 0 auto 16px;
-          border: 1px solid rgba(22, 119, 255, 0.2);
-        "
-      >
-        🛡️
-      </div>
-      <h2 style="font-family: var(--font-display); font-size: 20px; font-weight: 800; color: #ffffff; margin-bottom: 6px">
-        KÍCH HOẠT BẢN QUYỀN
-      </h2>
-      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.5">
-        Nhập License Key để kích hoạt đầy đủ tính năng ứng dụng.
-      </p>
+  <div class="activation-screen">
+    <aside class="activation-art">
+      <img :src="artSrc" alt="DAWA Shop" />
+    </aside>
 
-      <div style="margin-bottom: 20px; text-align: left">
-        <label
-          style="
-            display: block;
-            font-size: 11px;
-            font-weight: 600;
-            color: var(--text-dim);
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-family: var(--font-mono);
-          "
-        >
-          MÃ KEY KÍCH HOẠT
-        </label>
+    <section class="activation-panel">
+      <div
+        class="activation-mark"
+        :class="{ 'is-success': markState === 'success', 'is-error': markState === 'error' }"
+      >
+        <CheckCircle2 v-if="markState === 'success'" :size="22" :stroke-width="1.8" />
+        <ShieldAlert v-else-if="markState === 'error'" :size="22" :stroke-width="1.8" />
+        <ShieldCheck v-else :size="22" :stroke-width="1.8" />
+      </div>
+      <h2>Kích hoạt bản quyền</h2>
+      <p class="activation-lead">Key gắn với HWID máy. Chỉ dùng trên thiết bị đã đăng ký.</p>
+
+      <div class="activation-device">
+        <div class="activation-device-status">
+          <span class="activation-device-dot" :class="{ 'is-ready': !!deviceHash }"></span>
+          {{ deviceHash ? 'Đã nhận diện thiết bị này' : 'Đang nhận diện thiết bị...' }}
+        </div>
+        <dl class="activation-device-specs">
+          <div>
+            <dt>HWID</dt>
+            <dd :title="deviceHash">{{ deviceHash || '—' }}</dd>
+          </div>
+          <div>
+            <dt>Địa chỉ IP</dt>
+            <dd>{{ deviceIp || '—' }}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="key-field-heading">
+        <label class="field-label" for="license-key">Mã key kích hoạt</label>
+        <span class="key-field-count">{{ keyCode.length }}/14</span>
+      </div>
+      <div
+        class="key-input-wrap"
+        :class="{ 'has-error': errorMessage, 'has-success': successMessage }"
+      >
+        <span class="key-input-prefix">KEY</span>
+        <span class="key-input-divider" aria-hidden="true"></span>
         <input
+          id="license-key"
           v-model="keyCode"
           type="text"
           class="key-input-field"
           placeholder="XXXX-XXXX-XXXX"
+          autocomplete="off"
           :disabled="isLoading"
           @keyup.enter="handleActivate"
         />
+        <KeyRound class="key-input-icon" :size="17" :stroke-width="1.8" aria-hidden="true" />
       </div>
 
-      <div
-        v-if="errorMessage"
-        style="
-          background: rgba(220, 38, 38, 0.15);
-          border: 1px solid rgba(220, 38, 38, 0.4);
-          padding: 10px 14px;
-          border-radius: 6px;
-          font-size: 13px;
-          color: #fca5a5;
-          margin-bottom: 20px;
-          text-align: left;
-        "
-      >
-        ⚠️ {{ errorMessage }}
-      </div>
+      <p v-if="errorMessage" class="form-alert form-alert-error">{{ errorMessage }}</p>
+      <p v-if="successMessage" class="form-alert form-alert-ok">{{ successMessage }}</p>
 
-      <div
-        v-if="successMessage"
-        style="
-          background: rgba(16, 185, 129, 0.15);
-          border: 1px solid rgba(16, 185, 129, 0.4);
-          padding: 10px 14px;
-          border-radius: 6px;
-          font-size: 13px;
-          color: #6ee7b7;
-          margin-bottom: 20px;
-          text-align: left;
-        "
-      >
-        ✅ {{ successMessage }}
-      </div>
-
-      <button
-        class="btn-primary"
-        style="width: 100%; padding: 14px; font-size: 15px; font-weight: 700; letter-spacing: 0.5px"
-        :disabled="isLoading"
-        @click="handleActivate"
-      >
-        <span v-if="isLoading">Đang xác thực...</span>
-        <span v-else>KÍCH HOẠT</span>
+      <button class="btn-primary activation-submit" :disabled="isLoading" @click="handleActivate">
+        <KeyRound v-if="!isLoading" :size="16" :stroke-width="2" />
+        {{ isLoading ? 'Đang xác thực...' : 'Kích hoạt' }}
       </button>
-
-      <div
-        class="hwid-box"
-        style="
-          margin-top: 24px;
-          background: rgba(0, 0, 0, 0.3);
-          padding: 14px;
-          border-radius: 8px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-        "
-      >
-        <div style="display: flex; justify-content: space-between; margin-bottom: 8px">
-          <span style="font-weight: 600; color: var(--text-dim); font-size: 12px"
-            >IP MÁY TÍNH:</span
-          >
-          <span style="color: #38bdf8; font-weight: 700; font-family: monospace">{{
-            deviceIp || '127.0.0.1'
-          }}</span>
-        </div>
-        <div
-          style="
-            font-weight: 600;
-            color: var(--text-dim);
-            font-size: 12px;
-            margin-bottom: 4px;
-            text-align: left;
-          "
-        >
-          MÃ HWID PHẦN CỨNG:
-        </div>
-        <div
-          style="
-            color: var(--accent-cyan);
-            word-break: break-all;
-            font-size: 11px;
-            font-family: monospace;
-            text-align: left;
-          "
-        >
-          {{ deviceHash || 'Đang tải HWID...' }}
-        </div>
-      </div>
-
-      <div
-        style="
-          margin-top: 16px;
-          font-size: 11px;
-          color: var(--text-dim);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-        "
-      >
-        <span>Hardware-Bound Activation by DAWA Security</span>
-      </div>
-    </div>
+    </section>
   </div>
 </template>

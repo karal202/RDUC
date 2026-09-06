@@ -71,14 +71,14 @@ let mainWindow = null
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1100,
-    height: 750,
+    width: 1280,
+    height: 800,
     minWidth: 960,
     minHeight: 650,
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: 'default',
-    backgroundColor: '#000000',
+    backgroundColor: '#08080b',
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
