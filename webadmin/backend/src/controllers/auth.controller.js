@@ -5,8 +5,8 @@ import { responseSuccess } from "../common/helpers/response.helper.js";
 const isProduction = process.env.NODE_ENV === "production";
 const COOKIE_OPTIONS = {
   httpOnly: true, // Chặn JS truy cập vào cookie (chống trộm token qua XSS)
-  sameSite: isProduction ? "strict" : "lax",
-  secure: isProduction || process.env.COOKIE_SECURE === "true", // Bắt buộc HTTPS khi chạy production
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  secure: process.env.NODE_ENV === "production",
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
   path: "/",
 };

@@ -30,6 +30,10 @@ const Admin = sequelize.define(
       type: DataTypes.DATE,
       allowNull: true,
     },
+    active_session_id: {
+      type: DataTypes.STRING(64),
+      allowNull: true,
+    },
   },
   {
     tableName: "admins",

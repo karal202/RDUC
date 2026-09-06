@@ -15,6 +15,9 @@ dotenv.config();
 const app = express();
 const PORT = Number(process.env.PORT || 3069);
 
+// Render terminates the client connection at a trusted reverse proxy.
+app.set("trust proxy", 1);
+
 app.use(
   helmet({
     crossOriginResourcePolicy: false,
@@ -100,10 +103,11 @@ app.get("/updates", (req, res) => {
 app.use("/api", rootRouter);
 
 app.use((err, req, res, next) => {
-  console.error("Unhandled error:", err);
-  res.status(500).json({
+  const statusCode = err?.statusCode || 500;
+  if (statusCode >= 500) console.error("Unhandled error:", err);
+  res.status(statusCode).json({
     success: false,
-    message: err?.message || "Internal Server Error",
+    message: err?.message || (statusCode === 401 ? "Unauthorized" : "Internal Server Error"),
   });
 });
 
