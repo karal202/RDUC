@@ -115,7 +115,9 @@ onUnmounted(() => {
       <div class="telemetry-grid" :class="{ 'has-gpu': stats.gpu.hasDiscreteGpu }">
         <div class="telemetry-col">
           <div class="telemetry-col-head">
-            <Cpu :size="15" :stroke-width="2" />
+            <div class="telemetry-icon-box cpu-theme">
+              <Cpu :size="15" :stroke-width="2" class="telemetry-icon-glow" />
+            </div>
             <span>Bộ xử lý</span>
           </div>
           <div class="telemetry-gauge">
@@ -149,7 +151,9 @@ onUnmounted(() => {
 
         <div class="telemetry-col">
           <div class="telemetry-col-head">
-            <MemoryStick :size="15" :stroke-width="2" />
+            <div class="telemetry-icon-box ram-theme">
+              <MemoryStick :size="15" :stroke-width="2" class="telemetry-icon-glow" />
+            </div>
             <span>Bộ nhớ</span>
           </div>
           <div class="telemetry-gauge">
@@ -181,7 +185,9 @@ onUnmounted(() => {
 
         <div v-if="stats.gpu.hasDiscreteGpu" class="telemetry-col">
           <div class="telemetry-col-head">
-            <CircuitBoard :size="15" :stroke-width="2" />
+            <div class="telemetry-icon-box gpu-theme">
+              <CircuitBoard :size="15" :stroke-width="2" class="telemetry-icon-glow" />
+            </div>
             <span>Đồ họa</span>
           </div>
           <div class="telemetry-gauge">
@@ -218,7 +224,9 @@ onUnmounted(() => {
 
         <div class="telemetry-col">
           <div class="telemetry-col-head">
-            <Monitor :size="15" :stroke-width="2" />
+            <div class="telemetry-icon-box sys-theme">
+              <Monitor :size="15" :stroke-width="2" class="telemetry-icon-glow" />
+            </div>
             <span>Hệ thống</span>
           </div>
           <div class="telemetry-status">

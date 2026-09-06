@@ -78,14 +78,15 @@ const runDawaScript = async (scriptKey, description) => {
       <div class="grid-3">
         <div v-for="s in DAWA_SCRIPTS" :key="s.key" class="dawa-loadout">
           <div>
-            <div class="dawa-loadout-icon">
-              <component :is="s.icon" :size="19" :stroke-width="1.8" />
+            <div class="dawa-loadout-icon" :class="`reactor-${s.key}`">
+              <span class="reactor-aura"></span>
+              <component :is="s.icon" :size="20" :stroke-width="1.9" class="reactor-core-icon" />
             </div>
             <div class="dawa-loadout-title">{{ s.title }}</div>
             <div class="dawa-loadout-desc">{{ s.desc }}</div>
           </div>
           <button :class="s.btnClass" :disabled="isRunning" @click="runDawaScript(s.key, s.title)">
-            <Play :size="13" :stroke-width="2.2" />
+            <Play :size="13" :stroke-width="2.2" class="btn-play-icon" />
             {{ s.btnLabel }}
           </button>
         </div>
