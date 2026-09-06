@@ -2,7 +2,8 @@
 import { Rocket } from 'lucide-vue-next'
 
 defineProps({
-  launching: { type: Boolean, default: false }
+  launching: { type: Boolean, default: false },
+  copy: { type: String, default: 'Đang xác thực bản quyền HWID' }
 })
 </script>
 
@@ -26,7 +27,7 @@ defineProps({
       </div>
     </div>
     <p class="rocket-title">DAWA</p>
-    <p class="rocket-copy">Đang xác thực bản quyền HWID</p>
+    <p class="rocket-copy">{{ copy }}</p>
     <div class="rocket-track" aria-hidden="true">
       <span class="rocket-track-fill"></span>
     </div>

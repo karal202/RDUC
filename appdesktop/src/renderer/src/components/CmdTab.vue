@@ -12,7 +12,10 @@ const loadScripts = async () => {
     const allowed = await window.api?.listAllowedScripts?.()
     scripts.value = Object.entries(allowed || {}).map(([key, value]) => ({
       key,
-      title: key.replace(/^dawa-/, '').replaceAll('-', ' ').toUpperCase(),
+      title: key
+        .replace(/^dawa-/, '')
+        .replaceAll('-', ' ')
+        .toUpperCase(),
       description: value.description || 'CMD script đã được whitelist.'
     }))
   } finally {
@@ -43,7 +46,10 @@ onMounted(loadScripts)
       <div>
         <span class="eyebrow">COMMAND CENTER</span>
         <h2>Kho CMD của bạn</h2>
-        <p>Chừa sẵn khu vực để bổ sung các file .cmd/.bat. Chỉ những script được whitelist ở Electron mới có thể thực thi.</p>
+        <p>
+          Chừa sẵn khu vực để bổ sung các file .cmd/.bat. Chỉ những script được whitelist ở Electron
+          mới có thể thực thi.
+        </p>
       </div>
       <div class="cmd-placeholder" aria-label="Vị trí thêm file CMD">
         <span class="cmd-placeholder-icon">+</span>

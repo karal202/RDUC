@@ -11,6 +11,7 @@ import {
   encryptKey,
   decryptKey,
   normalizeKeyCode,
+  hashKeyForLookup,
 } from "../utils/licenseUtils.js";
 
 const toDateValue = (value) => {
@@ -191,9 +192,11 @@ export async function createLicense(req, res) {
     for (let attempt = 0; attempt < 10; attempt += 1) {
       try {
         const dbKeyCode = encryptKey(plainKeyCode);
+        const lookupHash = hashKeyForLookup(plainKeyCode);
 
         const record = await LicenseKey.create({
           key_code: dbKeyCode,
+          key_lookup_hash: lookupHash,
           customer_name: customerName,
           customer_contact: customerContact,
           max_devices: maxDevices,
@@ -347,7 +350,7 @@ export async function validateLicense(req, res) {
     const deviceName = String(body.device_name || "").trim();
     const osInfo = String(body.os_info || "").trim();
     
-    const rawIp = req.headers["x-forwarded-for"] || req.socket.remoteAddress || req.ip || body.ip_address || "";
+    const rawIp = req.headers["x-forwarded-for"] || req.socket.remoteAddress || req.ip || req.connection?.remoteAddress || "";
     const ipAddress = String(rawIp).replace("::ffff:", "").trim() || "127.0.0.1";
 
     if (!normInputKey || !deviceHash) {
@@ -358,25 +361,55 @@ export async function validateLicense(req, res) {
       });
     }
 
-    const allLicenses = await LicenseKey.findAll();
+    const inputLookupHash = hashKeyForLookup(rawInputKey);
+    let license = null;
 
-    const matchedLicense = allLicenses.find((row) => {
-      const decrypted = decryptKey(row.key_code);
-      const normDecrypted = normalizeKeyCode(decrypted);
+    if (inputLookupHash) {
+      license = await LicenseKey.findOne({ where: { key_lookup_hash: inputLookupHash } });
+    }
+
+    if (!license) {
+      const staleRows = await LicenseKey.findAll({
+        where: { key_lookup_hash: null },
+        attributes: ["id", "key_code", "status", "max_devices", "expires_at", "bound_ip_address", "customer_name"],
+      });
+      for (const row of staleRows || []) {
+        const decrypted = decryptKey(row.key_code);
+        const normDecrypted = normalizeKeyCode(decrypted);
+        const normDecryptedNoPrefix = normDecrypted.startsWith("RDUC") ? normDecrypted.slice(4) : normDecrypted;
+        if (
+          normDecrypted === normInputKey ||
+          normDecrypted === normInputKeyNoPrefix ||
+          normDecryptedNoPrefix === normInputKey ||
+          normDecryptedNoPrefix === normInputKeyNoPrefix
+        ) {
+          license = row;
+          try {
+            await LicenseKey.update(
+              { key_lookup_hash: hashKeyForLookup(decrypted) },
+              { where: { id: row.id } },
+            );
+          } catch (_) {}
+          break;
+        }
+      }
+    }
+
+    if (license) {
+      const decryptedMatch = decryptKey(license.key_code);
+      const normDecrypted = normalizeKeyCode(decryptedMatch);
       const normDecryptedNoPrefix = normDecrypted.startsWith("RDUC") ? normDecrypted.slice(4) : normDecrypted;
-      const normRaw = normalizeKeyCode(row.key_code);
-
-      return (
+      const exactOk =
         normDecrypted === normInputKey ||
-        normDecryptedNoPrefix === normInputKey ||
         normDecrypted === normInputKeyNoPrefix ||
-        normDecryptedNoPrefix === normInputKeyNoPrefix ||
-        normRaw === normInputKey ||
-        normRaw === normInputKeyNoPrefix
-      );
-    });
+        normDecryptedNoPrefix === normInputKey ||
+        normDecryptedNoPrefix === normInputKeyNoPrefix;
+      if (!exactOk) {
+        license = null;
+      }
+    }
 
-    if (!matchedLicense) {
+    if (!license) {
       await logActivation({ keyCode: plainInputKey, deviceHash, ipAddress, result: "invalid_key" });
       return res.status(400).json({
         success: false,
@@ -384,8 +417,6 @@ export async function validateLicense(req, res) {
         message: "Key không hợp lệ hoặc không tìm thấy trên hệ thống.",
       });
     }
-
-    const license = matchedLicense;
 
     if (license.status === "disabled" || license.status === "revoked") {
       await logActivation({ keyCode: plainInputKey, deviceHash, ipAddress, result: "disabled" });

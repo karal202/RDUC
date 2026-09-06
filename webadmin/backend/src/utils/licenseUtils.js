@@ -1,7 +1,22 @@
 import crypto from "crypto";
 
-const ENCRYPTION_KEY = process.env.LICENSE_SECRET_KEY || "DAWA_LICENSE_SECRET_KEY_32BYTES_LONG!";
+const FALLBACK_ENCRYPTION_KEY = "DAWA_LICENSE_SECRET_KEY_32BYTES_LONG!";
+const ENCRYPTION_KEY = process.env.LICENSE_SECRET_KEY || FALLBACK_ENCRYPTION_KEY;
+const LOOKUP_PEPPER = process.env.LICENSE_LOOKUP_PEPPER || "DAWA_LOOKUP_PEPPER_STATIC";
 const ALGORITHM = "aes-256-cbc";
+
+if (!process.env.LICENSE_SECRET_KEY) {
+  console.warn(
+    "[SECURITY WARN] LICENSE_SECRET_KEY env var is NOT set — using hardcoded fallback. " +
+      "This is unsafe for production! Set a strong 32+ byte passphrase via env."
+  );
+}
+if (!process.env.LICENSE_LOOKUP_PEPPER) {
+  console.warn(
+    "[SECURITY WARN] LICENSE_LOOKUP_PEPPER env var is NOT set — using static pepper. " +
+      "Set a unique server-side pepper to strengthen key-lookup hashes."
+  );
+}
 
 /**
  * Normalize key to uppercase alphanumeric only
@@ -75,4 +90,16 @@ export function decryptKey(cipherText) {
   } catch (err) {
     return str;
   }
+}
+
+/**
+ * Build a deterministic, server-peppered lookup hash from a plain-text key.
+ * Used to replace O(n) decrypt-each-row scans with a single indexed lookup.
+ * Output is always a 64-char lowercase hex string (SHA-256 digest).
+ */
+export function hashKeyForLookup(plainKey) {
+  const norm = normalizeKeyCode(plainKey);
+  if (!norm) return "";
+  const payload = `${LOOKUP_PEPPER}:${norm}`;
+  return crypto.createHash("sha256").update(payload).digest("hex");
 }

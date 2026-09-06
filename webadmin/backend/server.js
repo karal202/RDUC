@@ -16,7 +16,27 @@ const PORT = Number(process.env.PORT || 3069);
 app.use(
   helmet({
     crossOriginResourcePolicy: false,
-    contentSecurityPolicy: false,
+    contentSecurityPolicy: {
+      useDefaults: true,
+      directives: {
+        "default-src": ["'self'"],
+        "script-src": ["'self'", "'unsafe-inline'"],
+        "script-src-attr": null,
+        "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
+        "img-src": ["'self'", "data:", "blob:", "https:"],
+        "connect-src": ["'self'", "https:", "wss:", "ws:"],
+        "worker-src": ["'self'", "blob:"],
+        "frame-src": ["'none'"],
+        "object-src": ["'none'"],
+      },
+    },
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+    frameguard: { action: "deny" },
+    xssFilter: true,
+    noSniff: true,
+    permittedCrossDomainPolicies: { policy: "none" },
   }),
 );
 
@@ -89,6 +109,30 @@ const io = new Server(httpServer, {
 
 app.set("io", io);
 
+io.engine.use((req, res, next) => {
+  const origin = (req.headers.origin || req.headers.referer || "").toString();
+  const isTrustedLocal =
+    !origin ||
+    origin.startsWith("file://") ||
+    origin.startsWith("devtools://") ||
+    origin.startsWith("devtools://devtools/") ||
+    origin.startsWith("chrome-extension://");
+  const originAllowed =
+    allowedOrigins.length === 0 ||
+    allowedOrigins.some(
+      (o) => origin === o || origin.startsWith(o + "/") || origin.startsWith(o),
+    );
+  if (!isTrustedLocal && !originAllowed) {
+    console.warn(
+      `[SOCKET.IO] Blocked connection from non-allowed origin: ${origin || "unknown"}`,
+    );
+    const err = new Error("Origin not allowed");
+    err.code = "ORIGIN_DENIED";
+    return next(err);
+  }
+  next();
+});
+
 httpServer.on("error", (error) => {
   if (error.code === "EADDRINUSE") {
     console.error(`Backend cannot start: port ${PORT} is already in use.`);
@@ -102,10 +146,16 @@ httpServer.on("error", (error) => {
 });
 
 io.on("connection", (socket) => {
-  console.log("Client connected via socket:", socket.id);
+  const origin = socket.handshake.headers.origin || socket.handshake.headers.referer || "local";
+  const ip =
+    socket.handshake.headers["x-forwarded-for"] ||
+    socket.handshake.address ||
+    socket.conn.remoteAddress ||
+    "unknown";
+  console.log(`[SOCKET.IO] Client connected id=${socket.id} origin=${origin} ip=${ip}`);
   
-  socket.on("disconnect", () => {
-    console.log("Client disconnected:", socket.id);
+  socket.on("disconnect", (reason) => {
+    console.log(`[SOCKET.IO] Client disconnected id=${socket.id} reason=${reason}`);
   });
 });
 

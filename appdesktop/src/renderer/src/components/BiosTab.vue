@@ -30,11 +30,7 @@ const handleRestartBIOS = async () => {
     <div class="dashboard-card">
       <div class="card-header">
         <div class="card-title">
-          <div
-            class="card-icon"
-          >
-            ⚙️
-          </div>
+          <div class="card-icon">⚙️</div>
           <div>
             <div style="font-size: 18px">THIẾT LẬP BIOS / UEFI SYSTEM</div>
             <div style="font-size: 12px; font-weight: 400; color: var(--text-muted)">

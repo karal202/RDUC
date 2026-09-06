@@ -34,15 +34,18 @@ const tabComponents = {
   cmd: CmdTab
 }
 const activeComponent = computed(() => tabComponents[activeTab.value])
-const pageTitle = computed(() => ({
-  dashboard: 'Dashboard',
-  dawa: 'Optimize',
-  bios: 'BIOS',
-  network: 'Network',
-  mouse: 'Input',
-  restore: 'Restore',
-  cmd: 'CMD'
-}[activeTab.value] || 'Dashboard'))
+const pageTitle = computed(
+  () =>
+    ({
+      dashboard: 'Dashboard',
+      dawa: 'Optimize',
+      bios: 'BIOS',
+      network: 'Network',
+      mouse: 'Input',
+      restore: 'Restore',
+      cmd: 'CMD'
+    })[activeTab.value] || 'Dashboard'
+)
 const coreNav = [
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'dawa', label: 'Optimize', icon: Sparkles }
@@ -56,7 +59,14 @@ const toolNav = [
 ]
 const isActivated = ref(false)
 const licenseInfo = ref(null)
-const isCheckingLicense = ref(true)
+const ACTIVATED_FLAG = '__DAWA_ACTIVATED_BEFORE'
+let priorActivatedSeen = false
+try {
+  priorActivatedSeen = !!localStorage.getItem(ACTIVATED_FLAG)
+} catch {
+  priorActivatedSeen = false
+}
+const bootGate = ref(priorActivatedSeen ? 'rocket' : 'activate')
 const isLaunching = ref(false)
 const revokedAlert = ref(false)
 
@@ -68,33 +78,42 @@ const latestVersionInfo = ref({
 })
 
 const SPLASH_MIN_MS = 2400
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+const playRocket = async () => {
+  bootGate.value = 'rocket'
+  isLaunching.value = false
+  await delay(SPLASH_MIN_MS)
+  isLaunching.value = true
+  await delay(820)
+  bootGate.value = 'ready'
+}
 
 const checkLicense = async ({ splash = false } = {}) => {
-  if (splash) isCheckingLicense.value = true
-  const startedAt = Date.now()
   try {
-    if (window.api?.checkLicenseStatus) {
-      const res = await window.api.checkLicenseStatus()
-      if (res && res.isActivated) {
-        isActivated.value = true
-        licenseInfo.value = res
-      } else {
-        isActivated.value = false
-        licenseInfo.value = null
-      }
-    } else {
-      isActivated.value = true
+    if (!window.api?.checkLicenseStatus) {
+      isActivated.value = false
+      licenseInfo.value = null
+      return false
     }
+    const res = await window.api.checkLicenseStatus()
+    if (res && res.isActivated) {
+      isActivated.value = true
+      licenseInfo.value = res
+      return true
+    }
+    isActivated.value = false
+    licenseInfo.value = null
+    return false
   } catch (err) {
     console.error('License check error:', err)
     isActivated.value = false
+    return false
   } finally {
-    if (splash) {
-      const remain = Math.max(0, SPLASH_MIN_MS - (Date.now() - startedAt))
-      if (remain) await new Promise((resolve) => setTimeout(resolve, remain))
-      isLaunching.value = true
-      await new Promise((resolve) => setTimeout(resolve, 820))
-      isCheckingLicense.value = false
+    if (splash && isActivated.value) {
+      await playRocket()
+    } else if (splash) {
+      bootGate.value = 'activate'
     }
   }
 }
@@ -109,30 +128,40 @@ const checkAppVersion = async () => {
   }
 }
 
-const handleActivated = (data) => {
+const handleActivated = async (data) => {
+  try {
+    localStorage.setItem(ACTIVATED_FLAG, '1')
+  } catch {
+    /* ignore localStorage write failure */
+  }
   isActivated.value = true
   licenseInfo.value = data
   activeTab.value = 'dashboard'
+  await reconnectSocket()
+  await playRocket()
 }
 
 const handleDeactivate = async () => {
   if (confirm('Bạn có chắc chắn muốn khóa key bản quyền và đăng xuất khỏi ứng dụng?')) {
     try {
       await window.api.deactivateLicense()
+      try {
+        localStorage.removeItem(ACTIVATED_FLAG)
+      } catch {
+        /* ignore localStorage removal failure */
+      }
       isActivated.value = false
       licenseInfo.value = null
+      bootGate.value = 'activate'
     } catch (err) {
       console.error('Failed to deactivate:', err)
     }
   }
 }
 
-// Socket.io — lắng nghe sự kiện realtime từ server
-const { connected: socketConnected } = useSocket({
+const { connected: socketConnected, reconnect: reconnectSocket } = useSocket({
   // Admin thu hồi / vô hiệu key → buộc app logout ngay
-  license_revoked: async ({ keyCode } = {}) => {
-    const currentKey = licenseInfo.value?.keyCode
-    if (!currentKey || (keyCode && keyCode !== currentKey)) return
+  license_revoked: async () => {
     try {
       await window.api?.deactivateLicense?.()
     } catch (error) {
@@ -141,14 +170,17 @@ const { connected: socketConnected } = useSocket({
     revokedAlert.value = true
     isActivated.value = false
     licenseInfo.value = null
-    setTimeout(() => { revokedAlert.value = false }, 8000)
+    bootGate.value = 'activate'
+    setTimeout(() => {
+      revokedAlert.value = false
+    }, 8000)
   },
 
   // Admin cập nhật key → re-verify để bắt hết hạn, disabled, v.v.
   license_updated: async () => {
     if (!isActivated.value) return
     await checkLicense()
-  },
+  }
 })
 
 onMounted(() => {
@@ -158,30 +190,30 @@ onMounted(() => {
     revokedAlert.value = true
     isActivated.value = false
     licenseInfo.value = null
-    setTimeout(() => { revokedAlert.value = false }, 8000)
+    bootGate.value = 'activate'
+    setTimeout(() => {
+      revokedAlert.value = false
+    }, 8000)
   })
 })
 </script>
 
-
 <template>
-  <RocketLaunch v-if="isCheckingLicense" :launching="isLaunching" />
+  <ActivationModal v-if="bootGate === 'activate'" @activated="handleActivated" />
+  <RocketLaunch
+    v-else-if="bootGate === 'rocket'"
+    :launching="isLaunching"
+    :copy="isActivated ? 'Đang vào khu vực tối ưu' : 'Đang xác thực bản quyền HWID'"
+  />
 
-  <template v-else>
-    <!-- Activation Modal Screen if not activated -->
-    <ActivationModal v-if="!isActivated" @activated="handleActivated" />
-
-    <!-- Key bị thu hồi bởi Admin -->
+  <template v-else-if="bootGate === 'ready' && isActivated">
     <Transition name="slide-down">
-      <div
-        v-if="revokedAlert"
-        class="revoked-alert"
-      >
+      <div v-if="revokedAlert" class="revoked-alert">
         <span>Key bản quyền đã bị thu hồi hoặc vô hiệu hóa. Liên hệ hỗ trợ để kích hoạt lại.</span>
       </div>
     </Transition>
 
-    <div v-if="isActivated" class="app-shell">
+    <div class="app-shell">
       <div class="hud-grid" aria-hidden="true"></div>
 
       <header class="hud-top">
