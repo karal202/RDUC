@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { Globe } from 'lucide-vue-next'
 
 const logOutput = ref('')
 const isRunning = ref(false)
@@ -33,7 +34,7 @@ const runCmdHook = async (actionName, description) => {
             class="card-icon"
             style="background-color: rgba(0, 240, 255, 0.15); color: var(--accent-cyan)"
           >
-            🌐
+            <Globe :size="18" :stroke-width="2" />
           </div>
           <div>
             <div>TỐI ƯU MẠNG & PING (NETWORK OPTIMIZER)</div>

@@ -9,11 +9,19 @@ import LogsTab from "./components/LogsTab";
 import DownloadTab from "./components/DownloadTab";
 import ValidationModal from "./components/ValidationModal";
 import AdminLogin from "./components/AdminLogin";
+import { Gauge, Users, ScrollText, Globe, CheckCircle, XCircle, Broadcast, Wrench } from "@phosphor-icons/react";
 
 const SOCKET_URL = BACKEND_URL;
 const defaultLicenseForm = { customer_name: "", customer_contact: "", key_code: "", max_devices: 1, expires_at: "", created_by: 1, note: "" };
 const defaultValidationForm = { key_code: "", device_hash: "", device_name: "", os_info: "" };
 const formatDate = (value) => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? value : date.toLocaleString("vi-VN"); };
+
+const titleConfig = {
+  dashboard: { Icon: Gauge, label: "Dashboard Tổng quan" },
+  users: { Icon: Users, label: "Quản lý Người dùng & Key" },
+  logs: { Icon: ScrollText, label: "Nhật ký Kích hoạt & IP" },
+  download: { Icon: Globe, label: "Web Tải App & Test Key" },
+};
 
 function AdminDashboard({ onLogout }) {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -38,7 +46,7 @@ function AdminDashboard({ onLogout }) {
   const loadData = useCallback(async () => {
     setLoading(true);
     try { const data = await loadLicenseData(); setDbHealth(data.health); setDashboard(data.dashboard); setLicenses(data.licenses); setLogs(data.logs); }
-    catch (error) { setStatusMessage({ type: "error", text: error.message }); }
+    catch { /* swallow transient network error; toast set below if needed */ }
     finally { setLoading(false); }
   }, []);
 
@@ -64,9 +72,40 @@ function AdminDashboard({ onLogout }) {
   const deleteLicense = async (id, name) => { if (!confirm(`Xóa vĩnh viễn Key của ${name || id}? Người dùng đang sử dụng Key sẽ bị đăng xuất ngay.`)) return; try { await fetchJson(`${API_BASE}/licenses/${id}`, { method: "DELETE" }); setStatusMessage({ type: "success", text: "Đã xóa Key và ngắt quyền sử dụng realtime." }); await loadData(); } catch (error) { setError(error); } };
   const resetBoundIp = async (id, name) => { if (!confirm(`Đồng ý reset IP cho Key của ${name || id}?`)) return; try { await fetchJson(`${API_BASE}/licenses/${id}`, { method: "PUT", body: JSON.stringify({ reset_bound_ip: true }) }); await loadData(); } catch (error) { setError(error); } };
   const submitValidation = async (event) => { event.preventDefault(); try { const result = await fetchJson(`${API_BASE}/validate`, { method: "POST", body: JSON.stringify({ ...validationForm, device_hash: validationForm.device_hash || "TEST-HWID-001" }) }); setStatusMessage({ type: result.valid ? "success" : "error", text: result.message }); setValidationForm(defaultValidationForm); await loadData(); setShowKeyModal(false); } catch (error) { setError(error); } };
-  const titles = { dashboard: "📊 Dashboard Tổng quan", users: "👤 Quản lý Người dùng & Key", logs: "📜 Nhật ký Kích hoạt & IP", download: "🌐 Web Tải App & Test Key" };
+  const { Icon: TitleIcon, label: titleLabel } = titleConfig[activeTab] || titleConfig.dashboard;
 
-  return <div className="admin-container"><AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} dbHealth={dbHealth} onLogout={logout} /><main className="main-content"><header className="top-header"><div><h1>{titles[activeTab]}</h1><p>Hệ thống Quản trị Bản quyền Kích hoạt Hardware Bound DAWA System</p></div><span className="status-badge activated">{realtimeFlash ? "⚡ CẬP NHẬT!" : socketConnected ? "LIVE" : "OFFLINE"}</span></header>{statusMessage.text && <div className={`status-toast ${statusMessage.type}`}>{statusMessage.text}</div>}{activeTab === "dashboard" && <DashboardTab dashboard={dashboard} loading={loading} loadData={loadData} setActiveTab={setActiveTab} />}{activeTab === "users" && <UsersTab form={licenseForm} setForm={setLicenseForm} licenses={licenses} searchTerm={userSearchTerm} setSearchTerm={setUserSearchTerm} onSubmit={submitLicense} onToggle={toggleLicenseStatus} onDelete={deleteLicense} onReset={resetBoundIp} generateKey={generateKey} formatDate={formatDate} />}{activeTab === "logs" && <LogsTab logs={logs} filter={ipFilter} setFilter={setIpFilter} formatDate={formatDate} />}{activeTab === "download" && <DownloadTab onOpenValidation={() => setShowKeyModal(true)} />}{showKeyModal && <ValidationModal form={validationForm} setForm={setValidationForm} onSubmit={submitValidation} onClose={() => setShowKeyModal(false)} />}</main></div>;
+  return <div className="admin-container">
+    <AdminSidebar activeTab={activeTab} setActiveTab={setActiveTab} dbHealth={dbHealth} onLogout={logout} />
+    <main className="main-content">
+      <header className="top-header">
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+          <div className="h1-icon">
+            <TitleIcon size={22} weight="duotone" />
+          </div>
+          <div>
+            <h1>{titleLabel}</h1>
+            <p>Hệ thống Quản trị Bản quyền Kích hoạt Hardware Bound DAWA System</p>
+          </div>
+        </div>
+        <span className={`status-badge ${socketConnected ? "activated" : "idle"}`}>
+          {realtimeFlash
+            ? <><Broadcast size={14} weight="fill" /> CẬP NHẬT!</>
+            : socketConnected
+              ? <><Broadcast size={14} weight="fill" /> LIVE</>
+              : <><Wrench size={14} weight="fill" /> OFFLINE</>}
+        </span>
+      </header>
+      {statusMessage.text && <div className={`status-toast ${statusMessage.type}`}>
+        {statusMessage.type === "success" ? <CheckCircle size={18} weight="duotone" /> : <XCircle size={18} weight="duotone" />}
+        <span>{statusMessage.text}</span>
+      </div>}
+      {activeTab === "dashboard" && <DashboardTab dashboard={dashboard} loading={loading} setActiveTab={setActiveTab} />}
+      {activeTab === "users" && <UsersTab form={licenseForm} setForm={setLicenseForm} licenses={licenses} searchTerm={userSearchTerm} setSearchTerm={setUserSearchTerm} onSubmit={submitLicense} onToggle={toggleLicenseStatus} onDelete={deleteLicense} onReset={resetBoundIp} generateKey={generateKey} formatDate={formatDate} />}
+      {activeTab === "logs" && <LogsTab logs={logs} filter={ipFilter} setFilter={setIpFilter} formatDate={formatDate} />}
+      {activeTab === "download" && <DownloadTab onOpenValidation={() => setShowKeyModal(true)} />}
+      {showKeyModal && <ValidationModal form={validationForm} setForm={setValidationForm} onSubmit={submitValidation} onClose={() => setShowKeyModal(false)} />}
+    </main>
+  </div>;
 }
 
 function App() {

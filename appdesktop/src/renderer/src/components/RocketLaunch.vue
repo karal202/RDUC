@@ -19,7 +19,7 @@ defineProps({
     <div class="rocket-stage">
       <div class="rocket-flight">
         <div class="rocket-body">
-          <Rocket :size="54" :stroke-width="1.6" />
+          <Rocket :size="54" :stroke-width="2" />
         </div>
         <div class="rocket-plume" aria-hidden="true">
           <span class="rocket-plume-core"></span>

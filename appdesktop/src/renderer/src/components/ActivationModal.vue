@@ -175,9 +175,9 @@ const handleActivate = async () => {
             'is-error': markState === 'error'
           }"
         >
-          <CheckCircle2 v-if="markState === 'success'" :size="22" :stroke-width="1.8" />
-          <ShieldAlert v-else-if="markState === 'error'" :size="22" :stroke-width="1.8" />
-          <ShieldCheck v-else :size="22" :stroke-width="1.8" />
+          <CheckCircle2 v-if="markState === 'success'" :size="22" :stroke-width="2" />
+          <ShieldAlert v-else-if="markState === 'error'" :size="22" :stroke-width="2" />
+          <ShieldCheck v-else :size="22" :stroke-width="2" />
         </div>
 
         <h2>Kích hoạt bản quyền</h2>
@@ -226,7 +226,7 @@ const handleActivate = async () => {
             @keyup.enter="handleActivate"
             @focus="stopTyping"
           />
-          <KeyRound class="key-input-icon" :size="17" :stroke-width="1.8" aria-hidden="true" />
+          <KeyRound class="key-input-icon" :size="17" :stroke-width="2" aria-hidden="true" />
         </div>
 
         <div aria-live="polite" aria-atomic="true">

@@ -222,7 +222,7 @@ onMounted(() => {
             type="button"
             @click="activeTab = item.key"
           >
-            <component :is="item.icon" :size="15" :stroke-width="1.8" />
+            <component :is="item.icon" :size="15" :stroke-width="2" />
             {{ item.label }}
           </button>
           <span class="hud-nav-split" aria-hidden="true"></span>
@@ -234,7 +234,7 @@ onMounted(() => {
             type="button"
             @click="activeTab = item.key"
           >
-            <component :is="item.icon" :size="14" :stroke-width="1.8" />
+            <component :is="item.icon" :size="14" :stroke-width="2" />
             {{ item.label }}
           </button>
         </nav>

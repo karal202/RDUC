@@ -5,13 +5,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=Be+Vietnam+Pro:wght@700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  --radius: 6px;
-  --bg-primary:    #08080b;
-  --bg-darker:     #050508;
-  --bg-secondary:  #0e0e12;
-  --bg-card:       #121218;
-  --bg-card-hover: #18181f;
-  --icon-bg:       #1c1c22;
+  --radius: 8px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --bg-primary:    #09090c;
+  --bg-darker:     #060609;
+  --bg-secondary:  #0f0f14;
+  --bg-card:       #13131a;
+  --bg-card-hover: #1a1a22;
+  --icon-bg:       #1e1e25;
 
   --border-color:  #2a2a36;
 
@@ -169,7 +174,7 @@ body {
   height: 32px;
   padding: 0 12px;
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   font-family: var(--font-mono);
@@ -395,9 +400,9 @@ body {
 }
 
 .card-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
   background-color: var(--accent-primary-ghost);
   color: var(--accent-primary);
   display: flex;
@@ -415,21 +420,20 @@ body {
   color: white;
   border: none;
   padding: 10px 20px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-sans);
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;
-  transition: background-color 0.15s ease, opacity 0.15s ease;
+  transition: background-color 0.15s ease, opacity 0.15s ease, transform 160ms ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 }
-
-.btn-primary:hover { background-color: var(--accent-primary-hover); }
+.btn-primary:hover { background-color: var(--accent-primary-hover); transform: translateY(-1px); }
 .btn-primary:active { opacity: 0.9; }
-.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 
 .btn-secondary {
   background-color: transparent;
@@ -595,7 +599,7 @@ body {
   height: 5px;
   padding: 0;
   border: 0;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: rgba(255, 255, 255, 0.45);
   cursor: pointer;
 }
@@ -1985,7 +1989,7 @@ body {
   inset: 0;
   z-index: -1;
   padding: 1px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: linear-gradient(120deg,
     rgba(22, 119, 255, 0.0) 0%,
     rgba(22, 119, 255, 0.6) 25%,
@@ -2006,7 +2010,7 @@ body {
 .activation-mark {
   position: relative;
   animation: glow-pulse 3.4s ease-in-out infinite;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
 }
 .activation-mark.is-success {
   animation: glow-pulse 1.6s ease-in-out infinite;
@@ -2015,7 +2019,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   pointer-events: none;
   animation: success-ring-draw 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -2051,7 +2055,7 @@ body {
   background: var(--accent-primary);
   animation: terminal-blink 1s steps(1, end) infinite;
   box-shadow: 0 0 8px var(--accent-primary);
-  border-radius: 1px;
+  border-radius: var(--radius-xs);
 }
 
 /* — Submit button shimmer gradient — */
@@ -2065,7 +2069,7 @@ body {
     0 12px 28px -10px rgba(22, 119, 255, 0.55),
     0 0 0 1px rgba(22, 119, 255, 0.25) inset;
   letter-spacing: 0.6px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
 }
 .activation-submit:hover:not(:disabled) {
   background-position: 100% 0;
