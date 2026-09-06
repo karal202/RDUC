@@ -1,7 +1,6 @@
 import { Sequelize } from "sequelize";
 import dotenv from "dotenv";
 import { decryptKey, hashKeyForLookup } from "../../utils/licenseUtils.js";
-import LicenseKey from "../../models/licenseKey.model.js";
 
 dotenv.config();
 
@@ -22,115 +21,121 @@ const sequelize = new Sequelize(databaseUrl, {
   },
 });
 
-try {
-  await sequelize.authenticate();
-  console.log("[SEQUELIZE] Connection has been established successfully.");
+export async function bootstrapDatabase() {
+  try {
+    await sequelize.authenticate();
+    console.log("[SEQUELIZE] Connection has been established successfully.");
 
-  // Auto-add missing columns and drop legacy columns to avoid insert failures
-  try {
-    await sequelize.query("ALTER TABLE license_keys ADD COLUMN customer_name VARCHAR(100) NULL");
-  } catch (e) {}
-  try {
-    await sequelize.query("ALTER TABLE license_keys ADD COLUMN customer_contact VARCHAR(100) NULL");
-  } catch (e) {}
+    // Auto-add missing columns and drop legacy columns to avoid insert failures
+    try {
+      await sequelize.query("ALTER TABLE license_keys ADD COLUMN customer_name VARCHAR(100) NULL");
+    } catch (e) {}
+    try {
+      await sequelize.query("ALTER TABLE license_keys ADD COLUMN customer_contact VARCHAR(100) NULL");
+    } catch (e) {}
 
-  // Ensure key_code is large enough for AES-256-CBC cipher output (~100 chars)
-  try {
-    await sequelize.query("ALTER TABLE license_keys MODIFY COLUMN key_code VARCHAR(255) NOT NULL");
-  } catch (e) {}
+    // Ensure key_code is large enough for AES-256-CBC cipher output (~100 chars)
+    try {
+      await sequelize.query("ALTER TABLE license_keys MODIFY COLUMN key_code VARCHAR(255) NOT NULL");
+    } catch (e) {}
 
-  // Drop any foreign key constraint attached to product_id, then drop legacy column
-  try {
-    const [fkRows] = await sequelize.query(
-      "SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'license_keys' AND COLUMN_NAME = 'product_id' AND REFERENCED_TABLE_NAME IS NOT NULL",
-    );
-    for (const fk of fkRows || []) {
-      const name = fk.CONSTRAINT_NAME || fk.constraint_name;
-      if (name) {
-        try { await sequelize.query(`ALTER TABLE license_keys DROP FOREIGN KEY \`${name}\``); } catch (_) {}
-      }
-    }
-  } catch (e) {}
-  try {
-    await sequelize.query("ALTER TABLE license_keys DROP COLUMN product_id");
-    console.log("[SEQUELIZE] Dropped legacy 'license_keys.product_id' column.");
-  } catch (e) {}
-
-  try {
-    await sequelize.query(
-      "ALTER TABLE license_keys ADD COLUMN bound_ip_address VARCHAR(45) NULL COMMENT 'IP cong khai duy nhat duoc phep dung key nay (null = chua kich hoat lan nao)'",
-    );
-    console.log("[SEQUELIZE] Added 'license_keys.bound_ip_address' column.");
-  } catch (e) {}
-
-  try {
-    await sequelize.query(
-      "ALTER TABLE activation_logs MODIFY COLUMN result ENUM('success','invalid_key','expired','device_limit','disabled','revoked','ip_mismatch') NOT NULL",
-    );
-    console.log("[SEQUELIZE] Extended activation_logs.result ENUM with 'revoked' and 'ip_mismatch'.");
-  } catch (e) {}
-
-  try {
-    await sequelize.query(
-      "ALTER TABLE license_keys ADD COLUMN key_lookup_hash VARCHAR(64) NULL COMMENT 'SHA-256 peppered hash of normalized plain key for fast O(1) lookup'",
-    );
-    console.log("[SEQUELIZE] Added 'license_keys.key_lookup_hash' column.");
-  } catch (e) {}
-  try {
-    await sequelize.query(
-      "ALTER TABLE license_keys ADD UNIQUE INDEX idx_license_keys_lookup_hash (key_lookup_hash)",
-    );
-    console.log("[SEQUELIZE] Added unique index on 'license_keys.key_lookup_hash'.");
-  } catch (e) {}
-
-  await sequelize.sync({ alter: true, force: false });
-  console.log("[SEQUELIZE] Models synchronized successfully.");
-
-  try {
-    const staleRows = await LicenseKey.findAll({
-      where: { key_lookup_hash: null },
-      attributes: ["id", "key_code"],
-      logging: false,
-    });
-    if (staleRows && staleRows.length > 0) {
-      console.log(`[SEQUELIZE] Back-filling key_lookup_hash for ${staleRows.length} existing license(s)...`);
-      let filled = 0;
-      let skipped = 0;
-      for (const row of staleRows) {
-        const plain = decryptKey(row.key_code);
-        const hash = hashKeyForLookup(plain);
-        if (!hash) {
-          skipped += 1;
-          continue;
-        }
-        try {
-          await LicenseKey.update(
-            { key_lookup_hash: hash },
-            { where: { id: row.id }, logging: false },
-          );
-          filled += 1;
-        } catch (updErr) {
-          console.warn(
-            `[SEQUELIZE] Could not backfill key_lookup_hash for license id=${row.id}:`,
-            updErr.parent?.sqlMessage || updErr.message,
-          );
+    // Drop any foreign key constraint attached to product_id, then drop legacy column
+    try {
+      const [fkRows] = await sequelize.query(
+        "SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'license_keys' AND COLUMN_NAME = 'product_id' AND REFERENCED_TABLE_NAME IS NOT NULL",
+      );
+      for (const fk of fkRows || []) {
+        const name = fk.CONSTRAINT_NAME || fk.constraint_name;
+        if (name) {
+          try { await sequelize.query(`ALTER TABLE license_keys DROP FOREIGN KEY \`${name}\``); } catch (_) {}
         }
       }
-      console.log(
-        `[SEQUELIZE] key_lookup_hash backfill complete: ${filled} filled, ${skipped} skipped.`,
+    } catch (e) {}
+    try {
+      await sequelize.query("ALTER TABLE license_keys DROP COLUMN product_id");
+      console.log("[SEQUELIZE] Dropped legacy 'license_keys.product_id' column.");
+    } catch (e) {}
+
+    try {
+      await sequelize.query(
+        "ALTER TABLE license_keys ADD COLUMN bound_ip_address VARCHAR(45) NULL COMMENT 'IP cong khai duy nhat duoc phep dung key nay (null = chua kich hoat lan nao)'",
+      );
+      console.log("[SEQUELIZE] Added 'license_keys.bound_ip_address' column.");
+    } catch (e) {}
+
+    try {
+      await sequelize.query(
+        "ALTER TABLE activation_logs MODIFY COLUMN result ENUM('success','invalid_key','expired','device_limit','disabled','revoked','ip_mismatch') NOT NULL",
+      );
+      console.log("[SEQUELIZE] Extended activation_logs.result ENUM with 'revoked' and 'ip_mismatch'.");
+    } catch (e) {}
+
+    try {
+      await sequelize.query(
+        "ALTER TABLE license_keys ADD COLUMN key_lookup_hash VARCHAR(64) NULL COMMENT 'SHA-256 peppered hash of normalized plain key for fast O(1) lookup'",
+      );
+      console.log("[SEQUELIZE] Added 'license_keys.key_lookup_hash' column.");
+    } catch (e) {}
+    try {
+      await sequelize.query(
+        "ALTER TABLE license_keys ADD UNIQUE INDEX idx_license_keys_lookup_hash (key_lookup_hash)",
+      );
+      console.log("[SEQUELIZE] Added unique index on 'license_keys.key_lookup_hash'.");
+    } catch (e) {}
+
+    await sequelize.sync({ alter: true, force: false });
+    console.log("[SEQUELIZE] Models synchronized successfully.");
+
+    // Only import model AFTER sequelize instance is fully initialized,
+    // to break ESM circular dependency (models import sequelize from this file).
+    const { default: LicenseKey } = await import("../../models/licenseKey.model.js");
+
+    try {
+      const staleRows = await LicenseKey.findAll({
+        where: { key_lookup_hash: null },
+        attributes: ["id", "key_code"],
+        logging: false,
+      });
+      if (staleRows && staleRows.length > 0) {
+        console.log(`[SEQUELIZE] Back-filling key_lookup_hash for ${staleRows.length} existing license(s)...`);
+        let filled = 0;
+        let skipped = 0;
+        for (const row of staleRows) {
+          const plain = decryptKey(row.key_code);
+          const hash = hashKeyForLookup(plain);
+          if (!hash) {
+            skipped += 1;
+            continue;
+          }
+          try {
+            await LicenseKey.update(
+              { key_lookup_hash: hash },
+              { where: { id: row.id }, logging: false },
+            );
+            filled += 1;
+          } catch (updErr) {
+            console.warn(
+              `[SEQUELIZE] Could not backfill key_lookup_hash for license id=${row.id}:`,
+              updErr.parent?.sqlMessage || updErr.message,
+            );
+          }
+        }
+        console.log(
+          `[SEQUELIZE] key_lookup_hash backfill complete: ${filled} filled, ${skipped} skipped.`,
+        );
+      }
+    } catch (bfErr) {
+      console.warn(
+        "[SEQUELIZE] key_lookup_hash backfill skipped due to error:",
+        bfErr.message,
       );
     }
-  } catch (bfErr) {
+  } catch (error) {
+    console.error("[SEQUELIZE] Unable to connect to the database:", error.message);
     console.warn(
-      "[SEQUELIZE] key_lookup_hash backfill skipped due to error:",
-      bfErr.message,
+      "[SEQUELIZE] Please check your database connection or set DB_URL in .env.",
     );
   }
-} catch (error) {
-  console.error("[SEQUELIZE] Unable to connect to the database:", error.message);
-  console.warn(
-    "[SEQUELIZE] Please check your database connection or set DB_URL in .env.",
-  );
 }
 
 export default sequelize;

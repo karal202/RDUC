@@ -7,6 +7,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import path from "path";
 import rootRouter from "./src/routers/root.router.js";
+import { bootstrapDatabase } from "./src/common/squelize/connect.sequelize.js";
 
 dotenv.config();
 
@@ -158,6 +159,8 @@ io.on("connection", (socket) => {
     console.log(`[SOCKET.IO] Client disconnected id=${socket.id} reason=${reason}`);
   });
 });
+
+await bootstrapDatabase();
 
 httpServer.listen(PORT, () => {
   console.log(`License backend is running on http://localhost:${PORT}`);
