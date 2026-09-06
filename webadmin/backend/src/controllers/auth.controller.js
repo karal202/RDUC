@@ -1,27 +1,36 @@
 import { authService } from "../services/auth.service.js";
 import { responseSuccess } from "../common/helpers/response.helper.js";
 
-// cấu hình cookies để chặn JS truy cập vào cookie
+// Cấu hình cookie an toàn chống XSS & CSRF
+const isProduction = process.env.NODE_ENV === "production";
 const COOKIE_OPTIONS = {
-  httpOnly: true, //chặn JS truy cập vào cookie
-  sameSite: "lax", //chỉ gửi cookie trong cùng 1 trang web
-  secure: false, // develop: false, production: true
-  maxAge: 7 * 24 * 60 * 60 * 1000, //7 ngày
+  httpOnly: true, // Chặn JS truy cập vào cookie (chống trộm token qua XSS)
+  sameSite: isProduction ? "strict" : "lax",
+  secure: isProduction || process.env.COOKIE_SECURE === "true", // Bắt buộc HTTPS khi chạy production
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
+  path: "/",
 };
 
 export const authController = {
   async login(req, res, next) {
     const { accessToken, refreshToken } = await authService.login(req);
-    // lưu refresh token vào cookie
+    // Lưu token vào httpOnly cookie an toàn
     res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS);
     res.cookie("accessToken", accessToken, COOKIE_OPTIONS);
     const response = responseSuccess(
       {
         accessToken,
-        // refreshToken
+        authenticated: true,
       },
       `Login successfully`,
     );
+    res.status(response.statusCode).json(response);
+  },
+
+  async logout(req, res, next) {
+    res.clearCookie("accessToken", { ...COOKIE_OPTIONS, maxAge: 0 });
+    res.clearCookie("refreshToken", { ...COOKIE_OPTIONS, maxAge: 0 });
+    const response = responseSuccess(null, "Logout successfully");
     res.status(response.statusCode).json(response);
   },
 
@@ -33,10 +42,13 @@ export const authController = {
 
   // api 1: forgot password
   // input: email
-  // output: gửi mã change password về response
+  // output: Không trả mã reset về client (tránh chiếm đoạt tài khoản)
   async forgotPassword(req, res, next) {
-    const codeChangePass = await authService.forgotPassword(req);
-    res.status(200).json({ codeChangePass });
+    await authService.forgotPassword(req);
+    res.status(200).json({
+      success: true,
+      message: "Nếu email tồn tại trong hệ thống, hướng dẫn đặt lại mật khẩu đã được xử lý.",
+    });
   },
   // api 2: change password
   // input: email, mã change password, password mới

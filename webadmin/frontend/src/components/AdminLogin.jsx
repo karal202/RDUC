@@ -15,14 +15,16 @@ export default function AdminLogin({ onLogin }) {
     try {
       const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
         method: "POST",
+        credentials: "include", // Nhận và lưu httpOnly cookie trực tiếp, trình duyệt quản lý
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
       const result = await response.json();
-      if (!response.ok || !result?.data?.accessToken) {
+      if (!response.ok) {
         throw new Error(result?.message || "Đăng nhập thất bại");
       }
-      localStorage.setItem("accessToken", result.data.accessToken);
+      // Bảo mật cao: Không lưu token vào localStorage để chống đánh cắp qua XSS
+      sessionStorage.setItem("adminSessionActive", "true");
       onLogin();
     } catch (loginError) {
       setError(loginError.message);

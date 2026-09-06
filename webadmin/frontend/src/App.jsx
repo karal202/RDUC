@@ -38,8 +38,16 @@ function AdminDashboard({ onLogout }) {
   const [ipFilter, setIpFilter] = useState("");
   const [socketConnected, setSocketConnected] = useState(false);
   const [realtimeFlash, setRealtimeFlash] = useState(false);
-  const logout = () => {
-    localStorage.removeItem("accessToken");
+  const logout = async () => {
+    try {
+      await fetch(`${BACKEND_URL}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      /* ignore */
+    }
+    sessionStorage.removeItem("adminSessionActive");
     onLogout();
   };
 
@@ -109,17 +117,58 @@ function AdminDashboard({ onLogout }) {
 }
 
 function App() {
-  const [authenticated, setAuthenticated] = useState(() => Boolean(localStorage.getItem("accessToken")));
+  const [authenticated, setAuthenticated] = useState(() => Boolean(sessionStorage.getItem("adminSessionActive")));
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
+    let active = true;
+    const verifySession = async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/auth/get-info`, {
+          credentials: "include",
+        });
+        if (active) {
+          if (res.ok) {
+            setAuthenticated(true);
+            sessionStorage.setItem("adminSessionActive", "true");
+          } else {
+            setAuthenticated(false);
+            sessionStorage.removeItem("adminSessionActive");
+          }
+        }
+      } catch {
+        if (active) {
+          setAuthenticated(false);
+          sessionStorage.removeItem("adminSessionActive");
+        }
+      } finally {
+        if (active) setCheckingAuth(false);
+      }
+    };
+
+    verifySession();
+
     const handleAuthExpired = () => {
-      localStorage.removeItem("accessToken");
+      sessionStorage.removeItem("adminSessionActive");
       setAuthenticated(false);
     };
 
     window.addEventListener("auth-expired", handleAuthExpired);
-    return () => window.removeEventListener("auth-expired", handleAuthExpired);
+    return () => {
+      active = false;
+      window.removeEventListener("auth-expired", handleAuthExpired);
+    };
   }, []);
+
+  if (checkingAuth && authenticated) {
+    return (
+      <main className="login-page">
+        <div className="login-card" style={{ textAlign: "center", padding: "40px" }}>
+          <p style={{ color: "#94a3b8" }}>Đang kiểm tra bảo mật phiên làm việc…</p>
+        </div>
+      </main>
+    );
+  }
 
   if (!authenticated) {
     return <AdminLogin onLogin={() => setAuthenticated(true)} />;
