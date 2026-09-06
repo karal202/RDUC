@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { MousePointer2 } from 'lucide-vue-next'
 
 const logOutput = ref('')
 const isRunning = ref(false)
@@ -33,7 +34,7 @@ const runCmdHook = async (actionName, description) => {
             class="card-icon"
             style="background-color: rgba(245, 158, 11, 0.15); color: var(--accent-amber)"
           >
-            🖱️
+            <MousePointer2 :size="18" :stroke-width="2" />
           </div>
           <div>
             <div>TỐI ƯU CHUỘT & BÀN PHÍM (MOUSE & KEYBOARD)</div>

@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { RotateCcw } from 'lucide-vue-next'
 
 const logOutput = ref('')
 const isRunning = ref(false)
@@ -33,7 +34,7 @@ const runCmdHook = async (actionName, description) => {
             class="card-icon"
             style="background-color: rgba(156, 163, 175, 0.2); color: var(--text-main)"
           >
-            🔄
+            <RotateCcw :size="18" :stroke-width="2" />
           </div>
           <div>
             <div>KHÔI PHỤC MẶC ĐỊNH (RESTORE DEFAULT)</div>

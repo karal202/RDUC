@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { Settings, RotateCcw, AlertTriangle, Rocket } from 'lucide-vue-next'
 
 const showConfirmModal = ref(false)
 const isExecuting = ref(false)
@@ -30,7 +31,7 @@ const handleRestartBIOS = async () => {
     <div class="dashboard-card">
       <div class="card-header">
         <div class="card-title">
-          <div class="card-icon">⚙️</div>
+          <div class="card-icon"><Settings :size="18" :stroke-width="2" /></div>
           <div>
             <div style="font-size: 18px">THIẾT LẬP BIOS / UEFI SYSTEM</div>
             <div style="font-size: 12px; font-weight: 400; color: var(--text-muted)">
@@ -50,7 +51,9 @@ const handleRestartBIOS = async () => {
         "
       >
         <div style="display: flex; align-items: flex-start; gap: 16px">
-          <div style="font-size: 32px">🔄</div>
+          <div style="font-size: 32px">
+            <RotateCcw :size="32" :stroke-width="2" style="color: var(--accent-primary)" />
+          </div>
           <div style="flex: 1">
             <h3 style="font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 6px">
               TỰ ĐỘNG KHỞI ĐỘNG LẠI VÀO BIOS
@@ -74,7 +77,8 @@ const handleRestartBIOS = async () => {
               :disabled="isExecuting"
               @click="showConfirmModal = true"
             >
-              🚀 KHỞI ĐỘNG LẠI VÀO BIOS NGAY
+              <Rocket :size="16" :stroke-width="2" />
+              <span>KHỞI ĐỘNG LẠI VÀO BIOS NGAY</span>
             </button>
           </div>
         </div>
@@ -100,7 +104,9 @@ const handleRestartBIOS = async () => {
     <!-- Confirmation Modal -->
     <div v-if="showConfirmModal" class="modal-overlay">
       <div class="key-modal" style="max-width: 440px">
-        <div style="font-size: 40px; margin-bottom: 12px">⚠️</div>
+        <div style="font-size: 40px; margin-bottom: 12px; color: var(--accent-amber)">
+          <AlertTriangle :size="40" :stroke-width="2" fill="currentColor" fill-opacity="0.18" />
+        </div>
         <h3 style="font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 8px">
           XÁC NHẬN KHỞI ĐỘNG LẠI MÁY
         </h3>

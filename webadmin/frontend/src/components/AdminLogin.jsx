@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { BACKEND_URL } from "../api/licenseApi";
+import { ShieldCheck, SignInRight, XCircle } from "@phosphor-icons/react";
 
 export default function AdminLogin({ onLogin }) {
   const [username, setUsername] = useState("");
@@ -33,20 +34,45 @@ export default function AdminLogin({ onLogin }) {
   return (
     <main className="login-page">
       <form className="login-card" onSubmit={submit}>
-        <div className="sidebar-brand-icon">🛡️</div>
+        <div className="login-icon">
+          <ShieldCheck size={30} weight="fill" />
+        </div>
         <h1>Đăng nhập Admin</h1>
         <p>Quản lý license và thiết bị DAWA</p>
         <label>
           Tên đăng nhập
-          <input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" required />
+          <input
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+            autoComplete="username"
+            required
+          />
         </label>
         <label>
           Mật khẩu
-          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" required />
+          <input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete="current-password"
+            required
+          />
         </label>
-        {error && <div className="login-error">{error}</div>}
+        {error && (
+          <div className="login-error">
+            <XCircle size={16} weight="duotone" />
+            <span>{error}</span>
+          </div>
+        )}
         <button className="login-submit" type="submit" disabled={loading}>
-          {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+          {loading ? (
+            "Đang đăng nhập…"
+          ) : (
+            <>
+              <SignInRight size={16} weight="duotone" />
+              <span>Đăng nhập</span>
+            </>
+          )}
         </button>
       </form>
     </main>
