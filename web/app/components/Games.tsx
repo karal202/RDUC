@@ -19,25 +19,55 @@ const games: Game[] = [
   { name: "GTA V", image: "/games/gta5.jpg" },
 ];
 
+const gameTags: Record<string, string> = {
+  Valorant: "TACTICAL FPS",
+  CS2: "COMPETITIVE SHOOTER",
+  Fortnite: "BATTLE ROYALE",
+  "Apex Legends": "FAST ACTION",
+  "Overwatch 2": "HERO SHOOTER",
+  "League of Legends": "MOBA ESPORT",
+  "GTA V": "OPEN WORLD",
+};
+
 function GameCard({ game }: { game: Game }) {
+  const tag = gameTags[game.name] || "ESPORTS";
+
   return (
-    <article className="group relative flex h-[320px] w-[320px] shrink-0 flex-col justify-between overflow-hidden rounded-lg border border-rduc-border p-6 transition-colors duration-200 hover:border-rduc-red/60 sm:w-[400px]">
-      {/* Game art background — Figma IMAGE fill, scaleMode FILL */}
+    <article className="group relative flex h-[340px] w-[300px] shrink-0 flex-col justify-between overflow-hidden rounded-xl border border-white/[0.1] p-6 backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:border-cyan-400/70 hover:shadow-[0_12px_30px_rgba(0,242,254,0.2)] sm:w-[360px]">
+      {/* Game art background */}
       <Image
         src={game.image}
-        alt=""
+        alt={game.name}
         fill
-        sizes="(max-width: 640px) 320px, 400px"
-        className="object-cover transition-all duration-300 group-hover:scale-105 group-hover:brightness-50 group-hover:saturate-50"
+        sizes="(max-width: 640px) 300px, 360px"
+        className="object-cover transition-all duration-500 group-hover:scale-110"
       />
-      <div className="absolute inset-0 bg-black/25 transition-opacity duration-300 group-hover:bg-black/80" aria-hidden />
 
-      <div className="relative mt-auto">
-        <h3 className="font-display text-xl">{game.name}</h3>
+      {/* Cyber gradient layers */}
+      <div className="absolute inset-0 bg-gradient-to-t from-[#04060a] via-[#04060a]/60 to-transparent transition-opacity duration-300 group-hover:opacity-90" aria-hidden />
+      <div className="absolute inset-0 bg-cyan-950/20 opacity-0 transition-opacity duration-300 group-hover:opacity-100" aria-hidden />
 
-        <div className="rduc-hover-content mt-4 flex items-center justify-between border-t border-rduc-red/60 pt-4">
-          <span className="font-mono text-xs uppercase tracking-wide text-rduc-muted">Sẵn sàng tối ưu</span>
-          <span className="font-mono text-sm font-bold text-rduc-red" aria-hidden>-&gt;</span>
+      {/* Top badges */}
+      <div className="relative z-10 flex items-center justify-between">
+        <span className="rounded-md border border-cyan-400/30 bg-cyan-950/80 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-wider text-cyan-300 backdrop-blur-md">
+          {tag}
+        </span>
+      </div>
+
+      {/* Bottom details */}
+      <div className="relative z-10 mt-auto">
+        <h3 className="font-display text-2xl font-black uppercase tracking-tight text-white drop-shadow-md group-hover:text-cyan-200 transition-colors">
+          {game.name}
+        </h3>
+
+        <div className="mt-3 flex items-center justify-between border-t border-white/[0.1] pt-3 text-xs font-mono text-slate-300">
+          <span className="flex items-center gap-1.5 text-cyan-400">
+            <span className="size-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            SẴN SÀNG TỐI ƯU
+          </span>
+          <span className="flex size-7 items-center justify-center rounded-full bg-white/10 text-white font-bold transition-transform duration-300 group-hover:translate-x-1 group-hover:bg-cyan-500 group-hover:text-black">
+            →
+          </span>
         </div>
       </div>
     </article>

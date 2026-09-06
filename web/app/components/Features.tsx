@@ -64,21 +64,35 @@ const features: Feature[] = [
 ];
 
 function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
+  const serial = `SYS-${String(index + 1).padStart(2, "0")}`;
   return (
-    <article className="group flex h-[250px] w-[280px] shrink-0 flex-col rounded-lg border border-rduc-border bg-rduc-card p-8 transition-colors duration-200 hover:border-rduc-red/60 sm:w-[294px]">
+    <article className="group relative flex h-[260px] w-[290px] shrink-0 flex-col justify-between overflow-hidden rounded-xl border border-white/[0.08] bg-[#070b14]/90 p-7 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5 hover:border-cyan-500/40 hover:shadow-[0_12px_30px_rgba(0,242,254,0.15)] sm:w-[310px]">
+      {/* Top ambient glow on hover */}
+      <div className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-cyan-500/10 blur-2xl transition-opacity duration-300 group-hover:opacity-100 opacity-30" />
+      
       <div className="flex items-center justify-between">
-        <div className="flex size-12 items-center justify-center rounded border border-rduc-border bg-rduc-iconbg">
-          <feature.icon className="size-6 text-rduc-red" strokeWidth={2} aria-hidden />
+        <div className="relative flex size-12 items-center justify-center rounded-lg border border-cyan-500/25 bg-cyan-950/40 text-cyan-400 shadow-[0_0_15px_rgba(0,242,254,0.1)] transition-transform duration-300 group-hover:scale-110 group-hover:border-cyan-400 group-hover:text-cyan-300">
+          <feature.icon className="size-6" strokeWidth={2} aria-hidden />
         </div>
-        <span className="font-mono text-sm font-bold text-rduc-ghost">
-          {String(index + 1).padStart(2, "0")}
-        </span>
+        <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-slate-500 group-hover:text-cyan-400/80 transition-colors">
+          <span className="size-1.5 rounded-full bg-cyan-500/40 group-hover:bg-cyan-400 animate-pulse" />
+          {serial}
+        </div>
       </div>
-      <div className="mt-auto flex flex-col gap-2">
-        <h3 className="font-display text-lg">{feature.title}</h3>
-        <div className="rduc-hover-content flex flex-col gap-2">
-        <p className="text-sm leading-[1.5] text-rduc-muted">{feature.desc}</p>
-        </div>
+
+      <div className="flex flex-col gap-2 mt-4">
+        <h3 className="font-display text-lg font-bold text-white transition-colors group-hover:text-cyan-300">
+          {feature.title}
+        </h3>
+        <p className="text-sm leading-relaxed text-slate-400 line-clamp-3">
+          {feature.desc}
+        </p>
+      </div>
+
+      {/* Cyber bottom accent line */}
+      <div className="mt-3 flex items-center justify-between pt-3 border-t border-white/[0.05] text-[11px] font-mono text-slate-500">
+        <span className="text-emerald-400/90 font-medium">● ACTIVE</span>
+        <span className="tracking-wider uppercase opacity-60">KERNEL-OPTIMIZED</span>
       </div>
     </article>
   );

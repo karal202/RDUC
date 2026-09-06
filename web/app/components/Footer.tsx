@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CircleX } from "lucide-react";
+import { CircleX, Sparkles } from "lucide-react";
 
 const columns = [
   { title: "Sản phẩm", links: ["Trình tối ưu", "Bảng giá", "Trạng thái", "Tải xuống"] },
@@ -7,8 +7,6 @@ const columns = [
   { title: "Pháp lý", links: ["Chính sách riêng tư", "Điều khoản sử dụng", "Thỏa thuận EULA"] },
 ];
 
-/* Brand icons were removed from lucide-react; these are the original
- * lucide paths (24x24 viewBox, stroke-based) matching the Figma file. */
 function TwitterIcon() {
   return (
     <svg
@@ -70,64 +68,75 @@ function GithubIcon() {
 
 function SocialLink({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <a href="#" aria-label={label} className="text-rduc-muted transition-colors hover:text-white">
+    <a
+      href="#"
+      aria-label={label}
+      className="flex size-9 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-400 transition-all duration-200 hover:border-cyan-400/50 hover:bg-cyan-500/15 hover:text-cyan-300 hover:shadow-[0_0_12px_rgba(0,242,254,0.2)]"
+    >
       {children}
     </a>
   );
 }
 
-/**
- * Footer — Figma spec (node 3:262): black bg, padding 80/96 top, 40 bottom,
- * gap 80 between main area and bottom bar; bottom bar has top border
- * #262626, padding-top 32, space-between.
- */
 export function Footer() {
   return (
-    <footer className="bg-black">
-      <div className="mx-auto w-full max-w-[1440px] px-6 pb-10 pt-20 lg:px-24">
+    <footer className="border-t border-white/[0.08] bg-[#03060c]">
+      <div className="mx-auto w-full max-w-[1440px] px-6 pb-12 pt-20 lg:px-24">
         <div className="flex flex-col justify-between gap-12 lg:flex-row">
           {/* Brand */}
-          <div className="flex max-w-[320px] flex-col gap-4">
-            <span className="font-display text-2xl tracking-[0.12em] text-white">
-              <span className="text-rduc-red">DAWA</span> SHOP
-            </span>
-            <p className="text-sm leading-[1.5] text-rduc-muted">
-              Hạ tầng tối ưu phần cứng chuẩn esports, được xây dựng cho thế hệ chơi game tiếp theo.
+          <div className="flex max-w-[360px] flex-col gap-4">
+            <div className="flex items-center gap-2.5 font-display text-2xl font-black tracking-wider text-white">
+              <span className="flex size-8 items-center justify-center rounded-lg bg-cyan-500 text-black shadow-[0_0_15px_rgba(0,242,254,0.4)]">
+                <Sparkles className="size-4 stroke-[3]" />
+              </span>
+              <span>
+                <span className="text-cyan-400">DAWA</span> SHOP
+              </span>
+            </div>
+            <p className="text-sm leading-relaxed text-slate-400">
+              Hạ tầng tinh chỉnh phần cứng và hệ điều hành chuẩn Esports, được phát triển chuyên biệt cho game thủ thi đấu đỉnh cao.
             </p>
+
+            <div className="mt-2 inline-flex items-center gap-2 self-start rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 font-mono text-[11px] font-bold text-emerald-400">
+              <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+              SYSTEM OPERATIONAL (99.9%)
+            </div>
           </div>
 
           {/* Link columns */}
           <nav aria-label="Footer" className="grid grid-cols-2 gap-12 sm:grid-cols-3 lg:gap-20">
             {columns.map((column) => (
               <div key={column.title} className="flex flex-col gap-4">
-                <span className="font-mono text-[11px] font-bold uppercase text-white">
+                <span className="font-mono text-xs font-bold uppercase tracking-wider text-cyan-400">
                   {column.title}
                 </span>
-                {column.links.map((link) => (
-                  <a
-                    key={link}
-                    href="#"
-                    className="text-[13px] text-rduc-muted transition-colors hover:text-white"
-                  >
-                    {link}
-                  </a>
-                ))}
+                <div className="flex flex-col gap-2.5">
+                  {column.links.map((link) => (
+                    <a
+                      key={link}
+                      href="#"
+                      className="text-sm text-slate-400 transition-colors hover:text-white"
+                    >
+                      {link}
+                    </a>
+                  ))}
+                </div>
               </div>
             ))}
           </nav>
         </div>
 
         {/* Bottom bar */}
-        <div className="mt-20 flex flex-col items-start justify-between gap-4 border-t border-rduc-border pt-8 sm:flex-row sm:items-center">
-          <p className="text-[13px] text-rduc-muted">
-            © 2026 DAWA Systems Inc. Bảo lưu mọi quyền. Tối ưu cho hệ điều hành Windows.
+        <div className="mt-16 flex flex-col items-start justify-between gap-4 border-t border-white/[0.08] pt-8 sm:flex-row sm:items-center">
+          <p className="text-xs font-mono text-slate-500">
+            © 2026 DAWA Systems Inc. Bảo lưu mọi quyền. Tối ưu hóa chuyên sâu cho Windows 10 & 11.
           </p>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2.5">
             <SocialLink label="Twitter">
               <TwitterIcon />
             </SocialLink>
             <SocialLink label="X (CircleX)">
-              <CircleX className="size-5" strokeWidth={2} />
+              <CircleX className="size-4" strokeWidth={2} />
             </SocialLink>
             <SocialLink label="YouTube">
               <YoutubeIcon />

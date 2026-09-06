@@ -1,5 +1,8 @@
+"use client";
+
+import { useState } from "react";
 import type { ReactNode } from "react";
-import { ArrowUpRight, ChevronDown } from "lucide-react";
+import { ArrowUpRight, Check, Copy, ShieldCheck, Sparkles } from "lucide-react";
 import Image from "next/image";
 
 function DiscordIcon() {
@@ -19,8 +22,8 @@ type ContactLink = {
 
 const contacts: ContactLink[] = [
   {
-    name: "Discord",
-    handle: "discord.gg/dawa",
+    name: "Discord Cộng Đồng DAWA",
+    handle: "discord.gg/tDe8UfztmE",
     href: "https://discord.gg/tDe8UfztmE",
     icon: <DiscordIcon />,
   },
@@ -32,67 +35,152 @@ function ContactCard({ contact }: { contact: ContactLink }) {
       href={contact.href}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex items-center justify-between gap-5 rounded-[22px] border border-rduc-border bg-[#111111] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.02)] transition-all duration-300 hover:-translate-y-1 hover:border-[#1e72ff]/80 hover:shadow-[0_12px_30px_rgba(17,83,255,0.12)] sm:p-6"
+      className="group relative flex items-center justify-between gap-5 overflow-hidden rounded-2xl border border-indigo-500/30 bg-[#080d1e]/85 p-6 backdrop-blur-xl shadow-[0_10px_30px_rgba(79,70,229,0.15)] transition-all duration-300 hover:-translate-y-1 hover:border-indigo-400/60 hover:shadow-[0_15px_40px_rgba(99,102,241,0.25)]"
     >
+      <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-indigo-500/15 blur-2xl group-hover:opacity-100 transition-opacity" />
+
       <div className="flex items-center gap-4">
-        <div className="flex size-12 shrink-0 items-center justify-center rounded-xl border border-rduc-border bg-[#181818] text-white transition-colors group-hover:text-[#3ea1ff]">
+        <div className="relative flex size-14 shrink-0 items-center justify-center rounded-xl border border-indigo-500/30 bg-[#5865F2]/15 text-[#5865F2] shadow-[0_0_20px_rgba(88,101,242,0.25)] transition-all duration-300 group-hover:scale-105 group-hover:bg-[#5865F2] group-hover:text-white">
           {contact.icon}
         </div>
         <div className="flex flex-col gap-1">
-          <span className="font-display text-lg text-white">{contact.name}</span>
-          <span className="font-mono text-xs text-rduc-muted">{contact.handle}</span>
+          <div className="flex items-center gap-2">
+            <span className="font-display text-lg font-bold text-white group-hover:text-indigo-200 transition-colors">
+              {contact.name}
+            </span>
+            <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-mono font-bold text-emerald-400">
+              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              ONLINE
+            </span>
+          </div>
+          <span className="font-mono text-xs text-slate-400 group-hover:text-slate-300 transition-colors">
+            {contact.handle}
+          </span>
         </div>
       </div>
-      <ArrowUpRight
-        className="size-5 shrink-0 text-rduc-muted transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[#3ea1ff]"
-        strokeWidth={2}
-        aria-hidden
-      />
+
+      <div className="flex size-10 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-slate-400 transition-all duration-300 group-hover:border-indigo-400/50 group-hover:bg-indigo-500 group-hover:text-white">
+        <ArrowUpRight className="size-5 transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" strokeWidth={2.5} />
+      </div>
     </a>
   );
 }
 
 function DonationCard() {
+  const [copied, setCopied] = useState(false);
+  const accountNumber = "70511200799999";
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(accountNumber);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
   return (
-    <div className="rduc-stagger-item rduc-delay-2 w-full max-w-[620px] rounded-[28px] border border-[#1e72ff]/40 bg-[#0d1117] p-4 text-white shadow-[0_20px_40px_rgba(12,19,31,0.5)]">
-      <div className="flex items-center justify-between gap-3 rounded-[18px] border border-white/5 bg-[#121a24] px-5 py-4">
+    <div className="relative w-full max-w-[640px] overflow-hidden rounded-3xl border border-cyan-500/30 bg-[#060b17]/95 p-6 backdrop-blur-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8),0_0_40px_rgba(0,242,254,0.12)]">
+      {/* Cyber ambient aura */}
+      <div className="pointer-events-none absolute -left-20 -top-20 h-48 w-48 rounded-full bg-cyan-500/15 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-20 -right-20 h-48 w-48 rounded-full bg-blue-600/15 blur-3xl" />
+
+      {/* Holographic Header Bar */}
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-5 py-4 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <div className="flex size-12 items-center justify-center rounded-full bg-[#1d2b3a] text-xl text-[#3ea1ff] shadow-sm">✦</div>
-          <div className="font-display text-[20px] font-bold tracking-tight text-white sm:text-[22px]">TON THAT VO QUOC TIEN</div>
+          <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 text-black shadow-[0_0_20px_rgba(0,242,254,0.4)]">
+            <Sparkles className="size-5 stroke-[2.5]" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-display text-lg font-black tracking-wide text-white sm:text-xl">
+                TON THAT VO QUOC TIEN
+              </span>
+              <ShieldCheck className="size-4 text-cyan-400" />
+            </div>
+            <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-cyan-400/80">
+              CHỦ TÀI KHOẢN XÁC THỰC • MB BANK
+            </span>
+          </div>
         </div>
-        <ChevronDown className="size-6 shrink-0 text-[#cfe6ff]" strokeWidth={2.5} aria-hidden />
+
+        <div className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 font-mono text-[11px] font-bold text-emerald-400">
+          24/7 AUTO
+        </div>
       </div>
 
-      <div className="mt-4 grid gap-5 rounded-[22px] border border-[#1d2d44] bg-[#101821] p-4 sm:grid-cols-[170px_1fr] sm:p-6">
-        <div className="flex items-center justify-center rounded-[18px] bg-white p-3 shadow-[inset_0_0_0_1px_rgba(0,0,0,0.05)]">
-          <Image src="/donate-qr.png" alt="Mã QR ủng hộ DAWA" width={170} height={170} className="h-[150px] w-[150px] object-contain sm:h-[170px] sm:w-[170px]" />
+      {/* Main Payment Section */}
+      <div className="mt-5 grid gap-6 rounded-2xl border border-white/[0.08] bg-[#091122]/90 p-5 sm:grid-cols-[180px_1fr] sm:p-6">
+        {/* QR Code Container with Cyber Frame */}
+        <div className="group relative flex flex-col items-center justify-center rounded-2xl border border-cyan-500/20 bg-white p-3 shadow-[0_0_25px_rgba(0,242,254,0.1)]">
+          <Image
+            src="/donate-qr.png"
+            alt="Mã QR ủng hộ DAWA"
+            width={180}
+            height={180}
+            className="h-[155px] w-[155px] object-contain transition-transform duration-300 group-hover:scale-105"
+          />
+          <span className="mt-2 font-mono text-[10px] font-bold uppercase tracking-wider text-slate-700">
+            QUÉT MÃ VIETQR
+          </span>
         </div>
 
-        <div className="flex flex-col justify-center">
-          <div className="mb-4 flex items-center justify-between gap-2">
-            <div className="flex items-end gap-1 text-[24px] font-black leading-none tracking-tight sm:text-[28px]">
-              <span className="text-[#e63845]">VIET</span>
-              <span className="text-[#3ea1ff]">QR</span>
+        {/* Details & Quick Copy */}
+        <div className="flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+            <div className="flex items-baseline gap-1 text-2xl font-black tracking-tight">
+              <span className="text-[#ea384c]">VIET</span>
+              <span className="text-cyan-400">QR</span>
             </div>
-            <div className="text-[20px] font-black tracking-tight text-[#3ea1ff] sm:text-[24px]">MB</div>
+            <div className="rounded-lg bg-blue-600/20 border border-blue-500/40 px-3 py-1 font-mono text-sm font-black text-blue-300">
+              MB BANK
+            </div>
           </div>
 
-          <div className="rounded-[12px] bg-[#f5f8ff] px-4 py-3 text-center shadow-[inset_0_0_0_1px_rgba(15,23,42,0.04)]">
-            <p className="text-[18px] font-black tracking-[0.08em] text-[#111827] sm:text-[22px]">70511200799999</p>
+          {/* Account Number Box with 1-Click Copy */}
+          <div className="my-4">
+            <div className="flex items-center justify-between text-xs font-mono text-slate-400 mb-1.5">
+              <span>SỐ TÀI KHOẢN (STK)</span>
+              <span className="text-cyan-400 text-[11px]">Bấm để sao chép</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="group/btn relative flex w-full items-center justify-between rounded-xl border border-cyan-500/30 bg-[#040813] px-4 py-3.5 transition-all duration-200 hover:border-cyan-400 hover:bg-cyan-950/30 hover:shadow-[0_0_20px_rgba(0,242,254,0.15)] active:scale-[0.98]"
+            >
+              <span className="font-mono text-xl sm:text-2xl font-black tracking-[0.1em] text-white group-hover/btn:text-cyan-300 transition-colors">
+                {accountNumber}
+              </span>
+              <div
+                className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold transition-all ${
+                  copied
+                    ? "bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.5)]"
+                    : "bg-white/10 text-slate-300 group-hover/btn:bg-cyan-500 group-hover/btn:text-black"
+                }`}
+              >
+                {copied ? (
+                  <>
+                    <Check className="size-3.5 stroke-[3]" />
+                    <span>ĐÃ COPY</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="size-3.5" />
+                    <span>COPY</span>
+                  </>
+                )}
+              </div>
+            </button>
           </div>
 
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[#223247] pt-4 text-[13px] font-black text-white sm:text-[16px]">
+          {/* Network Badges */}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.08] pt-3 text-xs font-bold">
             <div className="flex items-center gap-1.5">
-              <span className="text-[#d62839]">VIET</span>
-              <span className="text-[#3ea1ff]">QR</span>
-              <span className="text-[#dfe9f8]">Pay</span>
+              <span className="text-[#ea384c]">VIET</span>
+              <span className="text-cyan-400">QR</span>
+              <span className="text-slate-300">Pay</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[#d62839]">VIET</span>
-              <span className="text-[#3ea1ff]">QR</span>
-              <span className="text-[#dfe9f8]">Global</span>
+            <div className="flex items-center gap-1 font-mono text-[11px] text-emerald-400">
+              <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              NAPAS 247
             </div>
-            <div className="text-[#48d39b]">napas 247</div>
           </div>
         </div>
       </div>
@@ -102,26 +190,34 @@ function DonationCard() {
 
 export function ContactDonate() {
   return (
-    <section id="contact" className="scroll-mt-[84px] bg-transparent">
-      <div className="mx-auto w-full max-w-[1440px] px-6 py-16 lg:px-24 lg:py-[120px]">
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center">
-          <div className="rduc-stagger-item rduc-delay-1 w-full">
-            <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-[#3ea1ff]">Liên hệ & Ủng hộ</p>
-            <h2 className="mt-4 font-display text-4xl leading-tight text-white sm:text-5xl">Thông tin liên hệ & Phương thức chuyển khoản</h2>
-            <p className="mt-4 max-w-[520px] text-base leading-7 text-rduc-muted">
-              Theo dõi kênh của DAWA hoặc ủng hộ dự án để chúng tôi tiếp tục tối ưu trải nghiệm chơi game.
+    <section id="contact" className="relative scroll-mt-[84px] overflow-hidden bg-transparent">
+      {/* Background ambient lighting */}
+      <div className="pointer-events-none absolute left-1/4 top-1/2 -z-10 h-[500px] w-[500px] -translate-y-1/2 rounded-full bg-cyan-500/10 blur-[160px]" />
+
+      <div className="mx-auto w-full max-w-[1440px] px-6 py-20 lg:px-24 lg:py-[120px]">
+        <div className="grid gap-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center">
+          <div className="flex flex-col gap-6">
+            <div className="inline-flex items-center gap-2.5 self-start rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3.5 py-1 text-xs font-mono font-bold uppercase tracking-widest text-cyan-400 shadow-[0_0_15px_rgba(0,242,254,0.15)]">
+              <span className="size-2 rounded-full bg-cyan-400 animate-pulse" />
+              DIRECT ACCESS & DONATE
+            </div>
+
+            <h2 className="font-display text-4xl font-black uppercase tracking-tight text-white drop-shadow-md sm:text-5xl leading-tight">
+              Thông tin liên hệ & Phương thức chuyển khoản
+            </h2>
+
+            <p className="max-w-[540px] text-base sm:text-lg leading-relaxed text-slate-400">
+              Gia nhập Discord chính thức của DAWA để nhận hỗ trợ kỹ thuật trực tiếp, cập nhật profile game mới, hoặc chuyển khoản ủng hộ duy trì hệ thống máy chủ.
             </p>
 
-            <div className="mt-8 max-w-[430px]">
-              {contacts.map((contact, index) => (
-                <div key={contact.name} className={`rduc-stagger-item ${index === 0 ? "rduc-delay-2" : "rduc-delay-3"}`}>
-                  <ContactCard contact={contact} />
-                </div>
+            <div className="mt-2 max-w-[460px]">
+              {contacts.map((contact) => (
+                <ContactCard key={contact.name} contact={contact} />
               ))}
             </div>
           </div>
 
-          <div className="rduc-stagger-item rduc-delay-2 w-full lg:flex lg:justify-center">
+          <div className="flex justify-center lg:justify-end">
             <DonationCard />
           </div>
         </div>
