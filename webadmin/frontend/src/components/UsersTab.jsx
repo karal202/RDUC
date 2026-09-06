@@ -1,8 +1,8 @@
 import { useState } from "react";
 import Pagination from "./Pagination";
 import {
-  Plus, Dice5, Rocket, Users, MagnifyingGlass, Lock, Unlock,
-  ArrowCounterClockwise, Trash, KeyRound,
+  Plus, DiceFive, Rocket, Users, MagnifyingGlass, Lock, LockOpen,
+  ArrowCounterClockwise, Trash, Key,
 } from "@phosphor-icons/react";
 
 const PAGE_SIZE = 10;
@@ -62,7 +62,7 @@ export default function UsersTab({
               className="btn-secondary"
               onClick={() => setForm({ ...form, key_code: generateKey() })}
             >
-              <Dice5 size={16} weight="duotone" />
+              <DiceFive size={16} weight="duotone" />
               <span>Sinh Key</span>
             </button>
           </div>
@@ -140,7 +140,7 @@ export default function UsersTab({
                 <td>{item.customer_contact}</td>
                 <td>
                   <span className="key-code-display">
-                    <KeyRound size={13} weight="duotone" />
+                    <Key size={13} weight="duotone" />
                     {item.key_code}
                   </span>
                 </td>
@@ -153,7 +153,7 @@ export default function UsersTab({
                   <button className="btn-secondary" onClick={() => onToggle(item.id, item.status)}>
                     {item.status === "active"
                       ? <><Lock size={14} weight="duotone" /><span>Vô hiệu</span></>
-                      : <><Unlock size={14} weight="duotone" /><span>Mở lại</span></>}
+                      : <><LockOpen size={14} weight="duotone" /><span>Mở lại</span></>}
                   </button>
                   {item.bound_ip_address && (
                     <button className="btn-secondary" onClick={() => onReset(item.id, item.customer_name)}>
