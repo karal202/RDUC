@@ -15,7 +15,11 @@ import logo from './assets/logo.png'
 import { verticalBanners } from './assets/banners'
 import {
   Code2,
+  CircleCheck,
+  CircleX,
+  KeyRound,
   LayoutDashboard,
+  LockKeyhole,
   MousePointer2,
   Network,
   Power,
@@ -245,10 +249,13 @@ onMounted(() => {
             OFFLINE
           </div>
           <div v-else class="status-badge activated">
-            <span class="status-dot"></span>
+            <CircleCheck :size="13" :stroke-width="2.2" />
             LICENSED
           </div>
-          <button class="btn-lock" type="button" @click="handleDeactivate">KHÓA KEY</button>
+          <button class="btn-lock" type="button" @click="handleDeactivate">
+            <LockKeyhole :size="14" :stroke-width="2" />
+            KHÓA KEY
+          </button>
         </div>
       </header>
 
@@ -271,11 +278,15 @@ onMounted(() => {
 
       <footer class="hud-bar">
         <div class="hud-bar-item">
-          <span>KEY</span>
+          <span><KeyRound :size="12" :stroke-width="2" /> KEY</span>
           <strong class="sidebar-key">{{ licenseInfo?.keyCode || 'DAWA-ACTIVE-KEY' }}</strong>
         </div>
         <div class="hud-bar-item">
-          <span>LINK</span>
+          <span>
+            <CircleCheck v-if="socketConnected" :size="12" :stroke-width="2" />
+            <CircleX v-else :size="12" :stroke-width="2" />
+            LINK
+          </span>
           <strong :class="socketConnected ? 'accent-green' : 'accent-rose'">
             {{ socketConnected ? 'SERVER LIVE' : 'OFFLINE' }}
           </strong>

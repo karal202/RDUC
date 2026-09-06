@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { BatteryCharging, Gamepad2, Sparkles, Play } from 'lucide-vue-next'
 
 const logOutput = ref('')
 const isRunning = ref(false)
@@ -7,21 +8,24 @@ const isRunning = ref(false)
 const DAWA_SCRIPTS = Object.freeze([
   {
     key: 'dawa-gaming-boost',
-    title: '🔥 DAWA Ultimate Gaming Boost',
+    title: 'DAWA Ultimate Gaming Boost',
+    icon: Gamepad2,
     desc: 'Tắt dịch vụ thừa, giải phóng CPU & RAM cho Game.',
     btnClass: 'btn-primary',
     btnLabel: 'Chạy Script DAWA Boost'
   },
   {
     key: 'dawa-cleaner',
-    title: '🧹 DAWA Deep Cache Cleaner',
+    title: 'DAWA Deep Cache Cleaner',
+    icon: Sparkles,
     desc: 'Xóa file rác Temp, Prefetch, Windows Update cache.',
     btnClass: 'btn-secondary',
     btnLabel: 'Chạy Script Cache Cleaner'
   },
   {
     key: 'dawa-power-plan',
-    title: '🔋 Ultimate Power Plan',
+    title: 'Ultimate Power Plan',
+    icon: BatteryCharging,
     desc: 'Kích hoạt chế độ nguồn điện hiệu năng cao nhất.',
     btnClass: 'btn-secondary',
     btnLabel: 'Chạy Script Power Plan'
@@ -74,10 +78,14 @@ const runDawaScript = async (scriptKey, description) => {
       <div class="grid-3">
         <div v-for="s in DAWA_SCRIPTS" :key="s.key" class="dawa-loadout">
           <div>
-            <div class="dawa-loadout-title">{{ s.title.replace(/^.{2}/, '') }}</div>
+            <div class="dawa-loadout-icon">
+              <component :is="s.icon" :size="19" :stroke-width="1.8" />
+            </div>
+            <div class="dawa-loadout-title">{{ s.title }}</div>
             <div class="dawa-loadout-desc">{{ s.desc }}</div>
           </div>
           <button :class="s.btnClass" :disabled="isRunning" @click="runDawaScript(s.key, s.title)">
+            <Play :size="13" :stroke-width="2.2" />
             {{ s.btnLabel }}
           </button>
         </div>
