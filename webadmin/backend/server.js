@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import { createServer } from "http";
@@ -15,9 +14,6 @@ dotenv.config();
 const app = express();
 const PORT = Number(process.env.PORT || 3069);
 
-// Render terminates the client connection at a trusted reverse proxy.
-app.set("trust proxy", 1);
-
 app.use(
   helmet({
     crossOriginResourcePolicy: false,
@@ -25,8 +21,8 @@ app.use(
       useDefaults: true,
       directives: {
         "default-src": ["'self'"],
-        "script-src": ["'self'"],
-        "script-src-attr": ["'none'"],
+        "script-src": ["'self'", "'unsafe-inline'"],
+        "script-src-attr": null,
         "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
         "img-src": ["'self'", "data:", "blob:", "https:"],
@@ -34,8 +30,6 @@ app.use(
         "worker-src": ["'self'", "blob:"],
         "frame-src": ["'none'"],
         "object-src": ["'none'"],
-        "base-uri": ["'self'"],
-        "form-action": ["'self'"],
       },
     },
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
@@ -69,7 +63,6 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
-app.use(cookieParser());
 
 app.use(
   rateLimit({
@@ -103,11 +96,10 @@ app.get("/updates", (req, res) => {
 app.use("/api", rootRouter);
 
 app.use((err, req, res, next) => {
-  const statusCode = err?.statusCode || 500;
-  if (statusCode >= 500) console.error("Unhandled error:", err);
-  res.status(statusCode).json({
+  console.error("Unhandled error:", err);
+  res.status(500).json({
     success: false,
-    message: err?.message || (statusCode === 401 ? "Unauthorized" : "Internal Server Error"),
+    message: err?.message || "Internal Server Error",
   });
 });
 
@@ -166,14 +158,6 @@ io.on("connection", (socket) => {
   socket.on("disconnect", (reason) => {
     console.log(`[SOCKET.IO] Client disconnected id=${socket.id} reason=${reason}`);
   });
-});
-
-process.on("unhandledRejection", (reason) => {
-  console.error("[ANTI-CRASH] Unhandled Promise Rejection:", reason);
-});
-
-process.on("uncaughtException", (error) => {
-  console.error("[ANTI-CRASH] Uncaught Exception:", error);
 });
 
 await bootstrapDatabase();

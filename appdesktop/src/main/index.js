@@ -92,48 +92,11 @@ function isHardRevocation(payload) {
   return hardMarkers.some((marker) => msg.includes(marker))
 }
 
-function validateIpcSender(event) {
-  if (!mainWindow || !event?.sender) return false
-  if (event.sender !== mainWindow.webContents) return false
-  if (
-    event.senderFrame &&
-    mainWindow.webContents.mainFrame &&
-    event.senderFrame !== mainWindow.webContents.mainFrame
-  ) {
-    return false
-  }
-  return true
-}
-
 async function getLocalLicenseGate() {
   const currentDeviceHash = await getHardwareHash()
   const stored = licenseStore.get()
   const localCheck = stored ? verifyLocalLicense(stored, currentDeviceHash) : { valid: false }
   return { currentDeviceHash, stored, localCheck }
-}
-
-async function ensureValidLicenseGate(event) {
-  if (!validateIpcSender(event)) {
-    console.warn('[SECURITY] Blocked unauthorized IPC invocation from untrusted frame.')
-    return { valid: false, message: 'Từ chối quyền truy cập: Sender frame không hợp lệ.' }
-  }
-
-  const { stored, localCheck } = await getLocalLicenseGate()
-  if (!localCheck.valid || !stored) {
-    return {
-      valid: false,
-      message:
-        localCheck.message ||
-        'Yêu cầu kích hoạt bản quyền hợp lệ trước khi thực hiện thao tác này.'
-    }
-  }
-
-  if (stored.expiresAt && new Date(stored.expiresAt).getTime() < Date.now()) {
-    licenseStore.clear()
-    return { valid: false, message: 'Bản quyền đã hết hạn. Vui lòng kích hoạt key mới.' }
-  }
-
-  return { valid: true, stored }
 }
 
 function compareVersions(currentVersion, latestVersion) {
@@ -526,10 +489,10 @@ app.whenReady().then(() => {
     }
   })
 
-  ipcMain.handle('system:restart-to-bios', async (event) => {
-    const gate = await ensureValidLicenseGate(event)
-    if (!gate.valid) {
-      return { success: false, message: gate.message }
+  ipcMain.handle('system:restart-to-bios', async () => {
+    const { localCheck } = await getLocalLicenseGate()
+    if (!localCheck.valid) {
+      return { success: false, message: 'Yêu cầu bản quyền hợp lệ.' }
     }
     return new Promise((resolve) => {
       if (process.platform !== 'win32') {
@@ -558,10 +521,10 @@ app.whenReady().then(() => {
     })
   })
 
-  ipcMain.handle('system:run-dawa-script', async (event, { scriptKey }) => {
-    const gate = await ensureValidLicenseGate(event)
-    if (!gate.valid) {
-      return { success: false, message: gate.message }
+  ipcMain.handle('system:run-dawa-script', async (_, { scriptKey }) => {
+    const { localCheck } = await getLocalLicenseGate()
+    if (!localCheck.valid) {
+      return { success: false, message: 'Yêu cầu bản quyền hợp lệ.' }
     }
     if (process.platform !== 'win32') {
       return { success: false, message: 'Script tối ưu chỉ hỗ trợ Windows.' }

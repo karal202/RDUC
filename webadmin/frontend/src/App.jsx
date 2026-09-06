@@ -38,16 +38,8 @@ function AdminDashboard({ onLogout }) {
   const [ipFilter, setIpFilter] = useState("");
   const [socketConnected, setSocketConnected] = useState(false);
   const [realtimeFlash, setRealtimeFlash] = useState(false);
-  const logout = async () => {
-    try {
-      await fetch(`${BACKEND_URL}/api/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-      });
-    } catch {
-      /* ignore */
-    }
-    sessionStorage.removeItem("adminSessionActive");
+  const logout = () => {
+    localStorage.removeItem("accessToken");
     onLogout();
   };
 
@@ -72,20 +64,6 @@ function AdminDashboard({ onLogout }) {
     socket.on("license_updated", () => { setRealtimeFlash(true); setTimeout(() => setRealtimeFlash(false), 1200); loadData(); });
     return () => socket.disconnect();
   }, [loadData]);
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const response = await fetch(`${BACKEND_URL}/api/auth/get-info`, {
-          credentials: "include",
-        });
-        if (response.status === 401) window.dispatchEvent(new Event("auth-expired"));
-      } catch {
-        // Keep the current session during temporary network failures.
-      }
-    };
-    const intervalId = window.setInterval(checkSession, 30000);
-    return () => window.clearInterval(intervalId);
-  }, []);
 
   const generateKey = () => { const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; let raw = ""; for (let index = 0; index < 12; index += 1) raw += chars[Math.floor(Math.random() * chars.length)]; return `${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`; };
   const setError = (error) => setStatusMessage({ type: "error", text: error.message });
@@ -131,58 +109,17 @@ function AdminDashboard({ onLogout }) {
 }
 
 function App() {
-  const [authenticated, setAuthenticated] = useState(() => Boolean(sessionStorage.getItem("adminSessionActive")));
-  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [authenticated, setAuthenticated] = useState(() => Boolean(localStorage.getItem("accessToken")));
 
   useEffect(() => {
-    let active = true;
-    const verifySession = async () => {
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/auth/get-info`, {
-          credentials: "include",
-        });
-        if (active) {
-          if (res.ok) {
-            setAuthenticated(true);
-            sessionStorage.setItem("adminSessionActive", "true");
-          } else {
-            setAuthenticated(false);
-            sessionStorage.removeItem("adminSessionActive");
-          }
-        }
-      } catch {
-        if (active) {
-          setAuthenticated(false);
-          sessionStorage.removeItem("adminSessionActive");
-        }
-      } finally {
-        if (active) setCheckingAuth(false);
-      }
-    };
-
-    verifySession();
-
     const handleAuthExpired = () => {
-      sessionStorage.removeItem("adminSessionActive");
+      localStorage.removeItem("accessToken");
       setAuthenticated(false);
     };
 
     window.addEventListener("auth-expired", handleAuthExpired);
-    return () => {
-      active = false;
-      window.removeEventListener("auth-expired", handleAuthExpired);
-    };
+    return () => window.removeEventListener("auth-expired", handleAuthExpired);
   }, []);
-
-  if (checkingAuth && authenticated) {
-    return (
-      <main className="login-page">
-        <div className="login-card" style={{ textAlign: "center", padding: "40px" }}>
-          <p style={{ color: "#94a3b8" }}>Đang kiểm tra bảo mật phiên làm việc…</p>
-        </div>
-      </main>
-    );
-  }
 
   if (!authenticated) {
     return <AdminLogin onLogin={() => setAuthenticated(true)} />;
