@@ -36,86 +36,115 @@ export function Hero() {
   };
 
   return (
-    <section className="relative overflow-hidden border-b border-rduc-border bg-black">
-      <div className="absolute left-1/3 top-1/2 h-[520px] w-[520px] -translate-y-1/2 rounded-full bg-rduc-red/10 blur-[150px]" aria-hidden />
-      <div className="relative mx-auto flex min-h-[680px] w-full max-w-[1440px] items-center gap-12 px-6 py-20 lg:grid lg:grid-cols-2 lg:gap-8 lg:px-24 lg:py-0">
-        <div className="flex max-w-[610px] flex-col gap-9">
-          <div className="flex flex-col gap-6">
-            <p className="flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wide text-rduc-red">
-              <span className="size-2 rounded-sm bg-rduc-red" aria-hidden />
-              Phần mềm tối ưu PC
-            </p>
-            <h1 className="font-display text-[40px] leading-[1.05] sm:text-[56px] sm:leading-[1.05]">
-              BOOST FPS
+    <section className="relative overflow-hidden border-b border-white/[0.08] bg-transparent">
+      {/* Ambient background glows */}
+      <div className="pointer-events-none absolute left-1/4 top-1/2 h-[550px] w-[550px] -translate-y-1/2 rounded-full bg-[#1677ff]/15 blur-[160px]" aria-hidden />
+      <div className="pointer-events-none absolute right-10 top-1/3 h-[420px] w-[420px] -translate-y-1/2 rounded-full bg-[#00c2ff]/10 blur-[140px]" aria-hidden />
+
+      <div className="relative mx-auto flex min-h-[720px] w-full max-w-[1440px] items-center gap-12 px-6 py-20 lg:grid lg:grid-cols-2 lg:gap-12 lg:px-24 lg:py-16">
+        {/* Left copy column */}
+        <div className="flex max-w-[640px] flex-col gap-8">
+          <div className="flex flex-col gap-5">
+            <div className="flex items-center gap-3">
+              <span className="cyber-badge">
+                <span className="cyber-radar-dot" />
+                DAWA OPTIMIZER V1.0 • SYSTEM ACCELERATOR
+              </span>
+            </div>
+
+            <h1 className="font-display text-[44px] leading-[1.03] tracking-tight sm:text-[64px] sm:leading-[1.03]">
+              <span className="text-white">BOOST FPS</span>
               <br />
-              REDUCE LATENCY
+              <span className="text-gradient-cyan">ZERO LATENCY</span>
             </h1>
-            <p className="max-w-[520px] text-lg leading-[1.6] text-rduc-muted">
-              Tối ưu hiệu năng PC và trong game chỉ với một cú nhấp. Loại bỏ điểm nghẽn, khai phá sức mạnh phần cứng và đạt phản hồi tức thì.
+
+            <p className="max-w-[540px] text-base leading-[1.7] text-slate-300 sm:text-lg">
+              Tối ưu hiệu năng PC và in-game toàn diện chỉ với 1-click. Khai phóng 100% sức mạnh phần cứng, triệt tiêu độ trễ chuột bàn phím và giảm giật lag khung hình khi thi đấu.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4">
-            <ButtonPrimary href="https://github.com/karal202/RDUC/releases/download/v1.0.0/DAWA.System.Check.Setup.1.0.0.exe" download withIcon>
+
+          {/* CTA Buttons */}
+          <div className="flex flex-wrap items-center gap-4 pt-1">
+            <ButtonPrimary
+              href="https://github.com/karal202/RDUC/releases/download/v1.0.0/DAWA.System.Check.Setup.1.0.0.exe"
+              download
+              withIcon
+            >
               Tải xuống miễn phí
             </ButtonPrimary>
-            <ButtonOutline href="#features">Xem thêm</ButtonOutline>
+            <ButtonOutline href="#features">
+              Khám phá tính năng
+            </ButtonOutline>
           </div>
         </div>
 
-        <div
-          aria-label="Carousel banner quảng cáo"
-          aria-roledescription="carousel"
-          className="relative mx-auto aspect-[1656/956] w-full max-w-[600px] overflow-hidden rounded-lg border border-rduc-border bg-rduc-card/40 shadow-[0_0_40px_rgba(22,119,255,0.08)] lg:mx-0 lg:ml-auto"
-          onKeyDown={(event) => {
-            if (event.key === "ArrowLeft") showBanner(-1);
-            if (event.key === "ArrowRight") showBanner(1);
-          }}
-          onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
-          onFocus={() => setIsPaused(true)}
-          onBlur={() => setIsPaused(false)}
-          tabIndex={0}
-        >
-          {heroBanners.map((banner, index) => (
-            <Image
-              key={banner.src}
-              src={banner.src}
-              alt={banner.alt}
-              fill
-              priority={index === 0}
-              sizes="(max-width: 1023px) 100vw, 40vw"
-              className={`rduc-image-bright object-contain transition-opacity duration-700 ${index === activeBanner ? "opacity-100" : "opacity-0"}`}
-            />
-          ))}
-          <button
-            type="button"
-            aria-label="Banner trước"
-            className="absolute left-3 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center border border-white/30 bg-black/60 text-white transition-colors hover:border-rduc-red hover:text-rduc-red"
-            onClick={() => showBanner(-1)}
+        {/* Right HUD Chassis Carousel */}
+        <div className="relative mx-auto w-full max-w-[620px] lg:mx-0 lg:ml-auto">
+          {/* Tech decorative HUD corners */}
+          <div className="pointer-events-none absolute -left-2 -top-2 z-20 size-5 border-l-2 border-t-2 border-[#00c2ff]" aria-hidden />
+          <div className="pointer-events-none absolute -right-2 -top-2 z-20 size-5 border-r-2 border-t-2 border-[#00c2ff]" aria-hidden />
+          <div className="pointer-events-none absolute -bottom-2 -left-2 z-20 size-5 border-b-2 border-l-2 border-[#00c2ff]" aria-hidden />
+          <div className="pointer-events-none absolute -bottom-2 -right-2 z-20 size-5 border-b-2 border-r-2 border-[#00c2ff]" aria-hidden />
+
+          <div
+            aria-label="Carousel banner quảng cáo"
+            aria-roledescription="carousel"
+            className="relative aspect-[1656/956] w-full overflow-hidden rounded-xl border border-white/15 bg-[#090e17] shadow-[0_0_50px_rgba(22,119,255,0.25)]"
+            onKeyDown={(event) => {
+              if (event.key === "ArrowLeft") showBanner(-1);
+              if (event.key === "ArrowRight") showBanner(1);
+            }}
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
+            onFocus={() => setIsPaused(true)}
+            onBlur={() => setIsPaused(false)}
+            tabIndex={0}
           >
-            <ChevronLeft className="size-5" aria-hidden />
-          </button>
-          <button
-            type="button"
-            aria-label="Banner tiếp theo"
-            className="absolute right-3 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center border border-white/30 bg-black/60 text-white transition-colors hover:border-rduc-red hover:text-rduc-red"
-            onClick={() => showBanner(1)}
-          >
-            <ChevronRight className="size-5" aria-hidden />
-          </button>
-          <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2" role="tablist" aria-label="Chọn banner">
             {heroBanners.map((banner, index) => (
-              <button
+              <Image
                 key={banner.src}
-                type="button"
-                role="tab"
-                aria-label={`Chuyển đến banner ${index + 1}`}
-                aria-selected={index === activeBanner}
-                className={`h-1.5 transition-all ${index === activeBanner ? "w-8 bg-rduc-red" : "w-4 bg-white/50 hover:bg-white"}`}
-                onClick={() => setActiveBanner(index)}
+                src={banner.src}
+                alt={banner.alt}
+                fill
+                priority={index === 0}
+                sizes="(max-width: 1023px) 100vw, 45vw"
+                className={`rduc-image-bright object-contain p-2 transition-opacity duration-700 ${index === activeBanner ? "opacity-100" : "opacity-0"}`}
               />
             ))}
+
+            {/* Navigation Arrows */}
+            <button
+              type="button"
+              aria-label="Banner trước"
+              className="absolute left-3 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-lg border border-white/20 bg-black/70 text-white backdrop-blur-md transition-all duration-200 hover:border-[#00c2ff] hover:bg-[#1677ff]/30 hover:text-[#38bdf8] hover:shadow-[0_0_15px_rgba(0,194,255,0.4)]"
+              onClick={() => showBanner(-1)}
+            >
+              <ChevronLeft className="size-5" aria-hidden />
+            </button>
+            <button
+              type="button"
+              aria-label="Banner tiếp theo"
+              className="absolute right-3 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-lg border border-white/20 bg-black/70 text-white backdrop-blur-md transition-all duration-200 hover:border-[#00c2ff] hover:bg-[#1677ff]/30 hover:text-[#38bdf8] hover:shadow-[0_0_15px_rgba(0,194,255,0.4)]"
+              onClick={() => showBanner(1)}
+            >
+              <ChevronRight className="size-5" aria-hidden />
+            </button>
+
+            {/* Slide Indicators */}
+            <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/10 bg-black/60 px-3 py-1.5 backdrop-blur-md" role="tablist" aria-label="Chọn banner">
+              {heroBanners.map((banner, index) => (
+                <button
+                  key={banner.src}
+                  type="button"
+                  role="tab"
+                  aria-label={`Chuyển đến banner ${index + 1}`}
+                  aria-selected={index === activeBanner}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${index === activeBanner ? "w-7 bg-gradient-to-r from-[#1677ff] to-[#00c2ff] shadow-[0_0_8px_#00c2ff]" : "w-2.5 bg-white/30 hover:bg-white/70"}`}
+                  onClick={() => setActiveBanner(index)}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>

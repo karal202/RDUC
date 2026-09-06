@@ -80,44 +80,58 @@ function HomepageCatalogCard({ group, index }: { group: CatalogGroup; index: num
   const Icon = group.icon;
 
   return (
-    <Link href={`/catalog#catalog-${index}`} className="group block rduc-catalog-card relative min-h-[230px] overflow-visible rounded-lg border border-rduc-border bg-rduc-card transition-all duration-300 hover:z-10 hover:scale-[1.03] hover:border-rduc-red/70 hover:shadow-[0_18px_40px_rgba(22,119,255,0.16)]">
-      <div className="absolute inset-0 overflow-hidden rounded-lg">
+    <Link
+      href={`/catalog#catalog-${index}`}
+      className="group block rduc-catalog-card relative min-h-[250px] overflow-hidden rounded-2xl border border-white/[0.08] bg-[#070b14]/90 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5 hover:border-cyan-500/50 hover:shadow-[0_15px_35px_rgba(0,242,254,0.15)]"
+    >
+      <div className="absolute inset-0 overflow-hidden rounded-2xl">
         <Image
           src={groupImages[group.title] ?? catalogImages[index]}
           alt=""
           fill
           sizes="(max-width: 767px) 100vw, 50vw"
-          className="object-cover opacity-100 transition duration-500 group-hover:scale-105 group-hover:brightness-50 group-hover:saturate-50"
+          className="object-cover transition-all duration-500 group-hover:scale-105 group-hover:brightness-50 group-hover:saturate-50"
         />
-        <div className="absolute inset-0 bg-black/25 transition-opacity duration-300 group-hover:bg-black/80" aria-hidden />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#050914] via-[#050914]/75 to-black/30 transition-opacity duration-300 group-hover:bg-[#050914]/90" aria-hidden />
       </div>
-      <div className="relative flex min-h-[230px] flex-col justify-between p-6 sm:p-7">
+
+      <div className="relative flex min-h-[250px] flex-col justify-between p-6 sm:p-7">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex size-11 items-center justify-center border border-rduc-red/60 bg-black/65 text-rduc-red">
-            <Icon className="size-5" strokeWidth={1.8} aria-hidden />
+          <div className="flex size-12 items-center justify-center rounded-xl border border-cyan-500/30 bg-cyan-950/70 text-cyan-400 shadow-[0_0_15px_rgba(0,242,254,0.15)] transition-transform duration-300 group-hover:scale-110">
+            <Icon className="size-6" strokeWidth={1.8} aria-hidden />
           </div>
-          <span className="font-mono text-xs font-bold text-rduc-red">0{index + 1}</span>
+          <span className="rounded border border-cyan-500/30 bg-cyan-500/10 px-2.5 py-0.5 font-mono text-xs font-bold text-cyan-400">
+            0{index + 1}
+          </span>
         </div>
         <div>
-          <h3 className="font-display text-2xl sm:text-3xl">{group.title}</h3>
+          <h3 className="font-display text-2xl font-black uppercase tracking-tight text-white group-hover:text-cyan-200 sm:text-3xl transition-colors">
+            {group.title}
+          </h3>
+          <p className="mt-1 font-mono text-xs text-slate-400">
+            {group.items.length} cấu hình tối ưu sẵn sàng
+          </p>
         </div>
       </div>
-      <div className="rduc-hover-content absolute inset-0 z-10 flex flex-col justify-end overflow-hidden rounded-lg border border-white/10 bg-white/5 p-6 backdrop-blur-[1px] sm:p-7">
+
+      <div className="rduc-hover-content absolute inset-0 z-10 flex flex-col justify-end overflow-hidden rounded-2xl border border-cyan-500/40 bg-[#070b14]/95 p-6 backdrop-blur-md sm:p-7">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h3 className="font-display text-xl sm:text-2xl">{group.title}</h3>
+            <h3 className="font-display text-xl font-bold text-white sm:text-2xl">{group.title}</h3>
           </div>
-          <ArrowUpRight className="mt-1 size-5 shrink-0 text-rduc-red" aria-hidden />
+          <div className="flex size-8 items-center justify-center rounded-lg bg-cyan-500/20 text-cyan-400">
+            <ArrowUpRight className="size-5" aria-hidden />
+          </div>
         </div>
-        <div className="mt-4 grid grid-cols-[repeat(3,minmax(0,1fr))] gap-x-3 gap-y-1 border-t border-rduc-red/60 pt-3">
+        <div className="mt-4 grid grid-cols-[repeat(3,minmax(0,1fr))] gap-x-3 gap-y-1.5 border-t border-white/[0.08] pt-3">
           {group.items.map((item) => (
-            <span key={item} className="break-words font-mono text-[10px] leading-5 text-rduc-muted" title={item}>
+            <span key={item} className="truncate font-mono text-[11px] leading-5 text-slate-400 group-hover:text-slate-300" title={item}>
               {item}
             </span>
           ))}
         </div>
-        <span className="mt-3 inline-flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wide text-white group-hover:text-rduc-red">
-          Xem danh mục <ArrowUpRight className="size-4" aria-hidden />
+        <span className="mt-4 inline-flex items-center gap-2 font-mono text-xs font-bold uppercase tracking-wider text-cyan-400 group-hover:text-cyan-300">
+          Xem chi tiết danh mục <ArrowUpRight className="size-4" aria-hidden />
         </span>
       </div>
     </Link>
@@ -126,21 +140,24 @@ function HomepageCatalogCard({ group, index }: { group: CatalogGroup; index: num
 
 export function ProductCatalog() {
   return (
-    <section id="catalog" className="scroll-mt-[84px] border-b border-rduc-border bg-transparent">
+    <section id="catalog" className="scroll-mt-[84px] border-b border-white/[0.06] bg-transparent">
       <div className="mx-auto w-full max-w-[1440px] px-6 py-20 lg:px-24 lg:py-[120px]">
         <SectionHeader
           badge="Danh mục sản phẩm"
           title="Chọn đúng cấu hình cho lối chơi của bạn"
-          sub="Tất cả công cụ và dịch vụ DAWA SHOP được sắp xếp theo từng nhu cầu tối ưu rõ ràng."
+          sub="Tất cả công cụ và dịch vụ DAWA SHOP được phân loại theo từng nhu cầu tối ưu rõ ràng."
         />
 
-        <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2">
           {catalogGroups.map((group, index) => (
             <HomepageCatalogCard key={group.title} group={group} index={index} />
           ))}
         </div>
-        <div className="mt-8 flex justify-center">
-          <Link href="/catalog" className="inline-flex items-center gap-2 border border-rduc-red px-5 py-3 font-mono text-xs font-bold uppercase tracking-wide text-white transition-colors hover:bg-rduc-red">
+        <div className="mt-10 flex justify-center">
+          <Link
+            href="/catalog"
+            className="inline-flex items-center gap-2.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-6 py-3.5 font-mono text-xs font-bold uppercase tracking-widest text-cyan-300 backdrop-blur-md transition-all duration-300 hover:border-cyan-400 hover:bg-cyan-400 hover:text-black hover:shadow-[0_0_25px_rgba(0,242,254,0.3)]"
+          >
             Xem toàn bộ danh mục <ArrowUpRight className="size-4" aria-hidden />
           </Link>
         </div>
@@ -148,3 +165,4 @@ export function ProductCatalog() {
     </section>
   );
 }
+

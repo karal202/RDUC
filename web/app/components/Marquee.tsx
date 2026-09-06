@@ -247,7 +247,7 @@ export function Marquee({
       <button
         type="button"
         aria-label="Mục trước"
-        className={`absolute top-1/2 z-30 flex size-9 -translate-y-1/2 items-center justify-center border border-white/30 bg-black/70 text-white opacity-0 transition-opacity group-hover/marquee:opacity-100 focus:opacity-100 hover:border-rduc-red hover:text-rduc-red ${reserveSideBanners ? "left-[122px]" : "left-3"}`}
+        className={`absolute top-1/2 z-30 flex size-10 -translate-y-1/2 items-center justify-center rounded-xl border border-white/20 bg-black/75 text-white backdrop-blur-md opacity-0 transition-all duration-200 group-hover/marquee:opacity-100 focus:opacity-100 hover:border-cyan-400 hover:text-cyan-300 hover:bg-cyan-950/60 hover:shadow-[0_0_20px_rgba(0,242,254,0.4)] active:scale-95 ${reserveSideBanners ? "left-[122px]" : "left-4"}`}
         onClick={() => moveSlide(-1)}
       >
         <ChevronLeft className="size-5" aria-hidden />
@@ -255,7 +255,7 @@ export function Marquee({
       <button
         type="button"
         aria-label="Mục tiếp theo"
-        className={`absolute top-1/2 z-30 flex size-9 -translate-y-1/2 items-center justify-center border border-white/30 bg-black/70 text-white opacity-0 transition-opacity group-hover/marquee:opacity-100 focus:opacity-100 hover:border-rduc-red hover:text-rduc-red ${reserveSideBanners ? "right-[122px]" : "right-3"}`}
+        className={`absolute top-1/2 z-30 flex size-10 -translate-y-1/2 items-center justify-center rounded-xl border border-white/20 bg-black/75 text-white backdrop-blur-md opacity-0 transition-all duration-200 group-hover/marquee:opacity-100 focus:opacity-100 hover:border-cyan-400 hover:text-cyan-300 hover:bg-cyan-950/60 hover:shadow-[0_0_20px_rgba(0,242,254,0.4)] active:scale-95 ${reserveSideBanners ? "right-[122px]" : "right-4"}`}
         onClick={() => moveSlide(1)}
       >
         <ChevronRight className="size-5" aria-hidden />
