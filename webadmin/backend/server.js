@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import dotenv from "dotenv";
 import { createServer } from "http";
@@ -21,8 +22,8 @@ app.use(
       useDefaults: true,
       directives: {
         "default-src": ["'self'"],
-        "script-src": ["'self'", "'unsafe-inline'"],
-        "script-src-attr": null,
+        "script-src": ["'self'"],
+        "script-src-attr": ["'none'"],
         "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         "font-src": ["'self'", "https://fonts.gstatic.com", "data:"],
         "img-src": ["'self'", "data:", "blob:", "https:"],
@@ -30,6 +31,8 @@ app.use(
         "worker-src": ["'self'", "blob:"],
         "frame-src": ["'none'"],
         "object-src": ["'none'"],
+        "base-uri": ["'self'"],
+        "form-action": ["'self'"],
       },
     },
     referrerPolicy: { policy: "strict-origin-when-cross-origin" },
@@ -63,6 +66,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.options(/.*/, cors(corsOptions));
+app.use(cookieParser());
 
 app.use(
   rateLimit({
@@ -158,6 +162,14 @@ io.on("connection", (socket) => {
   socket.on("disconnect", (reason) => {
     console.log(`[SOCKET.IO] Client disconnected id=${socket.id} reason=${reason}`);
   });
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[ANTI-CRASH] Unhandled Promise Rejection:", reason);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("[ANTI-CRASH] Uncaught Exception:", error);
 });
 
 await bootstrapDatabase();

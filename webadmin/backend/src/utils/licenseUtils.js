@@ -1,21 +1,33 @@
 import crypto from "crypto";
 
-const FALLBACK_ENCRYPTION_KEY = "DAWA_LICENSE_SECRET_KEY_32BYTES_LONG!";
-const ENCRYPTION_KEY = process.env.LICENSE_SECRET_KEY || FALLBACK_ENCRYPTION_KEY;
-const LOOKUP_PEPPER = process.env.LICENSE_LOOKUP_PEPPER || "DAWA_LOOKUP_PEPPER_STATIC";
+const isProduction = process.env.NODE_ENV === "production";
+const ENCRYPTION_KEY = (process.env.LICENSE_SECRET_KEY || "").trim();
+const LOOKUP_PEPPER = (process.env.LICENSE_LOOKUP_PEPPER || "").trim();
 const ALGORITHM = "aes-256-cbc";
 
-if (!process.env.LICENSE_SECRET_KEY) {
-  console.warn(
-    "[SECURITY WARN] LICENSE_SECRET_KEY env var is NOT set — using hardcoded fallback. " +
-      "This is unsafe for production! Set a strong 32+ byte passphrase via env."
-  );
-}
-if (!process.env.LICENSE_LOOKUP_PEPPER) {
-  console.warn(
-    "[SECURITY WARN] LICENSE_LOOKUP_PEPPER env var is NOT set — using static pepper. " +
-      "Set a unique server-side pepper to strengthen key-lookup hashes."
-  );
+// Enforce strict security: Fail fast in production if keys are missing or left as default placeholders
+if (isProduction) {
+  if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length < 32 || ENCRYPTION_KEY.includes("replace-with")) {
+    throw new Error(
+      "[FATAL SECURITY ERROR] LICENSE_SECRET_KEY must be a strong random secret with at least 32 characters in production! Refusing to start."
+    );
+  }
+  if (!LOOKUP_PEPPER || LOOKUP_PEPPER.length < 16 || LOOKUP_PEPPER.includes("replace-with")) {
+    throw new Error(
+      "[FATAL SECURITY ERROR] LICENSE_LOOKUP_PEPPER must be a strong random string in production! Refusing to start."
+    );
+  }
+} else {
+  if (!ENCRYPTION_KEY) {
+    console.warn(
+      "[SECURITY WARN] LICENSE_SECRET_KEY is NOT set in .env. Please configure a 32+ byte secret."
+    );
+  }
+  if (!LOOKUP_PEPPER) {
+    console.warn(
+      "[SECURITY WARN] LICENSE_LOOKUP_PEPPER is NOT set in .env. Please configure a unique pepper."
+    );
+  }
 }
 
 /**

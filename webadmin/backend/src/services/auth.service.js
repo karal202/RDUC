@@ -54,8 +54,10 @@ export const authService = {
   },
 
   async register(req) {
-    const { email, password, fullname } = req.body;
-    console.log(email, password, fullname);
+    const { email, password, fullname } = req.body || {};
+    if (!email || !password) {
+      throw new BadRequestError("Vui lòng điền đầy đủ email và mật khẩu");
+    }
 
     //kiểm tra email đã tồn tại chưa, nếu đã tồn tại thì trả về lỗi, nếu chưa tồn tại thì tạo mới user
     const existingUser = await prisma.users.findUnique({
@@ -64,15 +66,7 @@ export const authService = {
       },
     });
 
-    //hash: băm ví dụ 123456 -> OIUHOPSHFDUGDOFHUGDFG -> lksDHFSoidhfsdfohSF -> ... ->IUdghsfiuDGFI
-    //bcrypt
-    //brute force
-    //KHÔNG THỂ DỊCH NGƯỢC
-    //SO SÁNH
     const hashPassword = bcrypt.hashSync(password, 10);
-
-    //encrupt: MÃ HÓA -> token
-    // có thể dịch ngược để lấy dữ liệu
 
     if (existingUser) {
       throw new BadRequestError(`Người dùng đã tồn tại, vui lòng đăng nhập`);
@@ -90,34 +84,33 @@ export const authService = {
   },
 
   async forgotPassword(req) {
-    const { email } = req.body;
+    const { email } = req.body || {};
+    if (!email) return false;
 
-    // B2: kiểm tra email có tồn tại không
+    // Kiểm tra email
     const existingUser = await prisma.users.findUnique({
       where: {
         email: email,
       },
-      omit: {
-        codeChangePass: false,
-      },
     });
 
+    // Chống email enumeration: không báo lỗi nếu email không tồn tại
     if (!existingUser) {
-      throw new BadRequestError("Email không tồn tại trong hệ thống");
+      return false;
     }
 
-    // B3: tạo mã change password => crypto
-    const changePassCode = crypto.randomBytes(20).toString("hex"); // tạo ra 1 chuỗi ngẫu nhiên có độ dài 40 ký tự
+    // Tạo mã change password ngẫu nhiên có độ dài 40 ký tự
+    const changePassCode = crypto.randomBytes(20).toString("hex");
 
-    // B4: lưu mã change pass vào db
+    // Lưu mã change pass vào db
     await prisma.users.update({
       where: { email: email },
       data: { codeChangePass: changePassCode },
     });
 
-    // B5-optional: gửi mã change pass về email
-
-    return changePassCode;
+    // Gửi email đặt lại mật khẩu ở đây (nếu có cấu hình SMTP)
+    // TUYỆT ĐỐI KHÔNG return mã changePassCode ra API
+    return true;
   },
 
   async getInfo(req) {
