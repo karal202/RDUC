@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted, ref } from 'vue'
+import { FileCode2, Play, Terminal } from 'lucide-vue-next'
 
 const scripts = ref([])
 const selectedScript = ref(null)
@@ -52,7 +53,7 @@ onMounted(loadScripts)
         </p>
       </div>
       <div class="cmd-placeholder" aria-label="Vị trí thêm file CMD">
-        <span class="cmd-placeholder-icon">+</span>
+        <FileCode2 class="cmd-placeholder-icon" :size="27" :stroke-width="1.8" />
         <span>THÊM FILE CMD</span>
         <small>Đăng ký key trong services/dawaScripts</small>
       </div>
@@ -70,12 +71,13 @@ onMounted(loadScripts)
       <div v-else-if="!scripts.length" class="empty-state">Chưa có CMD nào được đăng ký.</div>
       <div v-else class="cmd-grid">
         <article v-for="script in scripts" :key="script.key" class="cmd-card">
-          <div class="cmd-card-icon">&gt;_</div>
+          <Terminal class="cmd-card-icon" :size="20" :stroke-width="1.8" />
           <div class="cmd-card-copy">
             <h4>{{ script.title }}</h4>
             <p>{{ script.description }}</p>
           </div>
           <button class="btn-primary" :disabled="isRunning" @click="runScript(script)">
+            <Play :size="13" :stroke-width="2.2" />
             {{ selectedScript === script.key && isRunning ? 'ĐANG CHẠY...' : 'CHẠY CMD' }}
           </button>
         </article>
