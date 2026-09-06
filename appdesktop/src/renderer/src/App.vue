@@ -60,13 +60,7 @@ const toolNav = [
 const isActivated = ref(false)
 const licenseInfo = ref(null)
 const ACTIVATED_FLAG = '__DAWA_ACTIVATED_BEFORE'
-let priorActivatedSeen = false
-try {
-  priorActivatedSeen = !!localStorage.getItem(ACTIVATED_FLAG)
-} catch {
-  priorActivatedSeen = false
-}
-const bootGate = ref(priorActivatedSeen ? 'rocket' : 'activate')
+const bootGate = ref('rocket')
 const isLaunching = ref(false)
 const revokedAlert = ref(false)
 

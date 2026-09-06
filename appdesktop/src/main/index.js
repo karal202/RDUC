@@ -73,6 +73,25 @@ function isActivateRateLimited() {
   return false
 }
 
+function isHardRevocation(payload) {
+  if (!payload || typeof payload !== 'object') return false
+  if (payload.revoked === true || payload.disabled === true || payload.expired === true) return true
+  const msg = String(payload.message || '').toLowerCase()
+  if (!msg) return false
+  const hardMarkers = [
+    'revoked',
+    'thu hồi',
+    'thu hoi',
+    'vo hieu hoa',
+    'vô hiệu hóa',
+    'disabled',
+    'expired',
+    'hết hạn',
+    'het han'
+  ]
+  return hardMarkers.some((marker) => msg.includes(marker))
+}
+
 async function getLocalLicenseGate() {
   const currentDeviceHash = await getHardwareHash()
   const stored = licenseStore.get()
@@ -306,18 +325,49 @@ app.whenReady().then(() => {
         data: remoteResult.data
       }
     }
-    if (remoteResult?.data?.isOffline && localCheck.valid) {
+
+    const backendSaysOffline = !!remoteResult?.data?.isOffline
+    const backendUnreachable = !remoteResult || remoteResult.status === 0
+    const remotePayload = remoteResult?.data || {}
+    const hardRevoked = isHardRevocation(remotePayload)
+
+    if (hardRevoked) {
+      licenseStore.clear()
+      return {
+        isActivated: false,
+        revoked: true,
+        message: remotePayload.message || 'Key của bạn đã bị thu hồi hoặc vô hiệu hóa từ máy chủ.'
+      }
+    }
+
+    if (localCheck.valid && (backendSaysOffline || backendUnreachable)) {
       return {
         isActivated: true,
         offlineMode: true,
         keyCode: maskLicenseKey(stored.keyCode),
-        activatedAt: stored.activatedAt
+        activatedAt: stored.activatedAt,
+        message:
+          remotePayload?.message ||
+          'Không thể kết nối máy chủ xác thực. Đã mở khóa ở chế độ Offline bằng license cục bộ.'
       }
     }
+
+    if (remotePayload?.success === false && !hardRevoked) {
+      return {
+        isActivated: true,
+        offlineMode: true,
+        keyCode: maskLicenseKey(stored.keyCode),
+        activatedAt: stored.activatedAt,
+        message:
+          remotePayload?.message ||
+          'Máy chủ trả về kết quả không xác định. Đã mở khóa bằng chữ ký cục bộ.'
+      }
+    }
+
     licenseStore.clear()
     return {
       isActivated: false,
-      message: remoteResult.data?.message || 'Key của bạn đã bị vô hiệu hóa hoặc thu hồi từ máy chủ'
+      message: remotePayload?.message || 'Key của bạn đã bị vô hiệu hóa hoặc thu hồi từ máy chủ'
     }
   })
 
