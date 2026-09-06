@@ -33,6 +33,10 @@ export const authMiddleware = async (req, res, next) => {
   if (!userExist) {
     throw new UnauthorizedError("Tài khoản không hợp lệ, vui lòng thử lại");
   }
+
+  if (!decoded.sessionId || decoded.sessionId !== userExist.active_session_id) {
+    throw new UnauthorizedError("Phiên đăng nhập đã bị thay thế bởi thiết bị khác");
+  }
   
   req.user = userExist;
 

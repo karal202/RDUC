@@ -17,7 +17,8 @@ CREATE TABLE admins (
     password_hash VARCHAR(255) NOT NULL,   -- bcrypt/argon2, KHÔNG lưu plaintext
     role ENUM('super_admin','admin') DEFAULT 'admin',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    last_login DATETIME
+    last_login DATETIME,
+    active_session_id VARCHAR(64) NULL
 );
 
 -- 2. Bảng license key (đã bỏ product_id, thêm thông tin khách hàng + IP binding)

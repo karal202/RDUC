@@ -40,7 +40,12 @@ export const authService = {
       userId: existingUser.id,
       username: existingUser.username,
       role: existingUser.role,
+      sessionId: crypto.randomBytes(32).toString("hex"),
     };
+    await existingUser.update({
+      active_session_id: payload.sessionId,
+      last_login: new Date(),
+    });
     // B2: tạo access token từ payload
     const accessToken = signAccessToken(payload);
 
