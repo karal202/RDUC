@@ -40,12 +40,7 @@ export const authService = {
       userId: existingUser.id,
       username: existingUser.username,
       role: existingUser.role,
-      sessionId: crypto.randomBytes(32).toString("hex"),
     };
-    await existingUser.update({
-      active_session_id: payload.sessionId,
-      last_login: new Date(),
-    });
     // B2: tạo access token từ payload
     const accessToken = signAccessToken(payload);
 
@@ -59,10 +54,8 @@ export const authService = {
   },
 
   async register(req) {
-    const { email, password, fullname } = req.body || {};
-    if (!email || !password) {
-      throw new BadRequestError("Vui lòng điền đầy đủ email và mật khẩu");
-    }
+    const { email, password, fullname } = req.body;
+    console.log(email, password, fullname);
 
     //kiểm tra email đã tồn tại chưa, nếu đã tồn tại thì trả về lỗi, nếu chưa tồn tại thì tạo mới user
     const existingUser = await prisma.users.findUnique({
@@ -71,7 +64,15 @@ export const authService = {
       },
     });
 
+    //hash: băm ví dụ 123456 -> OIUHOPSHFDUGDOFHUGDFG -> lksDHFSoidhfsdfohSF -> ... ->IUdghsfiuDGFI
+    //bcrypt
+    //brute force
+    //KHÔNG THỂ DỊCH NGƯỢC
+    //SO SÁNH
     const hashPassword = bcrypt.hashSync(password, 10);
+
+    //encrupt: MÃ HÓA -> token
+    // có thể dịch ngược để lấy dữ liệu
 
     if (existingUser) {
       throw new BadRequestError(`Người dùng đã tồn tại, vui lòng đăng nhập`);
@@ -89,33 +90,34 @@ export const authService = {
   },
 
   async forgotPassword(req) {
-    const { email } = req.body || {};
-    if (!email) return false;
+    const { email } = req.body;
 
-    // Kiểm tra email
+    // B2: kiểm tra email có tồn tại không
     const existingUser = await prisma.users.findUnique({
       where: {
         email: email,
       },
+      omit: {
+        codeChangePass: false,
+      },
     });
 
-    // Chống email enumeration: không báo lỗi nếu email không tồn tại
     if (!existingUser) {
-      return false;
+      throw new BadRequestError("Email không tồn tại trong hệ thống");
     }
 
-    // Tạo mã change password ngẫu nhiên có độ dài 40 ký tự
-    const changePassCode = crypto.randomBytes(20).toString("hex");
+    // B3: tạo mã change password => crypto
+    const changePassCode = crypto.randomBytes(20).toString("hex"); // tạo ra 1 chuỗi ngẫu nhiên có độ dài 40 ký tự
 
-    // Lưu mã change pass vào db
+    // B4: lưu mã change pass vào db
     await prisma.users.update({
       where: { email: email },
       data: { codeChangePass: changePassCode },
     });
 
-    // Gửi email đặt lại mật khẩu ở đây (nếu có cấu hình SMTP)
-    // TUYỆT ĐỐI KHÔNG return mã changePassCode ra API
-    return true;
+    // B5-optional: gửi mã change pass về email
+
+    return changePassCode;
   },
 
   async getInfo(req) {

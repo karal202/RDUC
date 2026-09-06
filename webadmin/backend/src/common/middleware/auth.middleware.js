@@ -4,18 +4,16 @@ import Admin from "../../models/admin.model.js";
 
 // nhận request từ client
 export const authMiddleware = async (req, res, next) => {
+  // B1: đọc token từ header Authorization: Bearer <token>
   const authHeader = req.headers.authorization;
-  let accessToken = null;
-
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    accessToken = authHeader.split(" ")[1];
-  } else if (req.cookies && req.cookies.accessToken) {
-    accessToken = req.cookies.accessToken;
-  }
-
-  if (!accessToken) {
+  // console.log("authHeader: ", authHeader);
+  // B2: kiểm tra token có hợp lệ không
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     throw new UnauthorizedError("Vui lòng đăng nhập để tiếp tục");
   }
+
+  // tách Bearer ra khỏi token
+  const accessToken = authHeader.split(" ")[1];
 
   // xác thực token
   const decoded = verifyAccessToken(accessToken);
@@ -32,10 +30,6 @@ export const authMiddleware = async (req, res, next) => {
 
   if (!userExist) {
     throw new UnauthorizedError("Tài khoản không hợp lệ, vui lòng thử lại");
-  }
-
-  if (!decoded.sessionId || decoded.sessionId !== userExist.active_session_id) {
-    throw new UnauthorizedError("Phiên đăng nhập đã bị thay thế bởi thiết bị khác");
   }
   
   req.user = userExist;

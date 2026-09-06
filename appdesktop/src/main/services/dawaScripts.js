@@ -14,6 +14,15 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
     description: 'Tối ưu Gaming High Performance',
     commands: [
       [WINDOWS_COMMANDS.powercfg, ['/s', '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c']],
+      [
+        WINDOWS_COMMANDS.powercfg,
+        ['/setacvalueindex', 'SCHEME_CURRENT', 'SUB_PROCESSOR', 'PROCTHROTTLEMIN', '5']
+      ],
+      [
+        WINDOWS_COMMANDS.powercfg,
+        ['/setdcvalueindex', 'SCHEME_CURRENT', 'SUB_PROCESSOR', 'PROCTHROTTLEMIN', '5']
+      ],
+      [WINDOWS_COMMANDS.powercfg, ['/setactive', 'SCHEME_CURRENT']],
       [WINDOWS_COMMANDS.sc, ['config', 'SysMain', 'start=', 'disabled']],
       [WINDOWS_COMMANDS.sc, ['config', 'DiagTrack', 'start=', 'disabled']],
       [
@@ -33,9 +42,18 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
     ]
   },
   'dawa-power-plan': {
-    description: 'Kích hoạt Power Plan Tối Thượng',
+    description: 'Kích hoạt Power Plan Tối Thượng (Tối ưu xung nhịp động)',
     commands: [
       [WINDOWS_COMMANDS.powercfg, ['/s', '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c']],
+      [
+        WINDOWS_COMMANDS.powercfg,
+        ['/setacvalueindex', 'SCHEME_CURRENT', 'SUB_PROCESSOR', 'PROCTHROTTLEMIN', '5']
+      ],
+      [
+        WINDOWS_COMMANDS.powercfg,
+        ['/setdcvalueindex', 'SCHEME_CURRENT', 'SUB_PROCESSOR', 'PROCTHROTTLEMIN', '5']
+      ],
+      [WINDOWS_COMMANDS.powercfg, ['/setactive', 'SCHEME_CURRENT']],
       [WINDOWS_COMMANDS.powercfg, ['/change', 'monitor-timeout-ac', '0']],
       [WINDOWS_COMMANDS.powercfg, ['/change', 'standby-timeout-ac', '0']]
     ]
