@@ -6,7 +6,9 @@ import si from 'systeminformation'
 import { safeStorage } from 'electron'
 
 const SECRET_SALT = 'DAWA_SECURITY_KEY_SALT_2026_x98f'
-const BACKEND_URL = process.env.BACKEND_URL || 'https://rduc.onrender.com/api/license/validate'
+const configuredBackendUrl = process.env.BACKEND_URL || 'https://rduc.onrender.com/api/license/validate'
+const backendUrl = new URL(configuredBackendUrl)
+const BACKEND_URL = backendUrl.pathname === '/' ? `${backendUrl.origin}/api/license/validate` : backendUrl.toString()
 const BACKEND_ORIGIN = new URL(BACKEND_URL).origin
 
 export async function getHardwareHash() {
