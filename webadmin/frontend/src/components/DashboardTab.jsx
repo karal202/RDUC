@@ -1,4 +1,4 @@
-import { Key, CheckCircle, XCircle, Activity, Users, ScrollText, Zap } from "@phosphor-icons/react";
+import { Key, CheckCircle, XCircle, Pulse, Users, FileText, Lightning } from "@phosphor-icons/react";
 
 export default function DashboardTab({ dashboard, loading, setActiveTab }) {
   return <>
@@ -26,7 +26,7 @@ export default function DashboardTab({ dashboard, loading, setActiveTab }) {
       </div>
       <div className="stat-card stat-logs">
         <div className="stat-head">
-          <div className="stat-icon"><Activity size={20} weight="duotone" /></div>
+          <div className="stat-icon"><Pulse size={20} weight="duotone" /></div>
           <span className="stat-label">Tổng Số Lần Kích hoạt</span>
         </div>
         <span className="stat-value">{dashboard.logsCount || 0}</span>
@@ -35,7 +35,7 @@ export default function DashboardTab({ dashboard, loading, setActiveTab }) {
     <div className="panel">
       <div className="panel-header">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Zap size={18} weight="fill" style={{ color: "var(--accent)" }} />
+          <Lightning size={18} weight="fill" style={{ color: "var(--accent)" }} />
           <h3>Thao tác nhanh</h3>
         </div>
       </div>
@@ -45,7 +45,7 @@ export default function DashboardTab({ dashboard, loading, setActiveTab }) {
           <span>Thêm Người dùng &amp; Cấp Key Mới</span>
         </button>
         <button className="btn-secondary" onClick={() => setActiveTab("logs")}>
-          <ScrollText size={16} weight="duotone" />
+          <FileText size={16} weight="duotone" />
           <span>Tra cứu IP Thiết bị Kích hoạt</span>
         </button>
       </div>

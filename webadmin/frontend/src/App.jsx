@@ -9,7 +9,7 @@ import LogsTab from "./components/LogsTab";
 import DownloadTab from "./components/DownloadTab";
 import ValidationModal from "./components/ValidationModal";
 import AdminLogin from "./components/AdminLogin";
-import { Gauge, Users, ScrollText, Globe, CheckCircle, XCircle, Broadcast, Wrench } from "@phosphor-icons/react";
+import { Gauge, Users, FileText, Globe, CheckCircle, XCircle, Broadcast, Wrench } from "@phosphor-icons/react";
 
 const SOCKET_URL = BACKEND_URL;
 const defaultLicenseForm = { customer_name: "", customer_contact: "", key_code: "", max_devices: 1, expires_at: "", created_by: 1, note: "" };
@@ -19,7 +19,7 @@ const formatDate = (value) => { if (!value) return "—"; const date = new Date(
 const titleConfig = {
   dashboard: { Icon: Gauge, label: "Dashboard Tổng quan" },
   users: { Icon: Users, label: "Quản lý Người dùng & Key" },
-  logs: { Icon: ScrollText, label: "Nhật ký Kích hoạt & IP" },
+  logs: { Icon: FileText, label: "Nhật ký Kích hoạt & IP" },
   download: { Icon: Globe, label: "Web Tải App & Test Key" },
 };
 

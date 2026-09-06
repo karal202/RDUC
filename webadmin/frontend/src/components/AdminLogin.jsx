@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { BACKEND_URL } from "../api/licenseApi";
-import { ShieldCheck, SignInRight, XCircle } from "@phosphor-icons/react";
+import { ShieldCheck, SignIn, XCircle } from "@phosphor-icons/react";
 
 export default function AdminLogin({ onLogin }) {
   const [username, setUsername] = useState("");
@@ -69,7 +69,7 @@ export default function AdminLogin({ onLogin }) {
             "Đang đăng nhập…"
           ) : (
             <>
-              <SignInRight size={16} weight="duotone" />
+                <SignIn size={16} weight="duotone" />
               <span>Đăng nhập</span>
             </>
           )}

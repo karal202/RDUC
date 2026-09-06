@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Pagination from "./Pagination";
-import { MagnifyingGlass, ScrollText, Cpu, HardDrives } from "@phosphor-icons/react";
+import { MagnifyingGlass, FileText, Cpu, HardDrives } from "@phosphor-icons/react";
 
 const PAGE_SIZE = 10;
 
@@ -36,7 +36,7 @@ export default function LogsTab({ logs, filter, setFilter, formatDate }) {
     <div className="panel">
       <div className="panel-header">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div className="h3-icon"><ScrollText size={16} weight="duotone" /></div>
+          <div className="h3-icon"><FileText size={16} weight="duotone" /></div>
           <h3>Nhật ký Kích hoạt</h3>
         </div>
       </div>
