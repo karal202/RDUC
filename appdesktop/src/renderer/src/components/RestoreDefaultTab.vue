@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { RotateCcw } from 'lucide-vue-next'
+import { RotateCcw, History, WifiOff, SlidersHorizontal, Play } from 'lucide-vue-next'
 
 const logOutput = ref('')
 const isRunning = ref(false)
@@ -63,10 +63,15 @@ const runCmdHook = async (actionName, description) => {
           "
         >
           <div>
-            <div style="font-weight: 700; color: #fff; font-size: 14px">
-              ↩️ Restore All Settings
+            <div class="cyber-tool-header">
+              <div class="cyber-icon-badge violet-glow">
+                <History :size="17" :stroke-width="2.2" class="icon-spin-hover" />
+              </div>
+              <div style="font-weight: 700; color: #fff; font-size: 14px">
+                Restore All Settings
+              </div>
             </div>
-            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px">
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px">
               Khôi phục toàn bộ Registry & Services về mặc định Windows.
             </div>
           </div>
@@ -75,7 +80,8 @@ const runCmdHook = async (actionName, description) => {
             :disabled="isRunning"
             @click="runCmdHook('restore-all-default', 'Khôi phục tất cả cài đặt mặc định')"
           >
-            Chạy Script Khôi Phục Mặc Định
+            <Play :size="13" :stroke-width="2.2" />
+            <span>Chạy Script Khôi Phục Mặc Định</span>
           </button>
         </div>
 
@@ -92,10 +98,15 @@ const runCmdHook = async (actionName, description) => {
           "
         >
           <div>
-            <div style="font-weight: 700; color: #fff; font-size: 14px">
-              ↩️ Restore Default Network
+            <div class="cyber-tool-header">
+              <div class="cyber-icon-badge cyan-glow">
+                <WifiOff :size="17" :stroke-width="2.2" />
+              </div>
+              <div style="font-weight: 700; color: #fff; font-size: 14px">
+                Restore Default Network
+              </div>
             </div>
-            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px">
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px">
               Xóa cấu hình DNS custom & đặt lại IP mặc định DHCP.
             </div>
           </div>
@@ -104,7 +115,8 @@ const runCmdHook = async (actionName, description) => {
             :disabled="isRunning"
             @click="runCmdHook('restore-network-default', 'Khôi phục cấu hình mạng mặc định')"
           >
-            Chạy Script Mạng Mặc Định
+            <Play :size="13" :stroke-width="2.2" />
+            <span>Chạy Script Mạng Mặc Định</span>
           </button>
         </div>
 
@@ -121,10 +133,15 @@ const runCmdHook = async (actionName, description) => {
           "
         >
           <div>
-            <div style="font-weight: 700; color: #fff; font-size: 14px">
-              ↩️ Restore Default Mouse & KB
+            <div class="cyber-tool-header">
+              <div class="cyber-icon-badge amber-glow">
+                <SlidersHorizontal :size="17" :stroke-width="2.2" />
+              </div>
+              <div style="font-weight: 700; color: #fff; font-size: 14px">
+                Restore Default Mouse & KB
+              </div>
             </div>
-            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px">
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px">
               Đặt lại tốc độ chuột & gia tốc mặc định của Windows.
             </div>
           </div>
@@ -133,7 +150,8 @@ const runCmdHook = async (actionName, description) => {
             :disabled="isRunning"
             @click="runCmdHook('restore-mouse-default', 'Khôi phục cài đặt chuột mặc định')"
           >
-            Chạy Script Chuột Mặc Định
+            <Play :size="13" :stroke-width="2.2" />
+            <span>Chạy Script Chuột Mặc Định</span>
           </button>
         </div>
       </div>

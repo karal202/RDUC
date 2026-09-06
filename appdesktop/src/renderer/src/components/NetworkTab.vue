@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { Globe } from 'lucide-vue-next'
+import { Globe, Zap, RefreshCw, Radio, Play } from 'lucide-vue-next'
 
 const logOutput = ref('')
 const isRunning = ref(false)
@@ -63,10 +63,15 @@ const runCmdHook = async (actionName, description) => {
           "
         >
           <div>
-            <div style="font-weight: 700; color: #fff; font-size: 14px">
-              ⚡ Ultra Low Ping TCP/IP
+            <div class="cyber-tool-header">
+              <div class="cyber-icon-badge cyan-glow">
+                <Zap :size="17" :stroke-width="2.2" class="icon-pulse-glow" />
+              </div>
+              <div style="font-weight: 700; color: #fff; font-size: 14px">
+                Ultra Low Ping TCP/IP
+              </div>
             </div>
-            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px">
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px">
               Tắt Nagle's Algorithm (TCP ACK Frequency) giảm lag in-game.
             </div>
           </div>
@@ -75,7 +80,8 @@ const runCmdHook = async (actionName, description) => {
             :disabled="isRunning"
             @click="runCmdHook('network-tcp-ping', 'Tối ưu TCP/IP Low Latency')"
           >
-            Chạy Script Tối Ưu TCP
+            <Play :size="13" :stroke-width="2.2" />
+            <span>Chạy Script Tối Ưu TCP</span>
           </button>
         </div>
 
@@ -92,10 +98,15 @@ const runCmdHook = async (actionName, description) => {
           "
         >
           <div>
-            <div style="font-weight: 700; color: #fff; font-size: 14px">
-              🧹 Flush DNS & Reset Winsock
+            <div class="cyber-tool-header">
+              <div class="cyber-icon-badge emerald-glow">
+                <RefreshCw :size="17" :stroke-width="2.2" class="icon-spin-hover" />
+              </div>
+              <div style="font-weight: 700; color: #fff; font-size: 14px">
+                Flush DNS & Reset Winsock
+              </div>
             </div>
-            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px">
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px">
               Xóa cache DNS cũ, reset Winsock catalog để sửa lỗi lag mạng.
             </div>
           </div>
@@ -104,7 +115,8 @@ const runCmdHook = async (actionName, description) => {
             :disabled="isRunning"
             @click="runCmdHook('network-flush-dns', 'Flush DNS & Reset Winsock')"
           >
-            Chạy Script Flush DNS
+            <Play :size="13" :stroke-width="2.2" />
+            <span>Chạy Script Flush DNS</span>
           </button>
         </div>
 
@@ -121,8 +133,15 @@ const runCmdHook = async (actionName, description) => {
           "
         >
           <div>
-            <div style="font-weight: 700; color: #fff; font-size: 14px">🚀 Gaming DNS Switcher</div>
-            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px">
+            <div class="cyber-tool-header">
+              <div class="cyber-icon-badge primary-glow">
+                <Radio :size="17" :stroke-width="2.2" class="icon-radio-anim" />
+              </div>
+              <div style="font-weight: 700; color: #fff; font-size: 14px">
+                Gaming DNS Switcher
+              </div>
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px">
               Chuyển sang DNS Google (8.8.8.8) hoặc Cloudflare (1.1.1.1).
             </div>
           </div>
@@ -131,7 +150,8 @@ const runCmdHook = async (actionName, description) => {
             :disabled="isRunning"
             @click="runCmdHook('network-dns-gaming', 'Đổi DNS Gaming Fast Response')"
           >
-            Chạy Script DNS Gaming
+            <Play :size="13" :stroke-width="2.2" />
+            <span>Chạy Script DNS Gaming</span>
           </button>
         </div>
       </div>

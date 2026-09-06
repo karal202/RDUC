@@ -226,7 +226,9 @@ onMounted(() => {
             type="button"
             @click="activeTab = item.key"
           >
-            <component :is="item.icon" :size="15" :stroke-width="2" />
+            <span class="hud-tab-icon-wrap" :class="item.key">
+              <component :is="item.icon" :size="15" :stroke-width="2" class="hud-tab-icon" />
+            </span>
             {{ item.label }}
           </button>
           <span class="hud-nav-split" aria-hidden="true"></span>
@@ -238,7 +240,9 @@ onMounted(() => {
             type="button"
             @click="activeTab = item.key"
           >
-            <component :is="item.icon" :size="14" :stroke-width="2" />
+            <span class="hud-tab-icon-wrap" :class="item.key">
+              <component :is="item.icon" :size="14" :stroke-width="2" class="hud-tab-icon" />
+            </span>
             {{ item.label }}
           </button>
         </nav>
@@ -249,11 +253,12 @@ onMounted(() => {
             OFFLINE
           </div>
           <div v-else class="status-badge activated">
-            <CircleCheck :size="13" :stroke-width="2.2" />
+            <span class="cyber-radar-ping"></span>
+            <CircleCheck :size="13" :stroke-width="2.2" class="icon-pulse-glow" />
             LICENSED
           </div>
           <button class="btn-lock" type="button" @click="handleDeactivate">
-            <LockKeyhole :size="14" :stroke-width="2" />
+            <LockKeyhole :size="14" :stroke-width="2" class="icon-lock-hover" />
             KHÓA KEY
           </button>
         </div>
@@ -278,12 +283,13 @@ onMounted(() => {
 
       <footer class="hud-bar">
         <div class="hud-bar-item">
-          <span><KeyRound :size="12" :stroke-width="2" /> KEY</span>
+          <span><KeyRound :size="12" :stroke-width="2" class="icon-key-glow" /> KEY</span>
           <strong class="sidebar-key">{{ licenseInfo?.keyCode || 'DAWA-ACTIVE-KEY' }}</strong>
         </div>
         <div class="hud-bar-item">
           <span>
-            <CircleCheck v-if="socketConnected" :size="12" :stroke-width="2" />
+            <span v-if="socketConnected" class="link-radar-dot"></span>
+            <CircleCheck v-if="socketConnected" :size="12" :stroke-width="2" class="icon-live-glow" />
             <CircleX v-else :size="12" :stroke-width="2" />
             LINK
           </span>

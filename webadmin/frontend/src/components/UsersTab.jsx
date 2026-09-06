@@ -2,7 +2,7 @@ import { useState } from "react";
 import Pagination from "./Pagination";
 import {
   Plus, DiceFive, Rocket, Users, MagnifyingGlass, Lock, LockOpen,
-  ArrowCounterClockwise, Trash, Key,
+  ArrowCounterClockwise, Trash, Key, CopySimple, Check,
 } from "@phosphor-icons/react";
 
 const PAGE_SIZE = 10;
@@ -12,6 +12,47 @@ export default function UsersTab({
   onSubmit, onToggle, onDelete, onReset, generateKey, formatDate,
 }) {
   const [page, setPage] = useState(1);
+  const [copiedId, setCopiedId] = useState(null);
+
+  const copyToClipboard = (text, id) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 1800);
+    });
+  };
+
+  const renderDate = (val) => {
+    if (!val) return <span className="date-lifetime">Vĩnh viễn</span>;
+    const d = new Date(val);
+    if (Number.isNaN(d.getTime())) return val;
+    const dateStr = d.toLocaleDateString("vi-VN");
+    const timeStr = d.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+    return (
+      <div className="date-display-stacked" title={formatDate(val)}>
+        <span className="date-main">{dateStr}</span>
+        <span className="date-time">{timeStr}</span>
+      </div>
+    );
+  };
+
+  const renderIps = (ipStr) => {
+    if (!ipStr) {
+      return <span className="ip-chip unbound">Chưa gắn IP</span>;
+    }
+    const ips = ipStr.split(",").map((s) => s.trim()).filter(Boolean);
+    return (
+      <div className="ip-chip-list">
+        {ips.map((ip, idx) => (
+          <span key={idx} className="ip-chip bound" title={`IP đã gắn: ${ip}`}>
+            <span className="ip-dot" />
+            {ip}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
   const term = searchTerm.trim().toLowerCase();
   const filtered = term
     ? licenses.filter((item) => (
@@ -119,14 +160,14 @@ export default function UsersTab({
         <table>
           <thead>
             <tr>
-              <th>ID</th>
-              <th>KHÁCH HÀNG</th>
-              <th>LIÊN HỆ</th>
-              <th>KEY</th>
-              <th>TRẠNG THÁI</th>
-              <th>IP</th>
-              <th>HẾT HẠN</th>
-              <th>THAO TÁC</th>
+              <th className="th-id">ID</th>
+              <th className="th-customer">KHÁCH HÀNG</th>
+              <th className="th-contact">LIÊN HỆ</th>
+              <th className="th-key">KEY</th>
+              <th className="th-status">TRẠNG THÁI</th>
+              <th className="th-ip">IP</th>
+              <th className="th-expires">HẾT HẠN</th>
+              <th className="th-actions">THAO TÁC</th>
             </tr>
           </thead>
           <tbody>
@@ -134,37 +175,74 @@ export default function UsersTab({
               <tr key={item.id}>
                 <td className="customer-id">#{item.id}</td>
                 <td>
-                  <div className="customer-name"><strong>{item.customer_name}</strong></div>
-                  {item.note && <div className="customer-note">{item.note}</div>}
+                  <div className="customer-name" title={item.customer_name}>
+                    <strong>{item.customer_name}</strong>
+                  </div>
+                  {item.note && <div className="customer-note" title={item.note}>{item.note}</div>}
                 </td>
-                <td>{item.customer_contact}</td>
+                <td className="customer-contact">{item.customer_contact || "—"}</td>
                 <td>
-                  <span className="key-code-display">
-                    <Key size={13} weight="duotone" />
-                    {item.key_code}
-                  </span>
+                  <button
+                    type="button"
+                    className={`key-code-badge ${copiedId === item.id ? "copied" : ""}`}
+                    onClick={() => copyToClipboard(item.key_code, item.id)}
+                    title="Bấm để sao chép License Key"
+                  >
+                    <Key size={13} weight="duotone" className="key-icon" />
+                    <span>{item.key_code}</span>
+                    {copiedId === item.id ? (
+                      <Check size={12} weight="bold" className="copy-state-icon done" />
+                    ) : (
+                      <CopySimple size={12} weight="duotone" className="copy-state-icon" />
+                    )}
+                  </button>
                 </td>
                 <td><span className={`badge ${item.status}`}>{item.status}</span></td>
-                <td className={item.bound_ip_address ? "ip-tag bound" : "ip-tag unbound"}>
-                  {item.bound_ip_address || "Chưa gắn IP"}
+                <td>
+                  {renderIps(item.bound_ip_address)}
                 </td>
-                <td className="date-display">{formatDate(item.expires_at)}</td>
+                <td>{renderDate(item.expires_at)}</td>
                 <td className="actions-cell">
-                  <button className="btn-secondary" onClick={() => onToggle(item.id, item.status)}>
-                    {item.status === "active"
-                      ? <><Lock size={14} weight="duotone" /><span>Vô hiệu</span></>
-                      : <><LockOpen size={14} weight="duotone" /><span>Mở lại</span></>}
-                  </button>
-                  {item.bound_ip_address && (
-                    <button className="btn-secondary" onClick={() => onReset(item.id, item.customer_name)}>
-                      <ArrowCounterClockwise size={14} weight="duotone" />
-                      <span>Reset IP</span>
+                  <div className="action-toolbar">
+                    <button
+                      type="button"
+                      className={`btn-action ${item.status === "active" ? "btn-action-lock" : "btn-action-unlock"}`}
+                      onClick={() => onToggle(item.id, item.status)}
+                      title={item.status === "active" ? "Vô hiệu hóa Key này" : "Kích hoạt lại Key"}
+                    >
+                      {item.status === "active" ? (
+                        <>
+                          <Lock size={14} weight="duotone" />
+                          <span>Vô hiệu</span>
+                        </>
+                      ) : (
+                        <>
+                          <LockOpen size={14} weight="duotone" />
+                          <span>Mở lại</span>
+                        </>
+                      )}
                     </button>
-                  )}
-                  <button className="btn-danger" onClick={() => onDelete(item.id, item.customer_name)}>
-                    <Trash size={14} weight="duotone" />
-                    <span>Xóa</span>
-                  </button>
+                    {item.bound_ip_address && (
+                      <button
+                        type="button"
+                        className="btn-action btn-action-reset"
+                        onClick={() => onReset(item.id, item.customer_name)}
+                        title="Reset IP đã gắn cho Key này"
+                      >
+                        <ArrowCounterClockwise size={14} weight="duotone" />
+                        <span>Reset IP</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn-action btn-action-delete"
+                      onClick={() => onDelete(item.id, item.customer_name)}
+                      title="Xóa vĩnh viễn Key"
+                    >
+                      <Trash size={14} weight="duotone" />
+                      <span>Xóa</span>
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

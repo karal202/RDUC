@@ -51,8 +51,9 @@ const handleRestartBIOS = async () => {
         "
       >
         <div style="display: flex; align-items: flex-start; gap: 16px">
-          <div style="font-size: 32px">
-            <RotateCcw :size="32" :stroke-width="2" style="color: var(--accent-primary)" />
+          <div class="bios-reactor-icon">
+            <div class="bios-reactor-aura"></div>
+            <RotateCcw :size="30" :stroke-width="2" class="bios-spin-icon" />
           </div>
           <div style="flex: 1">
             <h3 style="font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 6px">

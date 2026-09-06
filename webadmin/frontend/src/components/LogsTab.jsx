@@ -56,8 +56,10 @@ export default function LogsTab({ logs, filter, setFilter, formatDate }) {
             {visibleItems.map((log) => (
             <tr key={log.id}>
               <td className="customer-id">#{log.id}</td>
-              <td className={log.ip_address ? "ip-tag bound" : "ip-tag unbound"}>
-                {log.ip_address || "127.0.0.1"}
+              <td>
+                <span className={log.ip_address ? "ip-tag bound" : "ip-tag unbound"}>
+                  {log.ip_address || "127.0.0.1"}
+                </span>
               </td>
               <td>{log.key_code || "—"}</td>
               <td className="hash-display">

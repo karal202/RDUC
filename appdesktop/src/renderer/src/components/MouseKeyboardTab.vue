@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { MousePointer2 } from 'lucide-vue-next'
+import { MousePointer2, ShieldAlert, Crosshair, Keyboard, Play } from 'lucide-vue-next'
 
 const logOutput = ref('')
 const isRunning = ref(false)
@@ -65,10 +65,15 @@ const runCmdHook = async (actionName, description) => {
           "
         >
           <div>
-            <div style="font-weight: 700; color: var(--accent-red); font-size: 14px">
-              🛡️ Fix Crash App (Mouse Hook Anti-Crash)
+            <div class="cyber-tool-header">
+              <div class="cyber-icon-badge rose-glow">
+                <ShieldAlert :size="17" :stroke-width="2.2" class="icon-pulse-glow" />
+              </div>
+              <div style="font-weight: 700; color: var(--accent-red); font-size: 14px">
+                Fix Crash App (Anti-Crash)
+              </div>
             </div>
-            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px">
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px">
               Khắc phục triệt để lỗi bị crash app khi sử dụng phần mềm hook chuột / bàn phím.
             </div>
           </div>
@@ -77,7 +82,8 @@ const runCmdHook = async (actionName, description) => {
             :disabled="isRunning"
             @click="runCmdHook('mouse-anti-crash-fix', 'Sửa lỗi Crash App Mouse Hook')"
           >
-            Chạy Script Fix Crash App
+            <Play :size="13" :stroke-width="2.2" />
+            <span>Chạy Script Fix Crash App</span>
           </button>
         </div>
 
@@ -94,10 +100,15 @@ const runCmdHook = async (actionName, description) => {
           "
         >
           <div>
-            <div style="font-weight: 700; color: #fff; font-size: 14px">
-              🎯 MarkC Mouse Acceleration Fix
+            <div class="cyber-tool-header">
+              <div class="cyber-icon-badge cyan-glow">
+                <Crosshair :size="17" :stroke-width="2.2" class="icon-crosshair-anim" />
+              </div>
+              <div style="font-weight: 700; color: #fff; font-size: 14px">
+                MarkC Acceleration Fix
+              </div>
             </div>
-            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px">
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px">
               Tắt hoàn toàn gia tốc chuột 1:1 Pixel Exact cho Game FPS.
             </div>
           </div>
@@ -106,7 +117,8 @@ const runCmdHook = async (actionName, description) => {
             :disabled="isRunning"
             @click="runCmdHook('mouse-disable-acceleration', 'Tắt gia tốc chuột MarkC Fix')"
           >
-            Chạy Script Tắt Gia Tốc
+            <Play :size="13" :stroke-width="2.2" />
+            <span>Chạy Script Tắt Gia Tốc</span>
           </button>
         </div>
 
@@ -123,10 +135,15 @@ const runCmdHook = async (actionName, description) => {
           "
         >
           <div>
-            <div style="font-weight: 700; color: #fff; font-size: 14px">
-              ⌨️ Keyboard Input Delay Zero
+            <div class="cyber-tool-header">
+              <div class="cyber-icon-badge amber-glow">
+                <Keyboard :size="17" :stroke-width="2.2" class="icon-keyboard-anim" />
+              </div>
+              <div style="font-weight: 700; color: #fff; font-size: 14px">
+                Keyboard Input Delay Zero
+              </div>
             </div>
-            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px">
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px">
               Giảm Keyboard Repeat Delay & FilterKeys cho phản hồi phím tức thì.
             </div>
           </div>
@@ -135,7 +152,8 @@ const runCmdHook = async (actionName, description) => {
             :disabled="isRunning"
             @click="runCmdHook('keyboard-zero-delay', 'Giảm Input Delay Bàn Phím')"
           >
-            Chạy Script Input Delay
+            <Play :size="13" :stroke-width="2.2" />
+            <span>Chạy Script Input Delay</span>
           </button>
         </div>
       </div>
