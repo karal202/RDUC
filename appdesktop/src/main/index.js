@@ -17,6 +17,9 @@ import {
 import {
   createLicenseStore,
   getHardwareHash,
+  maskHardwareId,
+  maskLicenseKey,
+  normalizeLicenseKey,
   refreshWithBackend,
   checkWithBackend,
   validateWithBackend,
@@ -25,6 +28,32 @@ import {
 import { ALLOWED_DAWA_SCRIPTS, runDawaScript } from './services/dawaScripts'
 
 const APP_VERSION_URL = process.env.APP_VERSION_URL || 'https://rduc.onrender.com/api/app-version'
+const BACKEND_URL_CHECK = process.env.BACKEND_URL
+if (!BACKEND_URL_CHECK) {
+  console.warn(
+    '[SECURITY WARN] BACKEND_URL env var is not set — using the hardcoded default endpoint. ' +
+      'For production builds, explicitly configure BACKEND_URL in the build environment.'
+  )
+}
+if (!is.dev) {
+  const debugFlags = ['inspect', 'inspect-brk', 'inspect-port', 'remote-debugging-port']
+  const foundDebug = debugFlags.find((f) => app.commandLine.hasSwitch(f))
+  if (foundDebug) {
+    console.error(
+      `[SECURITY] Debug flag --${foundDebug} detected on production build. Aborting launch.`
+    )
+    dialog
+      .showErrorBox(
+        'DAWA — Anti-Tamper',
+        'Phát hiện flag gỡ lỗi trên build Production. Vui lòng khởi động lại ứng dụng mà không có flag phát triển.'
+      )
+      .catch(() => {})
+    app.exit(1)
+  }
+  app.commandLine.appendSwitch('disable-remote-debugging')
+  app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor')
+}
+
 const LICENSE_FILE_PATH = path.join(app.getPath('userData'), 'dawa_license_vault.dat')
 const WINDOWS_SHUTDOWN_PATH = path.join(
   process.env.SystemRoot || 'C:\\Windows',
@@ -32,6 +61,24 @@ const WINDOWS_SHUTDOWN_PATH = path.join(
   'shutdown.exe'
 )
 const licenseStore = createLicenseStore(LICENSE_FILE_PATH)
+const activateAttempts = []
+
+function isActivateRateLimited() {
+  const now = Date.now()
+  while (activateAttempts.length && now - activateAttempts[0] > 60_000) {
+    activateAttempts.shift()
+  }
+  if (activateAttempts.length >= 5) return true
+  activateAttempts.push(now)
+  return false
+}
+
+async function getLocalLicenseGate() {
+  const currentDeviceHash = await getHardwareHash()
+  const stored = licenseStore.get()
+  const localCheck = stored ? verifyLocalLicense(stored, currentDeviceHash) : { valid: false }
+  return { currentDeviceHash, stored, localCheck }
+}
 
 function compareVersions(currentVersion, latestVersion) {
   const coerce = (value) => {
@@ -105,6 +152,13 @@ function createWindow() {
       shell.openExternal(details.url)
     }
     return { action: 'deny' }
+  })
+
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const rendererUrl = process.env.ELECTRON_RENDERER_URL
+    const allowed =
+      url.startsWith('file:') || (is.dev && rendererUrl && url.startsWith(rendererUrl))
+    if (!allowed) event.preventDefault()
   })
 
   if (!is.dev) {
@@ -202,17 +256,7 @@ app.whenReady().then(() => {
 
   ipcMain.handle('license:get-device-hash', async () => {
     const hwid = await getHardwareHash()
-    const nets = os.networkInterfaces()
-    let localIp = '127.0.0.1'
-    for (const name of Object.keys(nets)) {
-      for (const net of nets[name]) {
-        if ((net.family === 'IPv4' || net.family === 4) && !net.internal) {
-          localIp = net.address
-          break
-        }
-      }
-    }
-    return { hwid, ip: localIp }
+    return { ready: true, fingerprint: maskHardwareId(hwid) }
   })
 
   ipcMain.handle('license:check-status', async () => {
@@ -257,30 +301,42 @@ app.whenReady().then(() => {
     if (remoteResult?.data?.success && remoteResult.data.valid) {
       return {
         isActivated: true,
-        keyCode: stored.keyCode,
+        keyCode: maskLicenseKey(stored.keyCode),
         activatedAt: stored.activatedAt,
         data: remoteResult.data
       }
-    } else {
-      licenseStore.clear()
+    }
+    if (remoteResult?.data?.isOffline && localCheck.valid) {
       return {
-        isActivated: false,
-        message:
-          remoteResult.data?.message || 'Key của bạn đã bị vô hiệu hóa hoặc thu hồi từ máy chủ'
+        isActivated: true,
+        offlineMode: true,
+        keyCode: maskLicenseKey(stored.keyCode),
+        activatedAt: stored.activatedAt
       }
+    }
+    licenseStore.clear()
+    return {
+      isActivated: false,
+      message: remoteResult.data?.message || 'Key của bạn đã bị vô hiệu hóa hoặc thu hồi từ máy chủ'
     }
   })
 
-  ipcMain.handle('license:get-access-token', () => licenseStore.getTokens()?.accessToken || null)
+  ipcMain.handle('license:get-access-token', async () => {
+    const { localCheck } = await getLocalLicenseGate()
+    if (!localCheck.valid) return null
+    return licenseStore.getTokens()?.accessToken || null
+  })
 
   ipcMain.handle('license:activate', async (_, keyCode) => {
-    if (!keyCode || typeof keyCode !== 'string' || !keyCode.trim()) {
-      return { success: false, message: 'Vui lòng nhập Key kích hoạt' }
+    if (isActivateRateLimited()) {
+      return { success: false, message: 'Quá nhiều lần thử. Đợi 1 phút rồi thử lại.' }
+    }
+    const cleanKey = normalizeLicenseKey(keyCode)
+    if (!cleanKey) {
+      return { success: false, message: 'Định dạng key không hợp lệ.' }
     }
 
-    const cleanKey = keyCode.trim().toUpperCase()
     const currentDeviceHash = await getHardwareHash()
-
     const result = await validateWithBackend(cleanKey, currentDeviceHash)
 
     if (result.success && result.valid) {
@@ -292,14 +348,13 @@ app.whenReady().then(() => {
       return {
         success: true,
         message: result.message || 'Kích hoạt bản quyền thành công!',
-        keyCode: cleanKey,
+        keyCode: maskLicenseKey(cleanKey),
         data: result.data
       }
-    } else {
-      return {
-        success: false,
-        message: result.message || 'Mã key không hợp lệ hoặc đã hết hạn.'
-      }
+    }
+    return {
+      success: false,
+      message: result.message || 'Mã key không hợp lệ hoặc đã hết hạn.'
     }
   })
 
@@ -320,6 +375,7 @@ app.whenReady().then(() => {
           result = await checkWithBackend(refreshed.accessToken).catch(() => null)
         }
       }
+      if (!result || result.status === 0) return
       if (!result?.data?.success || !result.data.valid) {
         licenseStore.clear()
         mainWindow?.webContents.send('license:revoked')
@@ -384,6 +440,10 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('system:restart-to-bios', async () => {
+    const { localCheck } = await getLocalLicenseGate()
+    if (!localCheck.valid) {
+      return { success: false, message: 'Yêu cầu bản quyền hợp lệ.' }
+    }
     return new Promise((resolve) => {
       if (process.platform !== 'win32') {
         return resolve({ success: false, message: 'Chức năng này chỉ hỗ trợ Windows.' })
@@ -412,8 +472,18 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('system:run-dawa-script', async (_, { scriptKey }) => {
+    const { localCheck } = await getLocalLicenseGate()
+    if (!localCheck.valid) {
+      return { success: false, message: 'Yêu cầu bản quyền hợp lệ.' }
+    }
     if (process.platform !== 'win32') {
       return { success: false, message: 'Script tối ưu chỉ hỗ trợ Windows.' }
+    }
+    if (
+      typeof scriptKey !== 'string' ||
+      !(ALLOWED_DAWA_SCRIPTS[scriptKey] || scriptKey === 'dawa-cleaner')
+    ) {
+      return { success: false, message: 'Script không được phép.' }
     }
     return runDawaScript(scriptKey)
   })

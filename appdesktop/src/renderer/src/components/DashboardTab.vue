@@ -70,7 +70,9 @@ onMounted(() => {
   fetchStats()
   document.addEventListener('visibilitychange', handleVisibilityChange)
   timer = setInterval(fetchStats, 5000)
-  liveTimer = setInterval(() => { liveUptime.value++ }, 1000)
+  liveTimer = setInterval(() => {
+    liveUptime.value++
+  }, 1000)
 })
 
 onUnmounted(() => {
@@ -90,7 +92,9 @@ onUnmounted(() => {
         <div class="dash-hero-uptime">
           <span class="dash-hero-uptime-dot"></span>
           <div class="dash-hero-uptime-clock">
-            <span>{{ uptimeParts.hh }}</span><b>:</b><span>{{ uptimeParts.mm }}</span><b>:</b><span>{{ uptimeParts.ss }}</span>
+            <span>{{ uptimeParts.hh }}</span
+            ><b>:</b><span>{{ uptimeParts.mm }}</span
+            ><b>:</b><span>{{ uptimeParts.ss }}</span>
           </div>
           <span class="dash-hero-uptime-sep"></span>
           <span class="dash-hero-uptime-host">{{ stats.system.hostname }}</span>
@@ -115,7 +119,10 @@ onUnmounted(() => {
             <span>Bộ xử lý</span>
           </div>
           <div class="telemetry-gauge">
-            <div class="gauge-ring" :style="gaugeStyle(stats.cpu.usagePercent, 'var(--accent-primary)')">
+            <div
+              class="gauge-ring"
+              :style="gaugeStyle(stats.cpu.usagePercent, 'var(--accent-primary)')"
+            >
               <div class="gauge-ring-inner">
                 <strong>{{ stats.cpu.usagePercent }}<span>%</span></strong>
               </div>
@@ -123,9 +130,20 @@ onUnmounted(() => {
             <div class="telemetry-col-name">{{ stats.cpu.brand || 'Processor' }}</div>
           </div>
           <dl class="telemetry-specs">
-            <div><dt>Xung nhịp</dt><dd>{{ stats.cpu.speed ? stats.cpu.speed + ' GHz' : 'N/A' }}</dd></div>
-            <div><dt>Số nhân</dt><dd>{{ stats.cpu.cores || 'N/A' }}</dd></div>
-            <div><dt>Nhiệt độ</dt><dd class="accent-amber">{{ stats.cpu.temp ? stats.cpu.temp + ' °C' : 'Tự động' }}</dd></div>
+            <div>
+              <dt>Xung nhịp</dt>
+              <dd>{{ stats.cpu.speed ? stats.cpu.speed + ' GHz' : 'N/A' }}</dd>
+            </div>
+            <div>
+              <dt>Số nhân</dt>
+              <dd>{{ stats.cpu.cores || 'N/A' }}</dd>
+            </div>
+            <div>
+              <dt>Nhiệt độ</dt>
+              <dd class="accent-amber">
+                {{ stats.cpu.temp ? stats.cpu.temp + ' °C' : 'Tự động' }}
+              </dd>
+            </div>
           </dl>
         </div>
 
@@ -135,7 +153,10 @@ onUnmounted(() => {
             <span>Bộ nhớ</span>
           </div>
           <div class="telemetry-gauge">
-            <div class="gauge-ring" :style="gaugeStyle(stats.ram.usagePercent, 'var(--accent-cyan)')">
+            <div
+              class="gauge-ring"
+              :style="gaugeStyle(stats.ram.usagePercent, 'var(--accent-cyan)')"
+            >
               <div class="gauge-ring-inner">
                 <strong>{{ stats.ram.usagePercent }}<span>%</span></strong>
               </div>
@@ -143,9 +164,18 @@ onUnmounted(() => {
             <div class="telemetry-col-name">RAM hệ thống</div>
           </div>
           <dl class="telemetry-specs">
-            <div><dt>Đã dùng</dt><dd>{{ stats.ram.usedGB }} GB</dd></div>
-            <div><dt>Còn trống</dt><dd class="accent-green">{{ stats.ram.freeGB }} GB</dd></div>
-            <div><dt>Tổng dung lượng</dt><dd>{{ stats.ram.totalGB }} GB</dd></div>
+            <div>
+              <dt>Đã dùng</dt>
+              <dd>{{ stats.ram.usedGB }} GB</dd>
+            </div>
+            <div>
+              <dt>Còn trống</dt>
+              <dd class="accent-green">{{ stats.ram.freeGB }} GB</dd>
+            </div>
+            <div>
+              <dt>Tổng dung lượng</dt>
+              <dd>{{ stats.ram.totalGB }} GB</dd>
+            </div>
           </dl>
         </div>
 
@@ -155,17 +185,34 @@ onUnmounted(() => {
             <span>Đồ họa</span>
           </div>
           <div class="telemetry-gauge">
-            <div class="gauge-ring" :style="gaugeStyle(stats.gpu.usagePercent, 'var(--accent-green)')">
+            <div
+              class="gauge-ring"
+              :style="gaugeStyle(stats.gpu.usagePercent, 'var(--accent-green)')"
+            >
               <div class="gauge-ring-inner">
-                <strong>{{ stats.gpu.usagePercent != null ? stats.gpu.usagePercent : '—' }}<span v-if="stats.gpu.usagePercent != null">%</span></strong>
+                <strong
+                  >{{ stats.gpu.usagePercent != null ? stats.gpu.usagePercent : '—'
+                  }}<span v-if="stats.gpu.usagePercent != null">%</span></strong
+                >
               </div>
             </div>
             <div class="telemetry-col-name">{{ stats.gpu.model }}</div>
           </div>
           <dl class="telemetry-specs">
-            <div><dt>VRAM</dt><dd>{{ stats.gpu.vram }}</dd></div>
-            <div><dt>Hãng sản xuất</dt><dd>{{ stats.gpu.vendor }}</dd></div>
-            <div><dt>Nhiệt độ</dt><dd class="accent-amber">{{ stats.gpu.temp != null ? stats.gpu.temp + ' °C' : 'N/A' }}</dd></div>
+            <div>
+              <dt>VRAM</dt>
+              <dd>{{ stats.gpu.vram }}</dd>
+            </div>
+            <div>
+              <dt>Hãng sản xuất</dt>
+              <dd>{{ stats.gpu.vendor }}</dd>
+            </div>
+            <div>
+              <dt>Nhiệt độ</dt>
+              <dd class="accent-amber">
+                {{ stats.gpu.temp != null ? stats.gpu.temp + ' °C' : 'N/A' }}
+              </dd>
+            </div>
           </dl>
         </div>
 
@@ -179,9 +226,18 @@ onUnmounted(() => {
             Đang hoạt động ổn định
           </div>
           <dl class="telemetry-specs">
-            <div><dt>Hệ điều hành</dt><dd>Windows {{ stats.system.arch }}</dd></div>
-            <div><dt>Phiên bản</dt><dd>{{ stats.system.release || '10 / 11' }}</dd></div>
-            <div><dt>Kiến trúc</dt><dd>{{ stats.system.arch || 'x64' }}</dd></div>
+            <div>
+              <dt>Hệ điều hành</dt>
+              <dd>Windows {{ stats.system.arch }}</dd>
+            </div>
+            <div>
+              <dt>Phiên bản</dt>
+              <dd>{{ stats.system.release || '10 / 11' }}</dd>
+            </div>
+            <div>
+              <dt>Kiến trúc</dt>
+              <dd>{{ stats.system.arch || 'x64' }}</dd>
+            </div>
           </dl>
         </div>
       </div>

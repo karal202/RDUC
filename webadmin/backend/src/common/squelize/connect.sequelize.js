@@ -1,5 +1,7 @@
 import { Sequelize } from "sequelize";
 import dotenv from "dotenv";
+import { decryptKey, hashKeyForLookup } from "../../utils/licenseUtils.js";
+import LicenseKey from "../../models/licenseKey.model.js";
 
 dotenv.config();
 
@@ -68,8 +70,62 @@ try {
     console.log("[SEQUELIZE] Extended activation_logs.result ENUM with 'revoked' and 'ip_mismatch'.");
   } catch (e) {}
 
+  try {
+    await sequelize.query(
+      "ALTER TABLE license_keys ADD COLUMN key_lookup_hash VARCHAR(64) NULL COMMENT 'SHA-256 peppered hash of normalized plain key for fast O(1) lookup'",
+    );
+    console.log("[SEQUELIZE] Added 'license_keys.key_lookup_hash' column.");
+  } catch (e) {}
+  try {
+    await sequelize.query(
+      "ALTER TABLE license_keys ADD UNIQUE INDEX idx_license_keys_lookup_hash (key_lookup_hash)",
+    );
+    console.log("[SEQUELIZE] Added unique index on 'license_keys.key_lookup_hash'.");
+  } catch (e) {}
+
   await sequelize.sync({ alter: true, force: false });
   console.log("[SEQUELIZE] Models synchronized successfully.");
+
+  try {
+    const staleRows = await LicenseKey.findAll({
+      where: { key_lookup_hash: null },
+      attributes: ["id", "key_code"],
+      logging: false,
+    });
+    if (staleRows && staleRows.length > 0) {
+      console.log(`[SEQUELIZE] Back-filling key_lookup_hash for ${staleRows.length} existing license(s)...`);
+      let filled = 0;
+      let skipped = 0;
+      for (const row of staleRows) {
+        const plain = decryptKey(row.key_code);
+        const hash = hashKeyForLookup(plain);
+        if (!hash) {
+          skipped += 1;
+          continue;
+        }
+        try {
+          await LicenseKey.update(
+            { key_lookup_hash: hash },
+            { where: { id: row.id }, logging: false },
+          );
+          filled += 1;
+        } catch (updErr) {
+          console.warn(
+            `[SEQUELIZE] Could not backfill key_lookup_hash for license id=${row.id}:`,
+            updErr.parent?.sqlMessage || updErr.message,
+          );
+        }
+      }
+      console.log(
+        `[SEQUELIZE] key_lookup_hash backfill complete: ${filled} filled, ${skipped} skipped.`,
+      );
+    }
+  } catch (bfErr) {
+    console.warn(
+      "[SEQUELIZE] key_lookup_hash backfill skipped due to error:",
+      bfErr.message,
+    );
+  }
 } catch (error) {
   console.error("[SEQUELIZE] Unable to connect to the database:", error.message);
   console.warn(

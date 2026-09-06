@@ -11,10 +11,15 @@ function getSocket(accessToken) {
   if (!_socket || _socket.disconnected) {
     _socket = io(SOCKET_URL, {
       transports: ['websocket'],
-      auth: { token: accessToken },
+      auth: (cb) => {
+        window.api
+          ?.getAccessToken?.()
+          .then((token) => cb({ token: token || accessToken || '' }))
+          .catch(() => cb({ token: accessToken || '' }))
+      },
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      autoConnect: true,
+      autoConnect: true
     })
   }
   return _socket
@@ -37,12 +42,20 @@ export function useSocket(handlers = {}) {
   let socket = null
   _refCount++
 
-  const onConnect = () => { connected.value = true }
-  const onDisconnect = () => { connected.value = false }
+  const onConnect = () => {
+    connected.value = true
+  }
+  const onDisconnect = () => {
+    connected.value = false
+  }
   const registeredHandlers = {}
 
-  onMounted(async () => {
+  const connect = async () => {
     const accessToken = await window.api?.getAccessToken?.()
+    if (_socket) {
+      _socket.disconnect()
+      _socket = null
+    }
     socket = getSocket(accessToken)
     connected.value = socket.connected
     socket.on('connect', onConnect)
@@ -51,7 +64,9 @@ export function useSocket(handlers = {}) {
       registeredHandlers[event] = fn
       socket.on(event, fn)
     }
-  })
+  }
+
+  onMounted(connect)
 
   onUnmounted(() => {
     if (!socket) return
@@ -63,7 +78,6 @@ export function useSocket(handlers = {}) {
     }
 
     _refCount--
-    // Disconnect socket khi không còn component nào dùng
     if (_refCount <= 0) {
       _socket?.disconnect()
       _socket = null
@@ -71,5 +85,5 @@ export function useSocket(handlers = {}) {
     }
   })
 
-  return { connected, socket }
+  return { connected, socket, reconnect: connect }
 }

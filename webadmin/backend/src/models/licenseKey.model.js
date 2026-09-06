@@ -15,6 +15,12 @@ const LicenseKey = sequelize.define(
       allowNull: false,
       unique: true,
     },
+    key_lookup_hash: {
+      type: DataTypes.STRING(64),
+      allowNull: true,
+      unique: true,
+      comment: "SHA-256 peppered hash of normalized plain key for fast O(1) lookup",
+    },
     customer_name: {
       type: DataTypes.STRING(100),
       allowNull: true,

@@ -14,15 +14,21 @@ export function isLikelyIntegratedGpu(controller = {}) {
 export function isLikelyDiscreteGpu(controller = {}) {
   const combined = `${controller.vendor || ''} ${controller.model || ''}`.toLowerCase()
   const memoryTotal = Number(controller.memoryTotal || 0)
-  const isDedicatedByModel = /(nvidia|geforce|quadro|rtx|gtx|tesla|amd|ati|radeon|rx|vga|graphics)/i.test(combined)
-  return (memoryTotal > 512 * 1024 * 1024 && !isLikelyIntegratedGpu(controller)) || (isDedicatedByModel && !isLikelyIntegratedGpu(controller))
+  const isDedicatedByModel =
+    /(nvidia|geforce|quadro|rtx|gtx|tesla|amd|ati|radeon|rx|vga|graphics)/i.test(combined)
+  return (
+    (memoryTotal > 512 * 1024 * 1024 && !isLikelyIntegratedGpu(controller)) ||
+    (isDedicatedByModel && !isLikelyIntegratedGpu(controller))
+  )
 }
 
 export function getDiscreteGpuController(graphics) {
   const controllers = Array.isArray(graphics?.controllers) ? graphics.controllers : []
   const dedicated = controllers.filter((controller) => isLikelyDiscreteGpu(controller))
   if (dedicated.length > 0) return dedicated[0]
-  return controllers.find((controller) => !isLikelyIntegratedGpu(controller)) || controllers[0] || null
+  return (
+    controllers.find((controller) => !isLikelyIntegratedGpu(controller)) || controllers[0] || null
+  )
 }
 
 let staticCache = null
@@ -32,7 +38,12 @@ export async function getStaticInfo() {
   const discreteGpu = getDiscreteGpuController(graphics) || graphics.controllers[0] || {}
   staticCache = {
     cpu: { manufacturer: cpu.manufacturer, brand: cpu.brand, speed: cpu.speed, cores: cpu.cores },
-    gpu: { model: discreteGpu.model || 'Card màn hình', vendor: discreteGpu.vendor || 'N/A', vram: formatGpuVram(discreteGpu.memoryTotal), hasDiscreteGpu: isLikelyDiscreteGpu(discreteGpu) }
+    gpu: {
+      model: discreteGpu.model || 'Card màn hình',
+      vendor: discreteGpu.vendor || 'N/A',
+      vram: formatGpuVram(discreteGpu.memoryTotal),
+      hasDiscreteGpu: isLikelyDiscreteGpu(discreteGpu)
+    }
   }
   return staticCache
 }

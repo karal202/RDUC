@@ -13,7 +13,8 @@ const isPaused = ref(false)
 let timer = null
 
 const showBanner = (direction) => {
-  activeBanner.value = (activeBanner.value + direction + props.banners.length) % props.banners.length
+  activeBanner.value =
+    (activeBanner.value + direction + props.banners.length) % props.banners.length
 }
 
 const startTimer = () => {
