@@ -7,11 +7,12 @@ import BannerCarousel from './components/BannerCarousel.vue'
 import DashboardTab from './components/DashboardTab.vue'
 import DawaTab from './components/DawaTab.vue'
 import BiosTab from './components/BiosTab.vue'
-import NTFSTab from './components/NTFSTab.vue'
 import NetworkTab from './components/NetworkTab.vue'
 import MouseKeyboardTab from './components/MouseKeyboardTab.vue'
 import RestoreDefaultTab from './components/RestoreDefaultTab.vue'
 import CmdTab from './components/CmdTab.vue'
+import RapidTriggerTab from './components/RapidTriggerTab.vue'
+import ToolsCacheTab from './components/ToolsCacheTab.vue'
 import logo from './assets/logo.png'
 import { verticalBanners } from './assets/banners'
 import {
@@ -34,11 +35,12 @@ const tabComponents = {
   dashboard: DashboardTab,
   dawa: DawaTab,
   bios: BiosTab,
-  ntfs: NTFSTab,
   network: NetworkTab,
   mouse: MouseKeyboardTab,
   restore: RestoreDefaultTab,
-  cmd: CmdTab
+  cmd: CmdTab,
+  rapid: RapidTriggerTab,
+  tools: ToolsCacheTab
 }
 const activeComponent = computed(() => tabComponents[activeTab.value])
 const pageTitle = computed(
@@ -47,11 +49,12 @@ const pageTitle = computed(
       dashboard: 'Dashboard',
       dawa: 'Optimize',
       bios: 'BIOS',
-      ntfs: 'NTFS',
       network: 'Network',
       mouse: 'Input',
       restore: 'Restore',
-      cmd: 'CMD'
+      cmd: 'CMD',
+      rapid: 'Rapid Trigger',
+      tools: 'Tools & Cache'
     })[activeTab.value] || 'Dashboard'
 )
 const coreNav = [
@@ -60,9 +63,10 @@ const coreNav = [
 ]
 const toolNav = [
   { key: 'bios', label: 'BIOS', icon: Power },
-  { key: 'ntfs', label: 'NTFS', icon: HardDrive },
   { key: 'network', label: 'Network', icon: Network },
   { key: 'mouse', label: 'Input', icon: MousePointer2 },
+  { key: 'rapid', label: 'Rapid Trigger', icon: MousePointer2 },
+  { key: 'tools', label: 'Tools & Cache', icon: HardDrive },
   { key: 'restore', label: 'Restore', icon: RotateCcw },
   { key: 'cmd', label: 'CMD', icon: Code2 }
 ]

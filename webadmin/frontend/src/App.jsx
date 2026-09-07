@@ -105,7 +105,7 @@ function AdminDashboard({ onLogout }) {
         <span>{statusMessage.text}</span>
       </div>}
       {activeTab === "dashboard" && <DashboardTab dashboard={dashboard} loading={loading} setActiveTab={setActiveTab} />}
-      {activeTab === "users" && <UsersTab form={licenseForm} setForm={setLicenseForm} licenses={licenses} searchTerm={userSearchTerm} setSearchTerm={setUserSearchTerm} onSubmit={submitLicense} onToggle={toggleLicenseStatus} onDelete={deleteLicense} onReset={resetBoundIp} onBlockHardware={blockHardware} onUnblockHardware={unblockHardware} generateKey={generateKey} formatDate={formatDate} />}
+      {activeTab === "users" && <UsersTab form={licenseForm} setForm={setLicenseForm} licenses={licenses} searchTerm={userSearchTerm} setSearchTerm={setUserSearchTerm} onSubmit={submitLicense} onToggle={toggleLicenseStatus} onDelete={deleteLicense} onReset={resetBoundIp} generateKey={generateKey} formatDate={formatDate} />}
       {activeTab === "devices" && <DevicesTab devices={devices} onBlock={blockHardware} onUnblock={unblockHardware} />}
       {activeTab === "logs" && <LogsTab logs={logs} filter={ipFilter} setFilter={setIpFilter} formatDate={formatDate} />}
       {activeTab === "download" && <DownloadTab onOpenValidation={() => setShowKeyModal(true)} />}
