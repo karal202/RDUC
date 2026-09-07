@@ -119,6 +119,7 @@ onBeforeUnmount(() => {
 })
 
 const handleActivate = async () => {
+  if (isLoading.value || successMessage.value) return
   if (!keyCode.value.trim()) {
     errorMessage.value = 'Vui lòng nhập mã key kích hoạt.'
     return
@@ -196,57 +197,57 @@ const handleActivate = async () => {
           </dl>
         </div>
 
-        <div class="key-field-heading">
-          <label class="field-label" for="license-key">Mã key kích hoạt</label>
-          <span class="key-field-count">{{ keyCode.length }}/14</span>
-        </div>
+        <form class="activation-form" @submit.prevent="handleActivate">
+          <div class="key-field-heading">
+            <label class="field-label" for="license-key">Mã key kích hoạt</label>
+            <span class="key-field-count">{{ keyCode.length }}/14</span>
+          </div>
 
-        <div
-          class="key-input-wrap"
-          :class="{
-            'has-error': errorMessage || justErrored,
-            'has-success': successMessage || justSucceeded
-          }"
-        >
-          <span class="key-input-prefix">KEY</span>
-          <span class="key-input-divider" aria-hidden="true"></span>
-          <input
-            id="license-key"
-            ref="inputRef"
-            :value="keyCode"
-            type="text"
-            class="key-input-field"
-            :placeholder="displayPlaceholder"
-            autocomplete="off"
-            spellcheck="false"
-            :disabled="isLoading"
-            aria-label="Nhập mã kích hoạt bản quyền"
-            aria-invalid="!!errorMessage"
-            @input="onKeyInput"
-            @keyup.enter="handleActivate"
-            @focus="stopTyping"
-          />
-          <KeyRound class="key-input-icon" :size="17" :stroke-width="2" aria-hidden="true" />
-        </div>
+          <div
+            class="key-input-wrap"
+            :class="{
+              'has-error': errorMessage || justErrored,
+              'has-success': successMessage || justSucceeded
+            }"
+          >
+            <span class="key-input-prefix">KEY</span>
+            <span class="key-input-divider" aria-hidden="true"></span>
+            <input
+              id="license-key"
+              ref="inputRef"
+              :value="keyCode"
+              type="text"
+              class="key-input-field"
+              :placeholder="displayPlaceholder"
+              autocomplete="off"
+              spellcheck="false"
+              :disabled="isLoading"
+              aria-label="Nhập mã kích hoạt bản quyền"
+              aria-invalid="!!errorMessage"
+              @input="onKeyInput"
+              @focus="stopTyping"
+            />
+            <KeyRound class="key-input-icon" :size="17" :stroke-width="2" aria-hidden="true" />
+          </div>
 
-        <div aria-live="polite" aria-atomic="true">
-          <p v-if="errorMessage" key="err" class="form-alert form-alert-error">
-            {{ errorMessage }}
-          </p>
-          <p v-else-if="successMessage" key="ok" class="form-alert form-alert-ok">
-            {{ successMessage }}
-          </p>
-        </div>
+          <div aria-live="polite" aria-atomic="true">
+            <p v-if="errorMessage" key="err" class="form-alert form-alert-error">
+              {{ errorMessage }}
+            </p>
+            <p v-else-if="successMessage" key="ok" class="form-alert form-alert-ok">
+              {{ successMessage }}
+            </p>
+          </div>
 
-        <button
-          class="btn-primary activation-submit"
-          :disabled="isLoading"
-          type="button"
-          @click="handleActivate"
-        >
-          <KeyRound v-if="!isLoading" :size="16" :stroke-width="2" />
-          {{ isLoading ? 'Đang xác thực...' : 'Kích hoạt' }}
-        </button>
+          <button
+            class="btn-primary activation-submit"
+            :disabled="isLoading || !!successMessage"
+            type="submit"
+          >
+            <KeyRound v-if="!isLoading" :size="16" :stroke-width="2" />
+            {{ isLoading ? 'Đang xác thực...' : 'Kích hoạt' }}
+          </button>
+        </form>
       </section>
     </div>
   </Transition>

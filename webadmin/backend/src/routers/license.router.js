@@ -5,6 +5,7 @@ import {
   getDashboard,
   getDatabaseHealth,
   getLicenses,
+  getDevices,
   getLogs,
   updateLicense,
   deleteLicense,
@@ -36,6 +37,7 @@ router.get("/health", getDatabaseHealth);
 router.use(["/dashboard", "/licenses", "/logs"], authMiddleware);
 router.get("/dashboard", getDashboard);
 router.get("/licenses", getLicenses);
+router.get("/devices", authMiddleware, getDevices);
 router.post("/licenses", createLicense);
 router.put("/licenses/:id", updateLicense);
 router.delete("/licenses/:id", deleteLicense);

@@ -1,9 +1,10 @@
-import { Gauge, Users, FileText, Globe, ShieldCheck, SignOut } from "@phosphor-icons/react";
+import { Gauge, Users, FileText, Globe, HardDrives, ShieldCheck, SignOut } from "@phosphor-icons/react";
 
 export default function AdminSidebar({ activeTab, setActiveTab, dbHealth, onLogout }) {
   const items = [
     ["dashboard", Gauge, "Dashboard Tổng quan"],
     ["users", Users, "Quản lý Người dùng & Key"],
+    ["devices", HardDrives, "Danh sách thiết bị"],
     ["logs", FileText, "Nhật ký Kích hoạt & IP"],
     ["download", Globe, "Web Tải App & Test Key"],
   ];

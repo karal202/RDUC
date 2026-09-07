@@ -44,11 +44,13 @@ export async function loadLicenseData() {
   let statsRes;
   let licensesRes;
   let logsRes;
+  let devicesRes;
   try {
-    [statsRes, licensesRes, logsRes] = await Promise.all([
+    [statsRes, licensesRes, logsRes, devicesRes] = await Promise.all([
       fetchJson(`${API_BASE}/dashboard`),
       fetchJson(`${API_BASE}/licenses`),
       fetchJson(`${API_BASE}/logs`),
+      fetchJson(`${API_BASE}/devices`),
     ]);
   } catch (error) {
     throw new Error(`Không tải được dữ liệu từ backend/database: ${error.message}`, { cause: error });
@@ -59,6 +61,7 @@ export async function loadLicenseData() {
     dashboard: statsRes.data || {},
     licenses: licensesRes.data || [],
     logs: logsRes.data || [],
+    devices: devicesRes.data || [],
   };
 }
 
