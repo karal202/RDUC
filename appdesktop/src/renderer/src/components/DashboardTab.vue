@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onActivated, onDeactivated } from 'vue'
 import { Cpu, MemoryStick, CircuitBoard, Monitor } from 'lucide-vue-next'
 import BannerCarousel from './BannerCarousel.vue'
 import { landscapeBanners } from '../assets/banners'
@@ -21,6 +21,7 @@ const stats = ref({
 const isLoading = ref(true)
 let timer = null
 let isFetching = false
+let isMonitoring = false
 
 // Đồng hồ uptime chạy thật theo giây, đồng bộ lại mỗi lần fetch thành công
 const liveUptime = ref(0)
@@ -37,7 +38,7 @@ const uptimeParts = computed(() => {
 })
 
 const fetchStats = async () => {
-  if (isFetching || document.hidden) return
+  if (isFetching || !isMonitoring || document.hidden) return
   isFetching = true
   try {
     if (window.api?.getSystemStats) {
@@ -56,7 +57,33 @@ const fetchStats = async () => {
 }
 
 const handleVisibilityChange = () => {
-  if (!document.hidden) fetchStats()
+  if (document.hidden) {
+    stopMonitoring()
+  } else {
+    startMonitoring()
+  }
+}
+
+const stopMonitoring = () => {
+  isMonitoring = false
+  if (timer) {
+    clearInterval(timer)
+    timer = null
+  }
+  if (liveTimer) {
+    clearInterval(liveTimer)
+    liveTimer = null
+  }
+}
+
+const startMonitoring = () => {
+  if (isMonitoring || document.hidden) return
+  isMonitoring = true
+  fetchStats()
+  timer = setInterval(fetchStats, 15000)
+  liveTimer = setInterval(() => {
+    liveUptime.value++
+  }, 1000)
 }
 
 const gaugeStyle = (pct, color) => {
@@ -67,17 +94,15 @@ const gaugeStyle = (pct, color) => {
 }
 
 onMounted(() => {
-  fetchStats()
   document.addEventListener('visibilitychange', handleVisibilityChange)
-  timer = setInterval(fetchStats, 5000)
-  liveTimer = setInterval(() => {
-    liveUptime.value++
-  }, 1000)
+  startMonitoring()
 })
 
+onActivated(startMonitoring)
+onDeactivated(stopMonitoring)
+
 onUnmounted(() => {
-  if (timer) clearInterval(timer)
-  if (liveTimer) clearInterval(liveTimer)
+  stopMonitoring()
   document.removeEventListener('visibilitychange', handleVisibilityChange)
 })
 </script>
@@ -108,7 +133,7 @@ onUnmounted(() => {
         <h3>Thông số hệ thống</h3>
         <span class="telemetry-live" :class="{ 'is-loading': isLoading }">
           <span class="telemetry-live-dot"></span>
-          Cập nhật mỗi 5 giây
+          Cập nhật mỗi 15 giây
         </span>
       </div>
 

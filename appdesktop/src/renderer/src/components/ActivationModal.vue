@@ -18,15 +18,15 @@ const justSucceeded = ref(false)
 
 const TYPING_FRAMES = [
   'XXXX-XXXX-XXXX',
-  'RXXX-XXXX-XXXX',
-  'RDXX-XXXX-XXXX',
-  'RDUX-XXXX-XXXX',
-  'RDUC-XXXX-XXXX',
-  'RDUC-SXXX-XXXX',
-  'RDUC-SEXX-XXXX',
-  'RDUC-SECX-XXXX',
-  'RDUC-SECR-XXXX',
-  'RDUC-SECRET-KEY'
+  'DXXX-XXXX-XXXX',
+  'DAXX-XXXX-XXXX',
+  'DAWX-XXXX-XXXX',
+  'DAWA-XXXX-XXXX',
+  'DAWA-SXXX-XXXX',
+  'DAWA-SEXX-XXXX',
+  'DAWA-SECX-XXXX',
+  'DAWA-SECR-XXXX',
+  'DAWA-SECRET-KEY'
 ]
 const typingIndex = ref(0)
 let typingTimer = null

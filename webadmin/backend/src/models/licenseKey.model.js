@@ -48,7 +48,7 @@ const LicenseKey = sequelize.define(
     bound_ip_address: {
       type: DataTypes.STRING(255),
       allowNull: true,
-      comment: "IP công khai duy nhất được phép dùng key này (null = chưa kích hoạt lần nào)",
+      comment: "IPv4 gần nhất ghi nhận khi key hoạt động; không dùng để khóa quyền truy cập",
     },
     created_by: {
       type: DataTypes.INTEGER,
