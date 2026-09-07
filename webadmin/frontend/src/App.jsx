@@ -5,11 +5,12 @@ import { API_BASE, BACKEND_URL, fetchJson, loadLicenseData } from "./api/license
 import AdminSidebar from "./components/AdminSidebar";
 import DashboardTab from "./components/DashboardTab";
 import UsersTab from "./components/UsersTab";
+import DevicesTab from "./components/DevicesTab";
 import LogsTab from "./components/LogsTab";
 import DownloadTab from "./components/DownloadTab";
 import ValidationModal from "./components/ValidationModal";
 import AdminLogin from "./components/AdminLogin";
-import { Gauge, Users, FileText, Globe, CheckCircle, XCircle, Broadcast, Wrench } from "@phosphor-icons/react";
+import { Gauge, Users, FileText, Globe, HardDrives, CheckCircle, XCircle, Broadcast, Wrench } from "@phosphor-icons/react";
 
 const SOCKET_URL = BACKEND_URL;
 const defaultLicenseForm = { customer_name: "", customer_contact: "", key_code: "", max_devices: 1, expires_at: "", created_by: 1, note: "" };
@@ -19,6 +20,7 @@ const formatDate = (value) => { if (!value) return "—"; const date = new Date(
 const titleConfig = {
   dashboard: { Icon: Gauge, label: "Dashboard Tổng quan" },
   users: { Icon: Users, label: "Quản lý Người dùng & Key" },
+  devices: { Icon: HardDrives, label: "Danh sách thiết bị" },
   logs: { Icon: FileText, label: "Nhật ký Kích hoạt & IP" },
   download: { Icon: Globe, label: "Web Tải App & Test Key" },
 };
@@ -27,6 +29,7 @@ function AdminDashboard({ onLogout }) {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [dashboard, setDashboard] = useState({});
   const [licenses, setLicenses] = useState([]);
+  const [devices, setDevices] = useState([]);
   const [logs, setLogs] = useState([]);
   const [dbHealth, setDbHealth] = useState({ success: false, database: "checking" });
   const [licenseForm, setLicenseForm] = useState(defaultLicenseForm);
@@ -45,7 +48,7 @@ function AdminDashboard({ onLogout }) {
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    try { const data = await loadLicenseData(); setDbHealth(data.health); setDashboard(data.dashboard); setLicenses(data.licenses); setLogs(data.logs); }
+    try { const data = await loadLicenseData(); setDbHealth(data.health); setDashboard(data.dashboard); setLicenses(data.licenses); setLogs(data.logs); setDevices(data.devices); }
     catch { /* swallow transient network error; toast set below if needed */ }
     finally { setLoading(false); }
   }, []);
@@ -72,6 +75,7 @@ function AdminDashboard({ onLogout }) {
   const deleteLicense = async (id, name) => { if (!confirm(`Xóa vĩnh viễn Key của ${name || id}? Người dùng đang sử dụng Key sẽ bị đăng xuất ngay.`)) return; try { await fetchJson(`${API_BASE}/licenses/${id}`, { method: "DELETE" }); setStatusMessage({ type: "success", text: "Đã xóa Key và ngắt quyền sử dụng realtime." }); await loadData(); } catch (error) { setError(error); } };
   const resetBoundIp = async (id, name) => { if (!confirm(`Đồng ý reset IP cho Key của ${name || id}?`)) return; try { await fetchJson(`${API_BASE}/licenses/${id}`, { method: "PUT", body: JSON.stringify({ reset_bound_ip: true }) }); await loadData(); } catch (error) { setError(error); } };
   const blockHardware = async (hardwareId, deviceName) => { if (!confirm(`Chặn phần cứng ${deviceName || hardwareId}? Thiết bị này sẽ không thể kích hoạt hoặc dùng lại key.`)) return; try { await fetchJson(`${API_BASE}/hardware-blocks`, { method: "POST", body: JSON.stringify({ hardware_id: hardwareId, reason: "Admin chặn từ danh sách key" }) }); setStatusMessage({ type: "success", text: "Đã chặn phần cứng." }); await loadData(); } catch (error) { setError(error); } };
+  const unblockHardware = async (hardwareId, deviceName) => { if (!confirm(`Mở lại phần cứng ${deviceName || hardwareId}? Thiết bị có thể kích hoạt lại key.`)) return; try { await fetchJson(`${API_BASE}/hardware-blocks/${encodeURIComponent(hardwareId)}`, { method: "DELETE" }); setStatusMessage({ type: "success", text: "Đã mở lại phần cứng." }); await loadData(); } catch (error) { setError(error); } };
   const submitValidation = async (event) => { event.preventDefault(); try { const result = await fetchJson(`${API_BASE}/validate`, { method: "POST", body: JSON.stringify({ ...validationForm, device_hash: validationForm.device_hash || "TEST-HWID-001" }) }); setStatusMessage({ type: result.valid ? "success" : "error", text: result.message }); setValidationForm(defaultValidationForm); await loadData(); setShowKeyModal(false); } catch (error) { setError(error); } };
   const { Icon: TitleIcon, label: titleLabel } = titleConfig[activeTab] || titleConfig.dashboard;
 
@@ -101,7 +105,8 @@ function AdminDashboard({ onLogout }) {
         <span>{statusMessage.text}</span>
       </div>}
       {activeTab === "dashboard" && <DashboardTab dashboard={dashboard} loading={loading} setActiveTab={setActiveTab} />}
-      {activeTab === "users" && <UsersTab form={licenseForm} setForm={setLicenseForm} licenses={licenses} searchTerm={userSearchTerm} setSearchTerm={setUserSearchTerm} onSubmit={submitLicense} onToggle={toggleLicenseStatus} onDelete={deleteLicense} onReset={resetBoundIp} onBlockHardware={blockHardware} generateKey={generateKey} formatDate={formatDate} />}
+      {activeTab === "users" && <UsersTab form={licenseForm} setForm={setLicenseForm} licenses={licenses} searchTerm={userSearchTerm} setSearchTerm={setUserSearchTerm} onSubmit={submitLicense} onToggle={toggleLicenseStatus} onDelete={deleteLicense} onReset={resetBoundIp} onBlockHardware={blockHardware} onUnblockHardware={unblockHardware} generateKey={generateKey} formatDate={formatDate} />}
+      {activeTab === "devices" && <DevicesTab devices={devices} onBlock={blockHardware} onUnblock={unblockHardware} />}
       {activeTab === "logs" && <LogsTab logs={logs} filter={ipFilter} setFilter={setIpFilter} formatDate={formatDate} />}
       {activeTab === "download" && <DownloadTab onOpenValidation={() => setShowKeyModal(true)} />}
       {showKeyModal && <ValidationModal form={validationForm} setForm={setValidationForm} onSubmit={submitValidation} onClose={() => setShowKeyModal(false)} />}

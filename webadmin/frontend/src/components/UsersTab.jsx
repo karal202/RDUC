@@ -9,7 +9,7 @@ const PAGE_SIZE = 10;
 
 export default function UsersTab({
   form, setForm, licenses, searchTerm, setSearchTerm,
-  onSubmit, onToggle, onDelete, onReset, onBlockHardware, generateKey, formatDate,
+  onSubmit, onToggle, onDelete, onReset, onBlockHardware, onUnblockHardware, generateKey, formatDate,
 }) {
   const [page, setPage] = useState(1);
   const [copiedId, setCopiedId] = useState(null);
@@ -203,12 +203,19 @@ export default function UsersTab({
                   {(item.active_devices || []).map((device) => (
                     <div key={device.device_hash} className="device-inline-row" title={device.device_hash}>
                       <span>{device.device_name || "Thiết bị"}</span>
-                      {!device.is_blocked && (
-                        <button type="button" className="btn-device-block" onClick={() => onBlockHardware(device.device_hash, device.device_name)} title="Chặn phần cứng này">
-                          <Prohibit size={13} weight="duotone" />
-                        </button>
-                      )}
-                      {device.is_blocked && <span className="device-blocked-label">Đã chặn HW</span>}
+                      <div className="action-toolbar device-action-toolbar">
+                        {device.is_blocked ? (
+                          <button type="button" className="btn-action btn-action-unlock" onClick={() => onUnblockHardware(device.device_hash, device.device_name)} title="Mở lại phần cứng này">
+                            <LockOpen size={13} weight="duotone" />
+                            <span>Mở lại</span>
+                          </button>
+                        ) : (
+                          <button type="button" className="btn-action btn-action-block" onClick={() => onBlockHardware(device.device_hash, device.device_name)} title="Chặn phần cứng này">
+                            <Prohibit size={13} weight="duotone" />
+                            <span>Chặn máy</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </td>

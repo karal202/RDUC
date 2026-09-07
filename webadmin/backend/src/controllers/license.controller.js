@@ -157,13 +157,14 @@ export async function getLicenses(req, res) {
       const decryptedKey = decryptKey(plainRow.key_code);
       
       const activeDevices = (plainRow.deviceMaps || [])
-        .filter((dm) => dm.is_active && dm.device)
+        .filter((dm) => dm.device)
         .map((dm) => ({
           device_id: dm.device.id,
           device_hash: dm.device.device_hash,
           device_name: dm.device.device_name,
           os_info: dm.device.os_info,
           activated_at: dm.activated_at,
+          is_active: dm.is_active,
           is_blocked: blockedHardwareIds.has(dm.device.device_hash),
         }));
 
@@ -175,12 +176,57 @@ export async function getLicenses(req, res) {
         product_name: "DAWA System",
         created_by_name: plainRow.creator?.username || "Admin",
         active_devices: activeDevices,
-        active_device_count: activeDevices.length,
+        active_device_count: activeDevices.filter((device) => device.is_active).length,
         bound_ip_address: plainRow.bound_ip_address || null,
       };
     });
 
     return res.json({ success: true, data: decryptedRows });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+export async function getDevices(req, res) {
+  try {
+    const [devices, mappings, blockedRows] = await Promise.all([
+      Device.findAll({ order: [["last_seen", "DESC"], ["id", "DESC"]] }),
+      KeyDeviceMap.findAll({
+        include: [{ model: LicenseKey, as: "licenseKey", attributes: ["id", "customer_name", "status"] }],
+      }),
+      BlockedHardware.findAll({ attributes: ["hardware_id", "reason", "blocked_at"] }),
+    ]);
+    const blockedMap = new Map(blockedRows.map((row) => [row.hardware_id, row.get({ plain: true })]));
+    const mappingsByDevice = new Map();
+
+    for (const mapping of mappings) {
+      const plain = mapping.get({ plain: true });
+      const deviceMappings = mappingsByDevice.get(plain.device_id) || [];
+      if (plain.licenseKey) {
+        deviceMappings.push({
+          key_id: plain.licenseKey.id,
+          customer_name: plain.licenseKey.customer_name || "Khách lẻ",
+          status: plain.licenseKey.status,
+          is_active: Boolean(plain.is_active),
+          activated_at: plain.activated_at,
+        });
+      }
+      mappingsByDevice.set(plain.device_id, deviceMappings);
+    }
+
+    const data = devices.map((device) => {
+      const plain = device.get({ plain: true });
+      const blocked = blockedMap.get(plain.device_hash);
+      return {
+        ...plain,
+        is_blocked: Boolean(blocked),
+        blocked_reason: blocked?.reason || null,
+        blocked_at: blocked?.blocked_at || null,
+        licenses: mappingsByDevice.get(plain.id) || [],
+      };
+    });
+
+    return res.json({ success: true, data });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

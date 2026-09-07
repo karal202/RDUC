@@ -1010,6 +1010,23 @@ tbody tr:hover td {
   cursor: pointer;
 }
 
+.device-action-toolbar {
+  justify-content: flex-start;
+  gap: 0;
+}
+
+.btn-action-block {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.26);
+}
+
+.btn-action-block:hover {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.5);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+}
+
 .btn-device-block:hover {
   color: #fff;
   background: rgba(185, 28, 28, 0.7);
@@ -1018,6 +1035,41 @@ tbody tr:hover td {
 .device-blocked-label {
   color: #fca5a5;
   white-space: nowrap;
+}
+
+.panel-subtitle {
+  margin: 3px 0 0;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.device-meta {
+  margin-top: 4px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+}
+
+.device-hwid {
+  display: inline-block;
+  max-width: 190px;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.device-license-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+.device-license-row:last-child {
+  margin-bottom: 0;
 }
 }
 
