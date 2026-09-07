@@ -5,14 +5,14 @@ directories:
   buildResources: build
   output: release
 files:
-  - "out/**/*"
-  - "package.json"
-  - "node_modules/**/*"
-  - "resources/**/*"
-  - "!**/*.map"
-  - "!**/.vscode/*"
-  - "!src/*"
-  - "!electron.vite.config.{js,ts,mjs,cjs}"
+  - 'out/**/*'
+  - 'package.json'
+  - 'node_modules/**/*'
+  - 'resources/**/*'
+  - '!**/*.map'
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
 win:
   icon: build/icon.ico
   target:

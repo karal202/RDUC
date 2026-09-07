@@ -1,11 +1,16 @@
+"use client";
+
 import { CheckCircle2, ShieldCheck, Zap } from "lucide-react";
 import { ButtonOutline, ButtonPrimary } from "./buttons";
+import { useLatestRelease } from "../hooks/useLatestRelease";
 
 /**
  * CTA — Futuristic cyber portal with radial lighting,
  * trust badges, and primary action buttons.
  */
 export function Cta() {
+  const { downloadUrl, version, loading } = useLatestRelease();
+
   return (
     <section id="download" className="relative scroll-mt-[84px] overflow-hidden border-y border-white/[0.08] bg-[#03060f]">
       {/* Energy Glow Portal */}
@@ -47,11 +52,17 @@ export function Cta() {
             <Zap className="size-3.5 text-amber-400" />
             Khôi phục 1 chạm (Restore Point)
           </span>
+          {version && (
+            <span className="inline-flex items-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-cyan-300 backdrop-blur-sm">
+              <CheckCircle2 className="size-3.5" />
+              Phiên bản {version}
+            </span>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-4 pt-2">
-          <ButtonPrimary href="https://github.com/karal202/RDUC/releases/download/v1.0.0/DAWA.System.Check.Setup.1.0.0.exe" download withIcon>
-            Tải DAWA ngay (.exe)
+          <ButtonPrimary href={downloadUrl} download withIcon>
+            {loading ? "Đang chuẩn bị link..." : "Tải DAWA ngay (.exe)"}
           </ButtonPrimary>
           <ButtonOutline href="#catalog">Khám phá dịch vụ DAWA</ButtonOutline>
         </div>

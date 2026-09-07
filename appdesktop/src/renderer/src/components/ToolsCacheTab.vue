@@ -49,7 +49,8 @@ const tools = [
 
 const handleRunCacheClean = async () => {
   isCleaning.value = true
-  cleanLog.value = '[CACHE CLEANER] Đang quét và dọn dẹp các thư mục đệm hệ thống (Temp, Prefetch)...\n'
+  cleanLog.value =
+    '[CACHE CLEANER] Đang quét và dọn dẹp các thư mục đệm hệ thống (Temp, Prefetch)...\n'
 
   try {
     const res = await window.api.runDawaScript('dawa-cleaner')
@@ -130,7 +131,8 @@ const handleRunCacheClean = async () => {
               DỌN DẸP SÂU BỘ NHỚ ĐỆM (CACHE CLEANER)
             </h4>
             <p style="font-size: 12px; color: var(--text-muted)">
-              Quét sạch các tệp tin rác tạm thời trong %TEMP% và Prefetch để giải phóng dung lượng và chống delay.
+              Quét sạch các tệp tin rác tạm thời trong %TEMP% và Prefetch để giải phóng dung lượng
+              và chống delay.
             </p>
           </div>
         </div>
@@ -147,7 +149,9 @@ const handleRunCacheClean = async () => {
 
       <!-- Tools Grid -->
       <div style="margin-bottom: 10px">
-        <span class="eyebrow" style="margin-bottom: 8px; display: block">DANH MỤC CÔNG CỤ TỐI ƯU</span>
+        <span class="eyebrow" style="margin-bottom: 8px; display: block"
+          >DANH MỤC CÔNG CỤ TỐI ƯU</span
+        >
       </div>
 
       <div class="tool-grid" style="padding: 0; margin-bottom: 20px">
@@ -176,7 +180,9 @@ const handleRunCacheClean = async () => {
                 {{ tool.badge }}
               </span>
             </div>
-            <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px; line-height: 1.4">
+            <div
+              style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px; line-height: 1.4"
+            >
               {{ tool.desc }}
             </div>
           </div>
@@ -221,7 +227,7 @@ const handleRunCacheClean = async () => {
             border: 1px solid rgba(255, 255, 255, 0.08);
             margin: 0;
           "
-        >{{ cleanLog || 'Sẵn sàng chờ lệnh thực thi dọn dẹp bộ nhớ đệm Cache...' }}</pre>
+          >{{ cleanLog || 'Sẵn sàng chờ lệnh thực thi dọn dẹp bộ nhớ đệm Cache...' }}</pre>
       </div>
     </div>
   </div>

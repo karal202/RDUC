@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, X, Download } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { ButtonPrimary } from "./buttons";
+import { useLatestRelease } from "../hooks/useLatestRelease";
 
 const navLinks = [
   { label: "Danh mục", href: "/catalog" },
@@ -15,6 +16,7 @@ const navLinks = [
 
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { downloadUrl, loading } = useLatestRelease();
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/[0.08] bg-[#04060a]/85 backdrop-blur-xl transition-all duration-200">
@@ -47,11 +49,11 @@ export function Header() {
         {/* Action Button & Mobile Toggle */}
         <div className="flex items-center gap-4">
           <ButtonPrimary
-            href="https://github.com/karal202/RDUC/releases/download/v1.0.0/DAWA.System.Check.Setup.1.0.0.exe"
+            href={downloadUrl}
             download
             className="hidden sm:inline-flex"
           >
-            Tải xuống
+            {loading ? "..." : "Tải xuống"}
           </ButtonPrimary>
 
           {/* Mobile Hamburger Button */}
@@ -82,12 +84,12 @@ export function Header() {
             ))}
             <div className="pt-2">
               <ButtonPrimary
-                href="https://github.com/karal202/RDUC/releases/download/v1.0.0/DAWA.System.Check.Setup.1.0.0.exe"
+                href={downloadUrl}
                 download
                 withIcon
                 className="w-full"
               >
-                Tải xuống DAWA App
+                {loading ? "Đang chuẩn bị link..." : "Tải xuống DAWA App"}
               </ButtonPrimary>
             </div>
           </nav>

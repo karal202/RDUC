@@ -95,7 +95,8 @@ async function cleanDirectory(directory) {
 
   return {
     success: true,
-    stderr: failures.length > 0 ? `${failures.length} tệp đang được hệ thống sử dụng (đã bỏ qua).` : '',
+    stderr:
+      failures.length > 0 ? `${failures.length} tệp đang được hệ thống sử dụng (đã bỏ qua).` : '',
     stdout: `Đã dọn dẹp ${cleanedCount}/${entries.length} mục trong ${directory}`
   }
 }

@@ -137,9 +137,7 @@ const runCmdHook = async (actionName, description) => {
               <div class="cyber-icon-badge primary-glow">
                 <Radio :size="17" :stroke-width="2.2" class="icon-radio-anim" />
               </div>
-              <div style="font-weight: 700; color: #fff; font-size: 14px">
-                Gaming DNS Switcher
-              </div>
+              <div style="font-weight: 700; color: #fff; font-size: 14px">Gaming DNS Switcher</div>
             </div>
             <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px">
               Chuyển sang DNS Google (8.8.8.8) hoặc Cloudflare (1.1.1.1).

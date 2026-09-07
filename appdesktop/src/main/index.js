@@ -27,7 +27,9 @@ import {
 } from './services/licenseService'
 import { ALLOWED_DAWA_SCRIPTS, runDawaScript } from './services/dawaScripts'
 
-const APP_VERSION_URL = process.env.APP_VERSION_URL || 'https://rduc.onrender.com/api/app-version'
+const GITHUB_RELEASE_API = 'https://api.github.com/repos/karal202/RDUC/releases/latest'
+const GITHUB_DOWNLOAD_FALLBACK =
+  'https://github.com/karal202/RDUC/releases/latest/download/Dawa-Optimizer-Setup.exe'
 const BACKEND_URL_CHECK = process.env.BACKEND_URL
 if (!BACKEND_URL_CHECK) {
   console.warn(
@@ -120,18 +122,29 @@ function compareVersions(currentVersion, latestVersion) {
 
 async function getLatestAppVersion() {
   try {
-    const response = await fetch(APP_VERSION_URL, { method: 'GET' })
+    const response = await fetch(GITHUB_RELEASE_API, {
+      method: 'GET',
+      headers: { Accept: 'application/vnd.github+json' }
+    })
     if (!response.ok) return { success: false }
     const data = await response.json()
+
+    const assets = Array.isArray(data.assets) ? data.assets : []
+    const exeAsset = assets.find(
+      (a) => typeof a.name === 'string' && /\.exe$/i.test(a.name) && !a.name.endsWith('.blockmap')
+    )
+
+    const tag = String(data.tag_name || '').replace(/^v/i, '')
+    const rawBody = String(data.body || '')
+    const releaseName = String(data.name || '')
+
     return {
       success: true,
-      version: data?.version || app.getVersion(),
-      name: data?.name || app.getName(),
-      downloadUrl:
-        data?.downloadUrl ||
-        'https://rductest.vercel.app/downloads/Dawa-Optimizer-1.0.1.exe',
-      releaseNotes: data?.releaseNotes || 'Bản cập nhật mới tối ưu hệ thống.',
-      mandatory: Boolean(data?.mandatory)
+      version: tag || app.getVersion(),
+      name: releaseName || app.getName(),
+      downloadUrl: exeAsset?.browser_download_url || GITHUB_DOWNLOAD_FALLBACK,
+      releaseNotes: rawBody.trim() || 'Bản cập nhật mới tối ưu hiệu năng và sửa lỗi.',
+      mandatory: false
     }
   } catch (error) {
     return { success: false, message: error.message }
@@ -230,10 +243,10 @@ app.whenReady().then(() => {
         currentVersion,
         latestVersion: null,
         isOutdated: false,
-        downloadUrl: 'https://rductest.vercel.app/downloads/Dawa-Optimizer-1.0.0.exe',
+        downloadUrl: GITHUB_DOWNLOAD_FALLBACK,
         releaseNotes: '',
         mandatory: false,
-        message: 'Không thể kiểm tra phiên bản mới từ server.'
+        message: 'Không thể kiểm tra phiên bản mới từ GitHub.'
       }
     }
 
@@ -254,8 +267,7 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('app:open-download-url', async (_, customUrl) => {
-    const fallbackUrl = 'https://rductest.vercel.app/downloads/Dawa-Optimizer-1.0.1.exe'
-    let targetUrl = fallbackUrl
+    let targetUrl = GITHUB_DOWNLOAD_FALLBACK
     if (typeof customUrl === 'string' && customUrl.trim()) {
       try {
         const parsed = new URL(customUrl.trim())
@@ -267,14 +279,16 @@ app.whenReady().then(() => {
         ]
         if (
           parsed.protocol === 'https:' &&
-          allowedHosts.some((host) => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`))
+          allowedHosts.some(
+            (host) => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`)
+          )
         ) {
           targetUrl = parsed.toString()
         } else {
           console.warn('[SECURITY] Blocked untrusted URL in open-download-url:', customUrl)
         }
       } catch {
-        targetUrl = fallbackUrl
+        targetUrl = GITHUB_DOWNLOAD_FALLBACK
       }
     }
     await shell.openExternal(targetUrl)

@@ -21,8 +21,12 @@ const toggleKey = (key) => {
   next.has(key) ? next.delete(key) : next.add(key)
   selectedKeys.value = next
 }
-const selectAll = () => { selectedKeys.value = new Set(rows.flat()) }
-const deselectAll = () => { selectedKeys.value = new Set() }
+const selectAll = () => {
+  selectedKeys.value = new Set(rows.flat())
+}
+const deselectAll = () => {
+  selectedKeys.value = new Set()
+}
 const invertSelection = () => {
   const all = rows.flat()
   selectedKeys.value = new Set(all.filter((key) => !selectedKeys.value.has(key)))
@@ -65,11 +69,16 @@ const invertSelection = () => {
           color: #fde68a;
         "
       >
-        <AlertCircle :size="18" style="color: var(--accent-amber); flex-shrink: 0; margin-top: 2px" />
+        <AlertCircle
+          :size="18"
+          style="color: var(--accent-amber); flex-shrink: 0; margin-top: 2px"
+        />
         <div>
           <strong style="color: #fbbf24">Lưu ý kỹ thuật:</strong>
           <span style="color: #cbd5e1; margin-left: 4px">
-            Tính năng Rapid Trigger vật lý theo điểm chiều sâu (mm) yêu cầu bàn phím cơ trang bị switch từ tính nam châm Hall Effect (Wooting, Razer, DrunkDeer...). Bảng điều khiển này hoạt động dưới dạng mô phỏng giao diện và test phím.
+            Tính năng Rapid Trigger vật lý theo điểm chiều sâu (mm) yêu cầu bàn phím cơ trang bị
+            switch từ tính nam châm Hall Effect (Wooting, Razer, DrunkDeer...). Bảng điều khiển này
+            hoạt động dưới dạng mô phỏng giao diện và test phím.
           </span>
         </div>
       </div>
@@ -82,7 +91,10 @@ const invertSelection = () => {
             :key="key"
             type="button"
             class="keyboard-key"
-            :class="[{ selected: selectedKeys.has(key) }, `key-${key.toLowerCase().replace(/[^a-z0-9]/g, '-')}`]"
+            :class="[
+              { selected: selectedKeys.has(key) },
+              `key-${key.toLowerCase().replace(/[^a-z0-9]/g, '-')}`
+            ]"
             @click="toggleKey(key)"
           >
             {{ key }}
@@ -141,12 +153,8 @@ const invertSelection = () => {
         </div>
 
         <div class="selection-actions">
-          <button type="button" @click="selectAll">
-            <Sparkles :size="13" /> Chọn hết
-          </button>
-          <button type="button" @click="invertSelection">
-            Đảo chọn
-          </button>
+          <button type="button" @click="selectAll"><Sparkles :size="13" /> Chọn hết</button>
+          <button type="button" @click="invertSelection">Đảo chọn</button>
           <button type="button" class="btn-deselect" @click="deselectAll">
             <RotateCcw :size="13" /> Bỏ chọn
           </button>

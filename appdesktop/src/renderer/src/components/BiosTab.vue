@@ -1,6 +1,14 @@
 <script setup>
 import { ref } from 'vue'
-import { Settings, RotateCcw, AlertTriangle, Rocket, HardDrive, ShieldCheck, Play } from 'lucide-vue-next'
+import {
+  Settings,
+  RotateCcw,
+  AlertTriangle,
+  Rocket,
+  HardDrive,
+  ShieldCheck,
+  Play
+} from 'lucide-vue-next'
 
 const showBiosModal = ref(false)
 const showNtfsModal = ref(false)
@@ -151,12 +159,18 @@ const handleRunNTFS = async () => {
           border-radius: 10px;
         "
       >
-        <ShieldCheck :size="30" :stroke-width="1.8" style="color: var(--accent-cyan); flex-shrink: 0; margin-top: 2px" />
+        <ShieldCheck
+          :size="30"
+          :stroke-width="1.8"
+          style="color: var(--accent-cyan); flex-shrink: 0; margin-top: 2px"
+        />
         <div style="flex: 1">
           <h3 style="font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 6px">
             NTFS SYSTEM AUTO CHECK &amp; TWEAKS
           </h3>
-          <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 20px">
+          <p
+            style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 20px"
+          >
             Kích hoạt script NTFS để bật lại NTFS compression và tự kiểm tra sau khi máy khởi động
             lại, đảm bảo tính toàn vẹn và tối ưu phân mảnh tệp tin trên Windows.
           </p>
