@@ -230,7 +230,7 @@ app.whenReady().then(() => {
         currentVersion,
         latestVersion: null,
         isOutdated: false,
-        downloadUrl: 'https://rductest.vercel.app/downloads/Dawa-Optimizer-1.0.1.exe',
+        downloadUrl: 'https://rductest.vercel.app/downloads/Dawa-Optimizer-1.0.0.exe',
         releaseNotes: '',
         mandatory: false,
         message: 'Không thể kiểm tra phiên bản mới từ server.'
