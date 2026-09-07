@@ -65,8 +65,10 @@ const isOriginAllowed = (origin) => {
   if (allowedOrigins.includes(clean)) return true;
   if (/^https?:\/\/localhost(:\d+)?$/.test(clean)) return true;
   if (/^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(clean)) return true;
-  if (/\.vercel\.app$/.test(clean)) return true;
-  if (/\.onrender\.com$/.test(clean)) return true;
+  // Chỉ cho phép domain Vercel cụ thể của dự án (chính thức & preview deployments)
+  if (/^https:\/\/(rductest|rductest-[a-zA-Z0-9_-]+)\.vercel\.app$/.test(clean)) return true;
+  // Chỉ cho phép domain Render cụ thể của dự án
+  if (clean === "https://rduc.onrender.com") return true;
   if (
     clean.startsWith("file://") ||
     clean.startsWith("devtools://") ||
@@ -116,7 +118,6 @@ app.get("/updates", (req, res) => {
   res.json({
     success: true,
     message: "Update directory is active.",
-    path: releaseDir,
     files: [],
   });
 });
