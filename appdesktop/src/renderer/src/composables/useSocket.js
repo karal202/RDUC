@@ -10,7 +10,7 @@ let _refCount = 0
 function getSocket(accessToken) {
   if (!_socket || _socket.disconnected) {
     _socket = io(SOCKET_URL, {
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'],
       auth: (cb) => {
         window.api
           ?.getAccessToken?.()
@@ -19,6 +19,7 @@ function getSocket(accessToken) {
       },
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
+      reconnectionAttempts: 10,
       autoConnect: true
     })
   }
