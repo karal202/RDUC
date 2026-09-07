@@ -129,7 +129,7 @@ async function getLatestAppVersion() {
       name: data?.name || app.getName(),
       downloadUrl:
         data?.downloadUrl ||
-        'https://rductest.vercel.app/downloads/dawa-system-check-1.0.0.exe',
+        'https://rductest.vercel.app/downloads/Dawa-Optimizer-1.0.1.exe',
       releaseNotes: data?.releaseNotes || 'Bản cập nhật mới tối ưu hệ thống.',
       mandatory: Boolean(data?.mandatory)
     }
@@ -230,7 +230,7 @@ app.whenReady().then(() => {
         currentVersion,
         latestVersion: null,
         isOutdated: false,
-        downloadUrl: 'https://rductest.vercel.app/downloads/dawa-system-check-1.0.0.exe',
+        downloadUrl: 'https://rductest.vercel.app/downloads/Dawa-Optimizer-1.0.1.exe',
         releaseNotes: '',
         mandatory: false,
         message: 'Không thể kiểm tra phiên bản mới từ server.'
@@ -254,7 +254,7 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('app:open-download-url', async (_, customUrl) => {
-    const fallbackUrl = 'https://rductest.vercel.app/downloads/dawa-system-check-1.0.0.exe'
+    const fallbackUrl = 'https://rductest.vercel.app/downloads/Dawa-Optimizer-1.0.1.exe'
     let targetUrl = fallbackUrl
     if (typeof customUrl === 'string' && customUrl.trim()) {
       try {

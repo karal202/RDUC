@@ -15,7 +15,7 @@ export default function DownloadTab({ onOpenValidation }) {
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         <a
           className="btn-primary"
-          href="/downloads/dawa-system-check-1.0.0.exe"
+          href="/downloads/Dawa-Optimizer-1.0.0.exe"
           download
           style={{ textDecoration: "none" }}
         >

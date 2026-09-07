@@ -37,7 +37,7 @@ const getLatestGitHubRelease = async () => {
 
   const headers = {
     Accept: "application/vnd.github+json",
-    "User-Agent": "DAWA-System-Check",
+    "User-Agent": "Dawa-Optimizer",
     "X-GitHub-Api-Version": "2022-11-28",
   };
   if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
@@ -64,7 +64,7 @@ rootRouter.get("/app-version", async (req, res) => {
     const release = await getLatestGitHubRelease();
     return res.json({
       success: true,
-      name: "dawa-system-check",
+      name: "Dawa Optimizer",
       ...release,
       mandatory: process.env.APP_UPDATE_MANDATORY === "true",
     });
@@ -73,7 +73,7 @@ rootRouter.get("/app-version", async (req, res) => {
     return res.json({
       success: true,
       version: getLocalVersion(),
-      name: "dawa-system-check",
+      name: "Dawa Optimizer",
       downloadUrl: process.env.APP_DOWNLOAD_URL || null,
       releaseNotes: process.env.APP_RELEASE_NOTES || "",
       mandatory: process.env.APP_UPDATE_MANDATORY === "true",

@@ -83,7 +83,7 @@ const latestVersionInfo = ref({
   currentVersion: '0.0.0',
   latestVersion: null,
   isOutdated: false,
-  downloadUrl: 'https://rductest.vercel.app/downloads/dawa-system-check-1.0.0.exe',
+  downloadUrl: 'https://rductest.vercel.app/downloads/Dawa-Optimizer-1.0.0.exe',
   releaseNotes: '',
   mandatory: false,
   message: ''

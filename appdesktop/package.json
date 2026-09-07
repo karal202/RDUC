@@ -1,7 +1,7 @@
 {
-  "name": "dawa-system-check",
-  "version": "1.0.0",
-  "description": "DAWA System Check — Công cụ tối ưu hệ thống, chẩn đoán phần cứng & quản lý license",
+  "name": "Dawa Optimizer",
+  "version": "1.0.1",
+  "description": "DAWA Optimizer — Công cụ tối ưu hệ thống, chẩn đoán phần cứng & quản lý license",
   "main": "./out/main/index.js",
   "author": "DAWA Team <support@dawa.vn>",
   "publisher": "DAWA",
