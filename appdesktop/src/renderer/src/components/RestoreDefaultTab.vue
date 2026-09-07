@@ -67,9 +67,7 @@ const runCmdHook = async (actionName, description) => {
               <div class="cyber-icon-badge violet-glow">
                 <History :size="17" :stroke-width="2.2" class="icon-spin-hover" />
               </div>
-              <div style="font-weight: 700; color: #fff; font-size: 14px">
-                Restore All Settings
-              </div>
+              <div style="font-weight: 700; color: #fff; font-size: 14px">Restore All Settings</div>
             </div>
             <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px">
               Khôi phục toàn bộ Registry & Services về mặc định Windows.

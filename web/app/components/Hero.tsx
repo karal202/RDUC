@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ButtonOutline, ButtonPrimary } from "./buttons";
+import { useLatestRelease } from "../hooks/useLatestRelease";
+
 
 const heroBanners = [
   { src: "/banner/content2.png", alt: "Banner quảng cáo DAWA SHOP 1" },
@@ -20,6 +22,8 @@ const heroBanners = [
 export function Hero() {
   const [activeBanner, setActiveBanner] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const { downloadUrl, version, loading } = useLatestRelease();
+
 
   useEffect(() => {
     if (isPaused) return;
@@ -48,7 +52,7 @@ export function Hero() {
             <div className="flex items-center gap-3">
               <span className="cyber-badge">
                 <span className="cyber-radar-dot" />
-                DAWA OPTIMIZER V1.0 • SYSTEM ACCELERATOR
+                DAWA OPTIMIZER{version ? ` ${version}` : loading ? "" : " V1.0"} • SYSTEM ACCELERATOR
               </span>
             </div>
 
@@ -67,11 +71,11 @@ export function Hero() {
           {/* CTA Buttons */}
           <div className="flex flex-wrap items-center gap-4 pt-1">
             <ButtonPrimary
-              href="https://github.com/karal202/RDUC/releases/download/v1.0.0/DAWA.System.Check.Setup.1.0.0.exe"
+              href={downloadUrl}
               download
               withIcon
             >
-              Tải xuống miễn phí
+              {loading ? "Đang chuẩn bị link..." : "Tải xuống miễn phí"}
             </ButtonPrimary>
             <ButtonOutline href="#features">
               Khám phá tính năng

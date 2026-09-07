@@ -83,7 +83,7 @@ const latestVersionInfo = ref({
   currentVersion: '0.0.0',
   latestVersion: null,
   isOutdated: false,
-  downloadUrl: 'https://rductest.vercel.app/downloads/Dawa-Optimizer-1.0.0.exe',
+  downloadUrl: 'https://github.com/karal202/RDUC/releases/latest/download/Dawa-Optimizer-Setup.exe',
   releaseNotes: '',
   mandatory: false,
   message: ''
@@ -308,7 +308,12 @@ onMounted(() => {
         <div class="hud-bar-item">
           <span>
             <span v-if="socketConnected" class="link-radar-dot"></span>
-            <CircleCheck v-if="socketConnected" :size="12" :stroke-width="2" class="icon-live-glow" />
+            <CircleCheck
+              v-if="socketConnected"
+              :size="12"
+              :stroke-width="2"
+              class="icon-live-glow"
+            />
             <CircleX v-else :size="12" :stroke-width="2" />
             LINK
           </span>

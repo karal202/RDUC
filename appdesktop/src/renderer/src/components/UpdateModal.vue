@@ -142,7 +142,10 @@ const handleQuitAndInstall = () => {
       <div class="release-notes-card">
         <div class="release-notes-heading">NỘI DUNG BẢN CẬP NHẬT</div>
         <p class="release-notes-content">
-          {{ props.versionInfo.releaseNotes || 'Tối ưu hiệu năng, sửa lỗi kết nối WebSocket thời gian thực và đồng bộ giao diện Cyberpunk mới.' }}
+          {{
+            props.versionInfo.releaseNotes ||
+            'Tối ưu hiệu năng, sửa lỗi kết nối WebSocket thời gian thực và đồng bộ giao diện Cyberpunk mới.'
+          }}
         </p>
       </div>
 
@@ -153,10 +156,7 @@ const handleQuitAndInstall = () => {
           <strong>{{ downloadPercent }}%</strong>
         </div>
         <div class="progress-bar-bg">
-          <div
-            class="progress-bar-fill fill-cyan"
-            :style="{ width: `${downloadPercent}%` }"
-          ></div>
+          <div class="progress-bar-fill fill-cyan" :style="{ width: `${downloadPercent}%` }"></div>
         </div>
       </div>
 
@@ -267,8 +267,15 @@ const handleQuitAndInstall = () => {
 }
 
 @keyframes pulse-spin {
-  0% { transform: scale(0.95); opacity: 0.8; }
-  100% { transform: scale(1.08); opacity: 1; filter: drop-shadow(0 0 6px var(--accent-cyan)); }
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.08);
+    opacity: 1;
+    filter: drop-shadow(0 0 6px var(--accent-cyan));
+  }
 }
 
 .update-title {
