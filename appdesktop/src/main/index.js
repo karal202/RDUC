@@ -254,8 +254,29 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('app:open-download-url', async (_, customUrl) => {
-    const targetUrl =
-      customUrl || 'https://rductest.vercel.app/downloads/dawa-system-check-1.0.0.exe'
+    const fallbackUrl = 'https://rductest.vercel.app/downloads/dawa-system-check-1.0.0.exe'
+    let targetUrl = fallbackUrl
+    if (typeof customUrl === 'string' && customUrl.trim()) {
+      try {
+        const parsed = new URL(customUrl.trim())
+        const allowedHosts = [
+          'rductest.vercel.app',
+          'github.com',
+          'objects.githubusercontent.com',
+          'rduc.onrender.com'
+        ]
+        if (
+          parsed.protocol === 'https:' &&
+          allowedHosts.some((host) => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`))
+        ) {
+          targetUrl = parsed.toString()
+        } else {
+          console.warn('[SECURITY] Blocked untrusted URL in open-download-url:', customUrl)
+        }
+      } catch {
+        targetUrl = fallbackUrl
+      }
+    }
     await shell.openExternal(targetUrl)
     return { success: true }
   })
