@@ -2,14 +2,14 @@ import { useState } from "react";
 import Pagination from "./Pagination";
 import {
   Plus, DiceFive, Rocket, Users, MagnifyingGlass, Lock, LockOpen,
-  ArrowCounterClockwise, Trash, Key, CopySimple, Check, Prohibit,
+  ArrowCounterClockwise, Trash, Key, CopySimple, Check, HardDrives,
 } from "@phosphor-icons/react";
 
 const PAGE_SIZE = 10;
 
 export default function UsersTab({
   form, setForm, licenses, searchTerm, setSearchTerm,
-  onSubmit, onToggle, onDelete, onReset, onBlockHardware, onUnblockHardware, generateKey, formatDate,
+  onSubmit, onToggle, onDelete, onReset, generateKey, formatDate,
 }) {
   const [page, setPage] = useState(1);
   const [copiedId, setCopiedId] = useState(null);
@@ -200,24 +200,23 @@ export default function UsersTab({
                 <td><span className={`badge ${item.status}`}>{item.status}</span></td>
                 <td>
                   {renderIps(item.bound_ip_address)}
-                  {(item.active_devices || []).map((device) => (
-                    <div key={device.device_hash} className="device-inline-row" title={device.device_hash}>
-                      <span>{device.device_name || "Thiết bị"}</span>
-                      <div className="action-toolbar device-action-toolbar">
-                        {device.is_blocked ? (
-                          <button type="button" className="btn-action btn-action-unlock" onClick={() => onUnblockHardware(device.device_hash, device.device_name)} title="Mở lại phần cứng này">
-                            <LockOpen size={13} weight="duotone" />
-                            <span>Mở lại</span>
-                          </button>
-                        ) : (
-                          <button type="button" className="btn-action btn-action-block" onClick={() => onBlockHardware(device.device_hash, device.device_name)} title="Chặn phần cứng này">
-                            <Prohibit size={13} weight="duotone" />
-                            <span>Chặn máy</span>
-                          </button>
-                        )}
-                      </div>
+                  {(item.active_devices || []).length > 0 && (
+                    <div className="device-chip-list">
+                      {item.active_devices.map((device) => (
+                        <div
+                          key={device.device_hash}
+                          className={`device-chip ${device.is_blocked ? "blocked" : ""}`}
+                          title={`Tên: ${device.device_name || "N/A"}\nHWID: ${device.device_hash}`}
+                        >
+                          <HardDrives size={12} weight="duotone" />
+                          <span className="device-chip-name">{device.device_name || "Thiết bị"}</span>
+                          {device.is_blocked && (
+                            <span className="device-blocked-badge">Bị chặn</span>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </td>
                 <td>{renderDate(item.expires_at)}</td>
                 <td className="actions-cell">
