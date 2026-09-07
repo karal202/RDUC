@@ -1,5 +1,5 @@
 {
-  "name": "Dawa Optimizer",
+  "name": "dawa-optimizer",
   "version": "1.0.1",
   "description": "DAWA Optimizer — Công cụ tối ưu hệ thống, chẩn đoán phần cứng & quản lý license",
   "main": "./out/main/index.js",
