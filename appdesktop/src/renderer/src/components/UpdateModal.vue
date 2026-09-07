@@ -122,7 +122,7 @@ const handleQuitAndInstall = () => {
 
       <h3 class="update-title">ĐÃ CÓ PHIÊN BẢN MỚI!</h3>
       <p class="update-subtitle">
-        Ứng dụng DAWA System Check đã phát hành bản cập nhật mới với nhiều cải tiến và tối ưu.
+        Ứng dụng Dawa Optimizer đã phát hành bản cập nhật mới với nhiều cải tiến và tối ưu.
       </p>
 
       <!-- Version Compare Pill -->

@@ -1,5 +1,5 @@
 appId: com.dawa.optimizer
-productName: DAWA System Check
+productName: Dawa Optimizer
 asar: true
 directories:
   buildResources: build
@@ -17,7 +17,7 @@ win:
   icon: build/icon.ico
   target:
     - nsis
-  executableName: dawa-system-check
+  executableName: Dawa-Optimizer
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
