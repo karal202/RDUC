@@ -71,6 +71,7 @@ function AdminDashboard({ onLogout }) {
   const toggleLicenseStatus = async (id, status) => { try { const newStatus = status === "active" ? "disabled" : "active"; await fetchJson(`${API_BASE}/licenses/${id}`, { method: "PUT", body: JSON.stringify({ status: newStatus }) }); await loadData(); } catch (error) { setError(error); } };
   const deleteLicense = async (id, name) => { if (!confirm(`Xóa vĩnh viễn Key của ${name || id}? Người dùng đang sử dụng Key sẽ bị đăng xuất ngay.`)) return; try { await fetchJson(`${API_BASE}/licenses/${id}`, { method: "DELETE" }); setStatusMessage({ type: "success", text: "Đã xóa Key và ngắt quyền sử dụng realtime." }); await loadData(); } catch (error) { setError(error); } };
   const resetBoundIp = async (id, name) => { if (!confirm(`Đồng ý reset IP cho Key của ${name || id}?`)) return; try { await fetchJson(`${API_BASE}/licenses/${id}`, { method: "PUT", body: JSON.stringify({ reset_bound_ip: true }) }); await loadData(); } catch (error) { setError(error); } };
+  const blockHardware = async (hardwareId, deviceName) => { if (!confirm(`Chặn phần cứng ${deviceName || hardwareId}? Thiết bị này sẽ không thể kích hoạt hoặc dùng lại key.`)) return; try { await fetchJson(`${API_BASE}/hardware-blocks`, { method: "POST", body: JSON.stringify({ hardware_id: hardwareId, reason: "Admin chặn từ danh sách key" }) }); setStatusMessage({ type: "success", text: "Đã chặn phần cứng." }); await loadData(); } catch (error) { setError(error); } };
   const submitValidation = async (event) => { event.preventDefault(); try { const result = await fetchJson(`${API_BASE}/validate`, { method: "POST", body: JSON.stringify({ ...validationForm, device_hash: validationForm.device_hash || "TEST-HWID-001" }) }); setStatusMessage({ type: result.valid ? "success" : "error", text: result.message }); setValidationForm(defaultValidationForm); await loadData(); setShowKeyModal(false); } catch (error) { setError(error); } };
   const { Icon: TitleIcon, label: titleLabel } = titleConfig[activeTab] || titleConfig.dashboard;
 
@@ -100,7 +101,7 @@ function AdminDashboard({ onLogout }) {
         <span>{statusMessage.text}</span>
       </div>}
       {activeTab === "dashboard" && <DashboardTab dashboard={dashboard} loading={loading} setActiveTab={setActiveTab} />}
-      {activeTab === "users" && <UsersTab form={licenseForm} setForm={setLicenseForm} licenses={licenses} searchTerm={userSearchTerm} setSearchTerm={setUserSearchTerm} onSubmit={submitLicense} onToggle={toggleLicenseStatus} onDelete={deleteLicense} onReset={resetBoundIp} generateKey={generateKey} formatDate={formatDate} />}
+      {activeTab === "users" && <UsersTab form={licenseForm} setForm={setLicenseForm} licenses={licenses} searchTerm={userSearchTerm} setSearchTerm={setUserSearchTerm} onSubmit={submitLicense} onToggle={toggleLicenseStatus} onDelete={deleteLicense} onReset={resetBoundIp} onBlockHardware={blockHardware} generateKey={generateKey} formatDate={formatDate} />}
       {activeTab === "logs" && <LogsTab logs={logs} filter={ipFilter} setFilter={setIpFilter} formatDate={formatDate} />}
       {activeTab === "download" && <DownloadTab onOpenValidation={() => setShowKeyModal(true)} />}
       {showKeyModal && <ValidationModal form={validationForm} setForm={setValidationForm} onSubmit={submitValidation} onClose={() => setShowKeyModal(false)} />}

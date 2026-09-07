@@ -2,14 +2,14 @@ import { useState } from "react";
 import Pagination from "./Pagination";
 import {
   Plus, DiceFive, Rocket, Users, MagnifyingGlass, Lock, LockOpen,
-  ArrowCounterClockwise, Trash, Key, CopySimple, Check,
+  ArrowCounterClockwise, Trash, Key, CopySimple, Check, Prohibit,
 } from "@phosphor-icons/react";
 
 const PAGE_SIZE = 10;
 
 export default function UsersTab({
   form, setForm, licenses, searchTerm, setSearchTerm,
-  onSubmit, onToggle, onDelete, onReset, generateKey, formatDate,
+  onSubmit, onToggle, onDelete, onReset, onBlockHardware, generateKey, formatDate,
 }) {
   const [page, setPage] = useState(1);
   const [copiedId, setCopiedId] = useState(null);
@@ -56,7 +56,7 @@ export default function UsersTab({
   const term = searchTerm.trim().toLowerCase();
   const filtered = term
     ? licenses.filter((item) => (
-        [item.customer_name, item.customer_contact, item.key_code, item.note]
+        [item.customer_name, item.customer_contact, item.key_code, item.note, item.bound_ip_address]
           .some((value) => (value || "").toLowerCase().includes(term))
         || (item.active_devices || []).some((device) => `${device.device_name || ""} ${device.device_hash || ""}`.toLowerCase().includes(term))
       ))
@@ -150,7 +150,7 @@ export default function UsersTab({
         <div className="search-input-wrap">
           <MagnifyingGlass size={16} weight="duotone" />
           <input
-            placeholder="Tìm theo Tên, SĐT, Key, IP…"
+            placeholder="Tìm theo Tên, SĐT, Key, IPv4, HWID…"
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
           />
@@ -165,7 +165,7 @@ export default function UsersTab({
               <th className="th-contact">LIÊN HỆ</th>
               <th className="th-key">KEY</th>
               <th className="th-status">TRẠNG THÁI</th>
-              <th className="th-ip">IP</th>
+              <th className="th-ip">IPv4</th>
               <th className="th-expires">HẾT HẠN</th>
               <th className="th-actions">THAO TÁC</th>
             </tr>
@@ -200,6 +200,17 @@ export default function UsersTab({
                 <td><span className={`badge ${item.status}`}>{item.status}</span></td>
                 <td>
                   {renderIps(item.bound_ip_address)}
+                  {(item.active_devices || []).map((device) => (
+                    <div key={device.device_hash} className="device-inline-row" title={device.device_hash}>
+                      <span>{device.device_name || "Thiết bị"}</span>
+                      {!device.is_blocked && (
+                        <button type="button" className="btn-device-block" onClick={() => onBlockHardware(device.device_hash, device.device_name)} title="Chặn phần cứng này">
+                          <Prohibit size={13} weight="duotone" />
+                        </button>
+                      )}
+                      {device.is_blocked && <span className="device-blocked-label">Đã chặn HW</span>}
+                    </div>
+                  ))}
                 </td>
                 <td>{renderDate(item.expires_at)}</td>
                 <td className="actions-cell">

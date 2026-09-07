@@ -11,6 +11,8 @@ import {
   validateLicense,
   refreshDesktopToken,
   checkDesktopLicense,
+  blockHardware,
+  unblockHardware,
 } from "../controllers/license.controller.js";
 import { desktopLicenseMiddleware } from "../common/middleware/desktopLicense.middleware.js";
 import { authMiddleware } from "../common/middleware/auth.middleware.js";
@@ -37,6 +39,8 @@ router.get("/licenses", getLicenses);
 router.post("/licenses", createLicense);
 router.put("/licenses/:id", updateLicense);
 router.delete("/licenses/:id", deleteLicense);
+router.post("/hardware-blocks", authMiddleware, blockHardware);
+router.delete("/hardware-blocks/:hardwareId", authMiddleware, unblockHardware);
 router.post("/validate", validateLimiter, validateLicense);
 router.post("/licenses/validate", validateLimiter, validateLicense);
 router.post("/desktop/refresh", refreshDesktopToken);

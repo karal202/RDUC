@@ -3,10 +3,12 @@ import { readdir, rm } from 'fs/promises'
 import { join } from 'path'
 
 const WINDOWS_SYSTEM_DIRECTORY = process.env.SystemRoot || 'C:\\Windows'
+const SCRIPT_DIRECTORY = join(__dirname, '..', '..', 'resources', 'scripts')
 const WINDOWS_COMMANDS = Object.freeze({
   powercfg: join(WINDOWS_SYSTEM_DIRECTORY, 'System32', 'powercfg.exe'),
   sc: join(WINDOWS_SYSTEM_DIRECTORY, 'System32', 'sc.exe'),
-  reg: join(WINDOWS_SYSTEM_DIRECTORY, 'System32', 'reg.exe')
+  reg: join(WINDOWS_SYSTEM_DIRECTORY, 'System32', 'reg.exe'),
+  cmd: join(WINDOWS_SYSTEM_DIRECTORY, 'System32', 'cmd.exe')
 })
 
 export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
@@ -57,6 +59,14 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
       [WINDOWS_COMMANDS.powercfg, ['/change', 'monitor-timeout-ac', '0']],
       [WINDOWS_COMMANDS.powercfg, ['/change', 'standby-timeout-ac', '0']]
     ]
+  },
+  'bios-bat': {
+    description: 'Khởi động vào BIOS bằng file BAT',
+    commands: [[WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', join(SCRIPT_DIRECTORY, 'bios.bat')]]]
+  },
+  'ntfs-bat': {
+    description: 'Kích hoạt sửa lỗi NTFS bằng file BAT',
+    commands: [[WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', join(SCRIPT_DIRECTORY, 'NTFS.bat')]]]
   }
 })
 

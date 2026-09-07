@@ -4,6 +4,7 @@ import LicenseKey from "../models/licenseKey.model.js";
 import Device from "../models/device.model.js";
 import KeyDeviceMap from "../models/keyDeviceMap.model.js";
 import ActivationLog from "../models/activationLog.model.js";
+import BlockedHardware from "../models/blockedHardware.model.js";
 import { signDesktopAccessToken, signDesktopRefreshToken, verifyDesktopRefreshToken } from "../common/helpers/jwt.helper.js";
 import {
   ensureKeyFormat,
@@ -34,14 +35,35 @@ const logActivation = async ({ keyCode, deviceHash, ipAddress, result }) => {
   }
 };
 
+const isValidIPv4 = (ip) => {
+  const parts = String(ip || "").trim().split(".");
+  return parts.length === 4 && parts.every((part) => /^(0|[1-9]\d{0,2})$/.test(part) && Number(part) <= 255);
+};
+
 const normalizePublicIp = (ip) => {
   if (!ip) return "";
-  let clean = String(ip).replace("::ffff:", "").trim();
+  const clean = String(ip).replace(/^::ffff:/i, "").trim();
   if (clean === "::1") return "127.0.0.1";
-  if (clean.startsWith("192.168.") || clean.startsWith("10.") || clean.startsWith("172.")) {
-    return clean;
-  }
-  return clean;
+  return isValidIPv4(clean) ? clean : "";
+};
+
+const getClientIPv4 = (req) => {
+  const forwarded = String(req.headers["x-forwarded-for"] || "")
+    .split(",")
+    .map((value) => value.trim());
+  const candidates = [
+    ...forwarded,
+    req.headers["x-real-ip"],
+    req.socket?.remoteAddress,
+    req.ip,
+    req.connection?.remoteAddress,
+  ];
+  return candidates.map(normalizePublicIp).find(Boolean) || "";
+};
+
+const ensureHardwareAllowed = async (deviceHash) => {
+  const blocked = await BlockedHardware.findOne({ where: { hardware_id: deviceHash } });
+  return !blocked;
 };
 
 export async function getDatabaseHealth(req, res) {
@@ -73,6 +95,9 @@ export async function refreshDesktopToken(req, res) {
       return res.status(403).json({ success: false, message: "Key đã hết hạn hoặc bị vô hiệu hóa." });
     }
     const device = await Device.findOne({ where: { device_hash: claims.deviceHash } });
+    if (!(await ensureHardwareAllowed(claims.deviceHash))) {
+      return res.status(403).json({ success: false, valid: false, message: "Thiết bị này đã bị chặn khỏi hệ thống." });
+    }
     const mapping = device
       ? await KeyDeviceMap.findOne({ where: { key_id: license.id, device_id: device.id, is_active: true } })
       : null;
@@ -124,6 +149,8 @@ export async function getLicenses(req, res) {
       ],
       order: [["id", "DESC"]],
     });
+    const blockedHardware = await BlockedHardware.findAll({ attributes: ["hardware_id"] });
+    const blockedHardwareIds = new Set(blockedHardware.map((item) => item.hardware_id));
 
     const decryptedRows = rows.map((rowItem) => {
       const plainRow = rowItem.get({ plain: true });
@@ -137,6 +164,7 @@ export async function getLicenses(req, res) {
           device_name: dm.device.device_name,
           os_info: dm.device.os_info,
           activated_at: dm.activated_at,
+          is_blocked: blockedHardwareIds.has(dm.device.device_hash),
         }));
 
       return {
@@ -338,6 +366,51 @@ export async function deleteLicense(req, res) {
   }
 }
 
+export async function blockHardware(req, res) {
+  try {
+    const hardwareId = String(req.body?.hardware_id || req.body?.device_hash || "").trim();
+    const reason = String(req.body?.reason || "Bị chặn bởi quản trị viên").trim();
+    if (!hardwareId) {
+      return res.status(400).json({ success: false, message: "Thiếu HWID thiết bị cần chặn." });
+    }
+
+    const [blockedRecord] = await BlockedHardware.findOrCreate({
+      where: { hardware_id: hardwareId },
+      defaults: { reason, blocked_by: req.user?.id || null, blocked_at: new Date() },
+    });
+
+    const device = await Device.findOne({ where: { device_hash: hardwareId } });
+    if (device) {
+      const mappings = await KeyDeviceMap.findAll({ where: { device_id: device.id, is_active: true } });
+      await KeyDeviceMap.update({ is_active: false }, { where: { device_id: device.id, is_active: true } });
+      const io = req.app.get("io");
+      if (io) {
+        for (const mapping of mappings) {
+          const license = await LicenseKey.findByPk(mapping.key_id);
+          if (license) io.emit("license_revoked", { keyId: license.id, reason: "hardware_blocked" });
+        }
+        io.emit("license_updated");
+      }
+    }
+
+    return res.json({ success: true, message: "Đã chặn phần cứng và ngắt các phiên đang sử dụng.", data: blockedRecord });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
+export async function unblockHardware(req, res) {
+  try {
+    const hardwareId = String(req.params.hardwareId || "").trim();
+    if (!hardwareId) return res.status(400).json({ success: false, message: "Thiếu HWID thiết bị." });
+    const deleted = await BlockedHardware.destroy({ where: { hardware_id: hardwareId } });
+    if (!deleted) return res.status(404).json({ success: false, message: "HWID chưa bị chặn." });
+    return res.json({ success: true, message: "Đã bỏ chặn phần cứng." });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+}
+
 export async function validateLicense(req, res) {
   try {
     const body = req.body || {};
@@ -350,14 +423,26 @@ export async function validateLicense(req, res) {
     const deviceName = String(body.device_name || "").trim();
     const osInfo = String(body.os_info || "").trim();
     
-    const rawIp = req.headers["x-forwarded-for"] || req.socket.remoteAddress || req.ip || req.connection?.remoteAddress || "";
-    const ipAddress = String(rawIp).replace("::ffff:", "").trim() || "127.0.0.1";
+    const ipAddress = getClientIPv4(req);
 
     if (!normInputKey || !deviceHash) {
       return res.status(400).json({
         success: false,
         valid: false,
         message: "Thiếu thông tin Mã Key hoặc HWID thiết bị.",
+      });
+    }
+
+    if (!(await ensureHardwareAllowed(deviceHash))) {
+      await logActivation({ keyCode: plainInputKey, deviceHash, ipAddress, result: "revoked" });
+      return res.status(403).json({ success: false, valid: false, message: "Thiết bị này đã bị chặn khỏi hệ thống." });
+    }
+
+    if (!ipAddress) {
+      return res.status(400).json({
+        success: false,
+        valid: false,
+        message: "Không phát hiện được IPv4 của máy kích hoạt. Vui lòng dùng mạng có IPv4 hoặc liên hệ admin.",
       });
     }
 
@@ -440,17 +525,6 @@ export async function validateLicense(req, res) {
     const currentIpNorm = normalizePublicIp(ipAddress);
     const boundIpNorm = license.bound_ip_address ? normalizePublicIp(license.bound_ip_address) : null;
 
-    if (boundIpNorm && boundIpNorm !== currentIpNorm) {
-      await logActivation({ keyCode: plainInputKey, deviceHash, ipAddress, result: "ip_mismatch" });
-      return res.status(403).json({
-        success: false,
-        valid: false,
-        message: `Key này đã được kích hoạt duy nhất trên IP [${boundIpNorm}]. IP hiện tại của bạn [${currentIpNorm}] không khớp. Liên hệ admin để mở khóa IP nếu đổi nhà mạng.`,
-        bound_ip: boundIpNorm,
-        current_ip: currentIpNorm,
-      });
-    }
-
     let device = await Device.findOne({ where: { device_hash: deviceHash } });
     if (!device) {
       device = await Device.create({
@@ -498,7 +572,7 @@ export async function validateLicense(req, res) {
       });
     }
 
-    if (!boundIpNorm && currentIpNorm) {
+    if (currentIpNorm) {
       try {
         await LicenseKey.update(
           { bound_ip_address: currentIpNorm, updated_at: new Date() },
@@ -524,7 +598,7 @@ export async function validateLicense(req, res) {
       valid: true,
       accessToken,
       refreshToken,
-      message: `Kích hoạt thành công cho người dùng ${license.customer_name || 'Khách hàng'}!${!boundIpNorm && currentIpNorm ? ` (Đã ràng buộc IP ${currentIpNorm} cho key này)` : ''}`,
+      message: `Kích hoạt thành công cho người dùng ${license.customer_name || "Khách hàng"}!${currentIpNorm ? ` (IPv4 ghi nhận: ${currentIpNorm})` : ""}`,
       data: {
         key_code: plainInputKey,
         customer_name: license.customer_name,

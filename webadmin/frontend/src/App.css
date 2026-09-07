@@ -978,6 +978,47 @@ tbody tr:hover td {
   border-radius: 50%;
   background: currentColor;
   flex-shrink: 0;
+
+.device-inline-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  max-width: 220px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.device-inline-row > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-device-block {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: 5px;
+  color: #fca5a5;
+  background: rgba(127, 29, 29, 0.2);
+  cursor: pointer;
+}
+
+.btn-device-block:hover {
+  color: #fff;
+  background: rgba(185, 28, 28, 0.7);
+}
+
+.device-blocked-label {
+  color: #fca5a5;
+  white-space: nowrap;
+}
 }
 
 /* Date Display */

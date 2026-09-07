@@ -7,6 +7,7 @@ import BannerCarousel from './components/BannerCarousel.vue'
 import DashboardTab from './components/DashboardTab.vue'
 import DawaTab from './components/DawaTab.vue'
 import BiosTab from './components/BiosTab.vue'
+import NTFSTab from './components/NTFSTab.vue'
 import NetworkTab from './components/NetworkTab.vue'
 import MouseKeyboardTab from './components/MouseKeyboardTab.vue'
 import RestoreDefaultTab from './components/RestoreDefaultTab.vue'
@@ -17,6 +18,7 @@ import {
   Code2,
   CircleCheck,
   CircleX,
+  HardDrive,
   KeyRound,
   LayoutDashboard,
   LockKeyhole,
@@ -32,6 +34,7 @@ const tabComponents = {
   dashboard: DashboardTab,
   dawa: DawaTab,
   bios: BiosTab,
+  ntfs: NTFSTab,
   network: NetworkTab,
   mouse: MouseKeyboardTab,
   restore: RestoreDefaultTab,
@@ -44,6 +47,7 @@ const pageTitle = computed(
       dashboard: 'Dashboard',
       dawa: 'Optimize',
       bios: 'BIOS',
+      ntfs: 'NTFS',
       network: 'Network',
       mouse: 'Input',
       restore: 'Restore',
@@ -56,6 +60,7 @@ const coreNav = [
 ]
 const toolNav = [
   { key: 'bios', label: 'BIOS', icon: Power },
+  { key: 'ntfs', label: 'NTFS', icon: HardDrive },
   { key: 'network', label: 'Network', icon: Network },
   { key: 'mouse', label: 'Input', icon: MousePointer2 },
   { key: 'restore', label: 'Restore', icon: RotateCcw },

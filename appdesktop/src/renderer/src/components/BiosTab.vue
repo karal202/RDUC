@@ -11,7 +11,7 @@ const handleRestartBIOS = async () => {
   statusMessage.value = 'Đang gửi lệnh khởi động lại vào BIOS...'
 
   try {
-    const res = await window.api.restartToBios()
+    const res = await window.api.runDawaScript('bios-bat')
     if (res.success) {
       statusMessage.value = '✅ ' + res.message
     } else {
