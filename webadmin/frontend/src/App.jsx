@@ -61,10 +61,22 @@ function AdminDashboard({ onLogout }) {
     return () => { cancelled = true; };
   }, [loadData]);
   useEffect(() => {
-    const socket = io(SOCKET_URL, { transports: ["websocket"], reconnectionDelay: 1000, reconnectionDelayMax: 5000 });
+    const socket = io(SOCKET_URL, {
+      transports: ["polling", "websocket"],
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 10,
+    });
     socket.on("connect", () => setSocketConnected(true));
     socket.on("disconnect", () => setSocketConnected(false));
-    socket.on("license_updated", () => { setRealtimeFlash(true); setTimeout(() => setRealtimeFlash(false), 1200); loadData(); });
+    socket.on("connect_error", (err) => {
+      console.warn("[SOCKET.IO] Connection error:", err.message);
+    });
+    socket.on("license_updated", () => {
+      setRealtimeFlash(true);
+      setTimeout(() => setRealtimeFlash(false), 1200);
+      loadData();
+    });
     return () => socket.disconnect();
   }, [loadData]);
 

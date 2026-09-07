@@ -126,7 +126,12 @@ async function getLatestAppVersion() {
     return {
       success: true,
       version: data?.version || app.getVersion(),
-      name: data?.name || app.getName()
+      name: data?.name || app.getName(),
+      downloadUrl:
+        data?.downloadUrl ||
+        'https://rductest.vercel.app/downloads/dawa-system-check-1.0.0.exe',
+      releaseNotes: data?.releaseNotes || 'Bản cập nhật mới tối ưu hệ thống.',
+      mandatory: Boolean(data?.mandatory)
     }
   } catch (error) {
     return { success: false, message: error.message }
@@ -225,6 +230,9 @@ app.whenReady().then(() => {
         currentVersion,
         latestVersion: null,
         isOutdated: false,
+        downloadUrl: 'https://rductest.vercel.app/downloads/dawa-system-check-1.0.0.exe',
+        releaseNotes: '',
+        mandatory: false,
         message: 'Không thể kiểm tra phiên bản mới từ server.'
       }
     }
@@ -236,42 +244,90 @@ app.whenReady().then(() => {
       currentVersion,
       latestVersion,
       isOutdated,
+      downloadUrl: latestVersionInfo.downloadUrl,
+      releaseNotes: latestVersionInfo.releaseNotes,
+      mandatory: latestVersionInfo.mandatory,
       message: isOutdated
         ? `Đã có phiên bản mới ${latestVersion}. Vui lòng cập nhật ứng dụng.`
         : 'Bạn đang chạy phiên bản mới nhất.'
     }
   })
 
+  ipcMain.handle('app:open-download-url', async (_, customUrl) => {
+    const targetUrl =
+      customUrl || 'https://rductest.vercel.app/downloads/dawa-system-check-1.0.0.exe'
+    await shell.openExternal(targetUrl)
+    return { success: true }
+  })
+
+  ipcMain.handle('app:start-auto-update', async () => {
+    try {
+      if (is.dev) {
+        return {
+          success: false,
+          isDev: true,
+          message: 'Auto-updater không chạy trong môi trường dev.'
+        }
+      }
+      const res = await autoUpdater.checkForUpdates()
+      return { success: true, updateInfo: res?.updateInfo }
+    } catch (err) {
+      console.warn('[AUTO-UPDATER] Check failed:', err.message)
+      return { success: false, message: err.message || 'Không thể kiểm tra auto-updater' }
+    }
+  })
+
+  ipcMain.handle('app:quit-and-install', () => {
+    try {
+      autoUpdater.quitAndInstall(false, true)
+      return { success: true }
+    } catch (err) {
+      return { success: false, message: err.message }
+    }
+  })
+
+  autoUpdater.autoDownload = true
+  autoUpdater.autoInstallOnAppQuit = true
+
   autoUpdater.on('checking-for-update', () => {
-    console.log('Checking for app update...')
+    console.log('[AUTO-UPDATER] Checking for update...')
+    mainWindow?.webContents.send('app:update-status', { status: 'checking' })
   })
 
   autoUpdater.on('update-available', (info) => {
-    console.log('Update available:', info.version)
+    console.log('[AUTO-UPDATER] Update available:', info.version)
+    mainWindow?.webContents.send('app:update-available', info)
   })
 
-  autoUpdater.on('update-not-available', () => {
-    console.log('No app update available.')
+  autoUpdater.on('update-not-available', (info) => {
+    console.log('[AUTO-UPDATER] No update available.')
+    mainWindow?.webContents.send('app:update-not-available', info)
   })
 
   autoUpdater.on('error', (error) => {
-    console.error('AutoUpdater error:', error)
+    console.warn('[AUTO-UPDATER] Error:', error?.message)
+    mainWindow?.webContents.send('app:update-error', error?.message || 'Lỗi kiểm tra cập nhật')
   })
 
   autoUpdater.on('download-progress', (progressObj) => {
-    console.log('Download progress:', progressObj.percent)
-  })
-
-  autoUpdater.on('update-downloaded', () => {
-    dialog.showMessageBox({
-      type: 'info',
-      title: 'Cập nhật đã sẵn sàng',
-      message: 'Một bản cập nhật mới đã được tải xuống. Ứng dụng sẽ được cập nhật khi đóng lại.',
-      buttons: ['OK']
+    mainWindow?.webContents.send('app:update-progress', {
+      percent: Math.round(progressObj.percent || 0),
+      bytesPerSecond: progressObj.bytesPerSecond,
+      transferred: progressObj.transferred,
+      total: progressObj.total
     })
   })
 
-  autoUpdater.checkForUpdatesAndNotify()
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('[AUTO-UPDATER] Update downloaded:', info)
+    mainWindow?.webContents.send('app:update-downloaded', info)
+  })
+
+  if (!is.dev) {
+    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+      console.warn('[AUTO-UPDATER] Silent check failed:', err.message)
+    })
+  }
 
   ipcMain.handle('license:get-device-hash', async () => {
     const hwid = await getHardwareHash()

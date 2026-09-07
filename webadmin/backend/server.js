@@ -41,17 +41,45 @@ app.use(
   }),
 );
 
-const allowedOrigins = (process.env.CORS || "")
+const defaultOrigins = [
+  "https://rductest.vercel.app",
+  "https://rduc.onrender.com",
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://localhost:3069",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:3069",
+];
+
+const envOrigins = (process.env.CORS || "")
   .split(",")
   .map((origin) => origin.trim().replace(/\/+$/, ""))
   .filter(Boolean);
-if (!allowedOrigins.includes("https://rductest.vercel.app")) {
-  allowedOrigins.push("https://rductest.vercel.app");
-}
+
+const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  const clean = origin.replace(/\/+$/, "");
+  if (allowedOrigins.includes(clean)) return true;
+  if (/^https?:\/\/localhost(:\d+)?$/.test(clean)) return true;
+  if (/^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(clean)) return true;
+  if (/\.vercel\.app$/.test(clean)) return true;
+  if (/\.onrender\.com$/.test(clean)) return true;
+  if (
+    clean.startsWith("file://") ||
+    clean.startsWith("devtools://") ||
+    clean.startsWith("chrome-extension://")
+  ) {
+    return true;
+  }
+  return false;
+};
 
 const corsOptions = {
   origin: (requestOrigin, callback) => {
-    if (!requestOrigin || allowedOrigins.includes(requestOrigin)) {
+    if (isOriginAllowed(requestOrigin)) {
       return callback(null, true);
     }
     return callback(null, false);
@@ -106,24 +134,17 @@ app.use((err, req, res, next) => {
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: corsOptions,
+  transports: ["polling", "websocket"],
+  allowEIO3: true,
+  pingTimeout: 30000,
+  pingInterval: 25000,
 });
 
 app.set("io", io);
 
 io.engine.use((req, res, next) => {
   const origin = (req.headers.origin || req.headers.referer || "").toString();
-  const isTrustedLocal =
-    !origin ||
-    origin.startsWith("file://") ||
-    origin.startsWith("devtools://") ||
-    origin.startsWith("devtools://devtools/") ||
-    origin.startsWith("chrome-extension://");
-  const originAllowed =
-    allowedOrigins.length === 0 ||
-    allowedOrigins.some(
-      (o) => origin === o || origin.startsWith(o + "/") || origin.startsWith(o),
-    );
-  if (!isTrustedLocal && !originAllowed) {
+  if (!isOriginAllowed(origin)) {
     console.warn(
       `[SOCKET.IO] Blocked connection from non-allowed origin: ${origin || "unknown"}`,
     );

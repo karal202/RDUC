@@ -24,6 +24,10 @@ nsis:
   createDesktopShortcut: always
   createStartMenuShortcut: true
 publish:
-  provider: generic
-  url: https://rduc.onrender.com/updates
-  channel: latest
+  - provider: github
+    owner: karal202
+    repo: RDUC
+    releaseType: release
+  - provider: generic
+    url: https://rduc.onrender.com/updates
+    channel: latest

@@ -2,6 +2,7 @@
 import { computed, ref, onMounted } from 'vue'
 import { useSocket } from './composables/useSocket'
 import ActivationModal from './components/ActivationModal.vue'
+import UpdateModal from './components/UpdateModal.vue'
 import RocketLaunch from './components/RocketLaunch.vue'
 import BannerCarousel from './components/BannerCarousel.vue'
 import DashboardTab from './components/DashboardTab.vue'
@@ -77,10 +78,14 @@ const bootGate = ref('rocket')
 const isLaunching = ref(false)
 const revokedAlert = ref(false)
 
+const showUpdateModal = ref(false)
 const latestVersionInfo = ref({
   currentVersion: '0.0.0',
   latestVersion: null,
   isOutdated: false,
+  downloadUrl: 'https://rductest.vercel.app/downloads/dawa-system-check-1.0.0.exe',
+  releaseNotes: '',
+  mandatory: false,
   message: ''
 })
 
@@ -125,11 +130,16 @@ const checkLicense = async ({ splash = false } = {}) => {
   }
 }
 
-const checkAppVersion = async () => {
+const checkAppVersion = async (autoShowModal = false) => {
   try {
     if (!window.api?.checkAppVersion) return
     const res = await window.api.checkAppVersion()
-    latestVersionInfo.value = res
+    if (res) {
+      latestVersionInfo.value = res
+      if (res.isOutdated && (autoShowModal || res.mandatory)) {
+        showUpdateModal.value = true
+      }
+    }
   } catch (err) {
     console.error('App version check error:', err)
   }
@@ -192,7 +202,7 @@ const { connected: socketConnected, reconnect: reconnectSocket } = useSocket({
 
 onMounted(() => {
   checkLicense({ splash: true })
-  checkAppVersion()
+  checkAppVersion(true)
   window.api?.onLicenseRevoked?.(() => {
     revokedAlert.value = true
     isActivated.value = false
@@ -306,16 +316,34 @@ onMounted(() => {
             {{ socketConnected ? 'SERVER LIVE' : 'OFFLINE' }}
           </strong>
         </div>
-        <div v-if="latestVersionInfo.isOutdated" class="hud-bar-item hud-bar-update">
-          <span>UPDATE</span>
-          <strong>{{ latestVersionInfo.latestVersion }}</strong>
+        <div
+          v-if="latestVersionInfo.isOutdated"
+          class="hud-bar-item hud-bar-update"
+          style="cursor: pointer"
+          title="Bấm để cập nhật phiên bản mới"
+          @click="showUpdateModal = true"
+        >
+          <span><Sparkles :size="12" /> UPDATE</span>
+          <strong style="color: #34d399">v{{ latestVersionInfo.latestVersion }}</strong>
         </div>
         <div class="hud-bar-spacer"></div>
-        <div class="hud-bar-item">
+        <div
+          class="hud-bar-item"
+          style="cursor: pointer"
+          title="Kiểm tra phiên bản & Cập nhật"
+          @click="showUpdateModal = true"
+        >
           <span>BUILD</span>
-          <strong>{{ latestVersionInfo.currentVersion }}</strong>
+          <strong>v{{ latestVersionInfo.currentVersion }}</strong>
         </div>
       </footer>
     </div>
+
+    <!-- App Update Modal -->
+    <UpdateModal
+      v-if="showUpdateModal"
+      :version-info="latestVersionInfo"
+      @close="showUpdateModal = false"
+    />
   </template>
 </template>
