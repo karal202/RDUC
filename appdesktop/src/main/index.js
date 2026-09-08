@@ -32,6 +32,8 @@ const GITHUB_RELEASE_API =
 const GITHUB_DOWNLOAD_FALLBACK =
   'https://github.com/karal202/RDUC/releases/latest/download/Dawa-Optimizer-Setup.exe'
 const BACKEND_URL_CHECK = process.env.BACKEND_URL
+const allowOfflineLicense =
+  process.env.NODE_ENV === 'development' && process.env.ALLOW_OFFLINE_LICENSE === 'true'
 if (!BACKEND_URL_CHECK) {
   console.warn(
     '[SECURITY WARN] BACKEND_URL env var is not set — using the hardcoded default endpoint. ' +
@@ -434,7 +436,7 @@ app.whenReady().then(() => {
       }
     }
 
-    if (localCheck.valid && (backendSaysOffline || backendUnreachable)) {
+    if (allowOfflineLicense && localCheck.valid && (backendSaysOffline || backendUnreachable)) {
       return {
         isActivated: true,
         offlineMode: true,
@@ -446,7 +448,7 @@ app.whenReady().then(() => {
       }
     }
 
-    if (remotePayload?.success === false && !hardRevoked) {
+    if (allowOfflineLicense && remotePayload?.success === false && !hardRevoked) {
       return {
         isActivated: true,
         offlineMode: true,

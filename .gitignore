@@ -21,3 +21,5 @@ web/public/downloads/*.exe
 web/public/downloads/*.blockmap
 webadmin/frontend/public/downloads/*.exe
 webadmin/frontend/public/downloads/*.blockmap
+
+SECURITY.md

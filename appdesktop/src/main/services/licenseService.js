@@ -5,14 +5,9 @@ import os from 'os'
 import si from 'systeminformation'
 import { safeStorage } from 'electron'
 
-const FALLBACK_SALT = 'DAWA_SECURITY_KEY_SALT_2026_x98f'
-const SECRET_SALT = process.env.LICENSE_SIGNING_SALT || FALLBACK_SALT
-if (!process.env.LICENSE_SIGNING_SALT) {
-  console.warn(
-    '[SECURITY WARN] LICENSE_SIGNING_SALT env var is NOT set — using hardcoded signing salt fallback. ' +
-      'Set a unique 32+ byte value via environment to harden local license signatures.'
-  )
-}
+const LEGACY_SIGNATURE_CHECK_ENABLED =
+  process.env.NODE_ENV === 'development' && process.env.ALLOW_LEGACY_SIGNATURE_CHECK === 'true'
+
 const configuredBackendUrl =
   process.env.BACKEND_URL || 'https://rduc.onrender.com/api/license/validate'
 const backendUrl = new URL(configuredBackendUrl)
@@ -36,37 +31,18 @@ export async function getHardwareHash() {
   }
 }
 
-function calculateSignature(keyCode, deviceHash, timestamp) {
-  const data = `${keyCode}:${deviceHash}:${timestamp}:${SECRET_SALT}`
-  return crypto.createHmac('sha256', SECRET_SALT).update(data).digest('hex')
-}
-
-function sortObjectKeys(value) {
-  if (Array.isArray(value)) return value.map(sortObjectKeys)
-  if (value && typeof value === 'object') {
-    return Object.keys(value)
-      .sort()
-      .reduce((acc, k) => {
-        acc[k] = sortObjectKeys(value[k])
-        return acc
-      }, {})
-  }
-  return value
-}
-
-function computePayloadIntegrity(payload, salt) {
-  const withoutIntegrity = { ...payload }
-  delete withoutIntegrity.__integrity
-  const canonical = JSON.stringify(sortObjectKeys(withoutIntegrity))
-  return crypto.createHmac('sha256', salt).update(`v1:${canonical}`).digest('hex')
+function calculateSignature() {
+  // Legacy HMAC signatures are never accepted: their previous key was public.
+  return null
 }
 
 export function verifyLocalLicense(licenseData, currentDeviceHash) {
-  if (!licenseData?.keyCode || !licenseData?.deviceHash || !licenseData?.signature)
+  if (!licenseData?.keyCode || !licenseData?.deviceHash)
     return { valid: false, message: 'Dữ liệu license không hợp lệ' }
   if (licenseData.deviceHash !== currentDeviceHash)
     return { valid: false, message: 'License không tương thích với thiết bị này (HWID Mismatch)' }
   if (
+    LEGACY_SIGNATURE_CHECK_ENABLED &&
     licenseData.signature !==
     calculateSignature(licenseData.keyCode, licenseData.deviceHash, licenseData.timestamp)
   )
@@ -100,64 +76,36 @@ export function normalizeLicenseKey(input) {
 function writeEncryptedJson(filePath, data) {
   const dir = path.dirname(filePath)
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-  const integrity = computePayloadIntegrity(data, SECRET_SALT)
-  const payload = JSON.stringify({ ...data, __integrity: integrity })
-  if (safeStorage.isEncryptionAvailable()) {
-    const encrypted = safeStorage.encryptString(payload).toString('base64')
-    fs.writeFileSync(filePath, encrypted, { encoding: 'utf-8', mode: 0o600 })
-    return
+  if (!safeStorage.isEncryptionAvailable()) {
+    throw new Error('Operating-system secure storage is unavailable; refusing to store a license locally')
   }
-  fs.writeFileSync(filePath, payload, { encoding: 'utf-8', mode: 0o600 })
+  const encrypted = safeStorage.encryptString(JSON.stringify(data)).toString('base64')
+  fs.writeFileSync(filePath, encrypted, { encoding: 'utf-8', mode: 0o600 })
 }
 
 function readEncryptedJson(filePath) {
   if (!fs.existsSync(filePath)) return null
   const raw = fs.readFileSync(filePath, 'utf-8')
-  let parsed = null
-  if (safeStorage.isEncryptionAvailable()) {
-    try {
-      parsed = JSON.parse(safeStorage.decryptString(Buffer.from(raw, 'base64')))
-    } catch {
-      try {
-        parsed = JSON.parse(raw)
-      } catch {
-        return null
-      }
-    }
-  } else {
-    try {
-      parsed = JSON.parse(raw)
-    } catch {
-      return null
-    }
+  if (!safeStorage.isEncryptionAvailable()) return null
+  try {
+    return JSON.parse(safeStorage.decryptString(Buffer.from(raw, 'base64')))
+  } catch {
+    // Do not trust old files signed with a source-code secret. The user must
+    // validate with the backend again after this upgrade.
+    return null
   }
-  if (parsed && parsed.__integrity) {
-    const expected = computePayloadIntegrity(parsed, SECRET_SALT)
-    if (parsed.__integrity !== expected) {
-      console.warn(`[LICENSE INTEGRITY FAIL] License file was tampered: ${filePath}`)
-      try {
-        fs.unlinkSync(filePath)
-      } catch {
-        /* ignore unlink failure */
-      }
-      return null
-    }
-  }
-  return parsed
 }
 
 export function createLicenseStore(licenseFilePath) {
   const tokenFilePath = `${licenseFilePath}.tokens`
   return {
     save(keyCode, deviceHash, expiresAt = null) {
-      const timestamp = Date.now()
       const data = {
         keyCode,
         deviceHash,
-        timestamp,
         activatedAt: new Date().toISOString(),
         expiresAt,
-        signature: calculateSignature(keyCode, deviceHash, timestamp)
+        // Authorization is verified online; no signing secret is shipped in the app.
       }
       writeEncryptedJson(licenseFilePath, data)
       return data
