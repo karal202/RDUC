@@ -5,7 +5,6 @@ import {
   Download,
   ExternalLink,
   RotateCcw,
-  CheckCircle2,
   AlertTriangle,
   X
 } from 'lucide-vue-next'
@@ -53,7 +52,7 @@ onMounted(() => {
   if (window.api?.onUpdateError) {
     const unsubError = window.api.onUpdateError((errMsg) => {
       isDownloading.value = false
-      updateError.value = errMsg || 'Không thể tải bản cập nhật tự động.'
+      updateError.value = beautifyUpdateError(errMsg)
     })
     unsubs.push(unsubError)
   }
@@ -66,6 +65,20 @@ onUnmounted(() => {
   unsubs = []
 })
 
+function beautifyUpdateError(rawMessage) {
+  const msg = String(rawMessage || '')
+  if (msg.includes('latest.yml') || msg.includes('404')) {
+    return 'Bản cập nhật trên GitHub chưa có file thông tin phiên bản. Hãy dùng nút "Tải File Cài Đặt (.EXE)" bên dưới để cập nhật thủ công (tốc độ tương đương).'
+  }
+  if (msg.toLowerCase().includes('dev') || msg.includes('isDev')) {
+    return 'Môi trường dev không hỗ trợ cập nhật tự động. Vui lòng dùng nút "Tải File Cài Đặt (.EXE)" bên dưới.'
+  }
+  if (msg.toLowerCase().includes('authentication') || msg.toLowerCase().includes('token')) {
+    return 'Không thể xác thực tải bản cập nhật. Hãy dùng nút "Tải File Cài Đặt (.EXE)" bên dưới để tải thủ công.'
+  }
+  return 'Không thể tải bản cập nhật tự động. Hãy dùng nút "Tải File Cài Đặt (.EXE)" bên dưới.'
+}
+
 const handleStartAutoUpdate = async () => {
   updateError.value = ''
   isDownloading.value = true
@@ -74,17 +87,14 @@ const handleStartAutoUpdate = async () => {
   try {
     const res = await window.api?.startAutoUpdate?.()
     if (!res?.success) {
-      if (res?.isDev) {
-        // In dev environment, autoUpdater is not applicable, offer web download instead
-        updateError.value = 'Môi trường dev: Vui lòng bấm "Tải file cài đặt mới" bên dưới.'
-      } else {
-        updateError.value = res?.message || 'Không thể kích hoạt tự động cập nhật.'
-      }
+      updateError.value = beautifyUpdateError(
+        res?.isDev ? 'dev' : res?.message || ''
+      )
       isDownloading.value = false
     }
   } catch (err) {
     isDownloading.value = false
-    updateError.value = err.message || 'Lỗi khi kích hoạt cập nhật.'
+    updateError.value = beautifyUpdateError(err?.message || '')
   }
 }
 
@@ -365,16 +375,26 @@ const handleQuitAndInstall = () => {
 
 .update-error-text {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #fb7185;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #fecdd3;
+  text-align: left;
   background: rgba(244, 63, 94, 0.1);
-  border: 1px solid rgba(244, 63, 94, 0.25);
-  border-radius: 6px;
-  padding: 8px 12px;
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  border-radius: 8px;
+  padding: 10px 14px;
   margin-bottom: 16px;
+  max-height: 120px;
+  overflow-y: auto;
+  word-break: break-word;
+}
+.update-error-text svg {
+  margin-top: 2px;
+  flex-shrink: 0;
+  color: #fb7185;
 }
 
 .update-actions {
