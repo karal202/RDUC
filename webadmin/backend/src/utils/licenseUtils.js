@@ -1,22 +1,18 @@
 import crypto from "crypto";
 
-const FALLBACK_ENCRYPTION_KEY = "DAWA_LICENSE_SECRET_KEY_32BYTES_LONG!";
-const ENCRYPTION_KEY = process.env.LICENSE_SECRET_KEY || FALLBACK_ENCRYPTION_KEY;
-const LOOKUP_PEPPER = process.env.LICENSE_LOOKUP_PEPPER || "DAWA_LOOKUP_PEPPER_STATIC";
+function requireSecret(name) {
+  const value = process.env[name];
+  if (!value || value.length < 32) {
+    throw new Error(`${name} must be set to a unique value of at least 32 characters`);
+  }
+  return value;
+}
+
+// A fallback committed to Git is public and cannot be used as a secret.
+const ENCRYPTION_KEY = requireSecret("LICENSE_SECRET_KEY");
+const LOOKUP_PEPPER = requireSecret("LICENSE_LOOKUP_PEPPER");
 const ALGORITHM = "aes-256-cbc";
 
-if (!process.env.LICENSE_SECRET_KEY) {
-  console.warn(
-    "[SECURITY WARN] LICENSE_SECRET_KEY env var is NOT set — using hardcoded fallback. " +
-      "This is unsafe for production! Set a strong 32+ byte passphrase via env."
-  );
-}
-if (!process.env.LICENSE_LOOKUP_PEPPER) {
-  console.warn(
-    "[SECURITY WARN] LICENSE_LOOKUP_PEPPER env var is NOT set — using static pepper. " +
-      "Set a unique server-side pepper to strengthen key-lookup hashes."
-  );
-}
 
 /**
  * Normalize key to uppercase alphanumeric only
