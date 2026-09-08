@@ -27,7 +27,8 @@ import {
 } from './services/licenseService'
 import { ALLOWED_DAWA_SCRIPTS, runDawaScript } from './services/dawaScripts'
 
-const GITHUB_RELEASE_API = 'https://api.github.com/repos/karal202/RDUC/releases/latest'
+const GITHUB_RELEASE_API =
+  'https://api.github.com/repos/karal202/RDUC/releases/latest'
 const GITHUB_DOWNLOAD_FALLBACK =
   'https://github.com/karal202/RDUC/releases/latest/download/Dawa-Optimizer-Setup.exe'
 const BACKEND_URL_CHECK = process.env.BACKEND_URL
@@ -131,7 +132,10 @@ async function getLatestAppVersion() {
 
     const assets = Array.isArray(data.assets) ? data.assets : []
     const exeAsset = assets.find(
-      (a) => typeof a.name === 'string' && /\.exe$/i.test(a.name) && !a.name.endsWith('.blockmap')
+      (a) =>
+        typeof a.name === 'string' &&
+        /\.exe$/i.test(a.name) &&
+        !a.name.endsWith('.blockmap')
     )
 
     const tag = String(data.tag_name || '').replace(/^v/i, '')
@@ -143,7 +147,8 @@ async function getLatestAppVersion() {
       version: tag || app.getVersion(),
       name: releaseName || app.getName(),
       downloadUrl: exeAsset?.browser_download_url || GITHUB_DOWNLOAD_FALLBACK,
-      releaseNotes: rawBody.trim() || 'Bản cập nhật mới tối ưu hiệu năng và sửa lỗi.',
+      releaseNotes:
+        rawBody.trim() || 'Bản cập nhật mới tối ưu hiệu năng và sửa lỗi.',
       mandatory: false
     }
   } catch (error) {
@@ -279,9 +284,7 @@ app.whenReady().then(() => {
         ]
         if (
           parsed.protocol === 'https:' &&
-          allowedHosts.some(
-            (host) => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`)
-          )
+          allowedHosts.some((host) => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`))
         ) {
           targetUrl = parsed.toString()
         } else {
