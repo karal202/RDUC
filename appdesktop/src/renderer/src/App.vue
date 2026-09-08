@@ -308,12 +308,7 @@ onMounted(() => {
         <div class="hud-bar-item">
           <span>
             <span v-if="socketConnected" class="link-radar-dot"></span>
-            <CircleCheck
-              v-if="socketConnected"
-              :size="12"
-              :stroke-width="2"
-              class="icon-live-glow"
-            />
+            <CircleCheck v-if="socketConnected" :size="12" :stroke-width="2" class="icon-live-glow" />
             <CircleX v-else :size="12" :stroke-width="2" />
             LINK
           </span>
