@@ -1,11 +1,11 @@
 {
   "name": "dawa-optimizer",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "DAWA Optimizer — Công cụ tối ưu hệ thống, chẩn đoán phần cứng & quản lý license",
   "main": "./out/main/index.js",
   "author": "DAWA Team <support@dawa.vn>",
   "publisher": "DAWA",
-  "homepage": "https://dawa.vn",
+  "homepage": "https://dawashop.vercel.app/",
   "license": "PROPRIETARY",
   "keywords": [
     "optimizer",
