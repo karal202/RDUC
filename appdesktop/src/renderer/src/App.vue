@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watchEffect } from 'vue'
 import { useSocket } from './composables/useSocket'
 import ActivationModal from './components/ActivationModal.vue'
 import UpdateModal from './components/UpdateModal.vue'
@@ -11,13 +11,12 @@ import BiosTab from './components/BiosTab.vue'
 import NetworkTab from './components/NetworkTab.vue'
 import MouseKeyboardTab from './components/MouseKeyboardTab.vue'
 import RestoreDefaultTab from './components/RestoreDefaultTab.vue'
-import CmdTab from './components/CmdTab.vue'
 import RapidTriggerTab from './components/RapidTriggerTab.vue'
 import ToolsCacheTab from './components/ToolsCacheTab.vue'
 import logo from './assets/logo.png'
 import { verticalBanners } from './assets/banners'
 import {
-  Code2,
+  ChevronDown,
   CircleCheck,
   CircleX,
   HardDrive,
@@ -28,7 +27,8 @@ import {
   Network,
   Power,
   RotateCcw,
-  Sparkles
+  Sparkles,
+  KeyboardIcon
 } from 'lucide-vue-next'
 
 const activeTab = ref('dashboard')
@@ -39,7 +39,6 @@ const tabComponents = {
   network: NetworkTab,
   mouse: MouseKeyboardTab,
   restore: RestoreDefaultTab,
-  cmd: CmdTab,
   rapid: RapidTriggerTab,
   tools: ToolsCacheTab
 }
@@ -51,9 +50,8 @@ const pageTitle = computed(
       dawa: 'Optimize',
       bios: 'BIOS',
       network: 'Network',
-      mouse: 'Input',
+      mouse: 'Input Lag',
       restore: 'Restore',
-      cmd: 'CMD',
       rapid: 'Rapid Trigger',
       tools: 'Tools & Cache'
     })[activeTab.value] || 'Dashboard'
@@ -65,11 +63,10 @@ const coreNav = [
 const toolNav = [
   { key: 'bios', label: 'BIOS', icon: Power },
   { key: 'network', label: 'Network', icon: Network },
-  { key: 'mouse', label: 'Input', icon: MousePointer2 },
-  { key: 'rapid', label: 'Rapid Trigger', icon: MousePointer2 },
+  { key: 'mouse', label: 'Input Lag', icon: MousePointer2 },
+  { key: 'rapid', label: 'Rapid Trigger', icon: KeyboardIcon },
   { key: 'tools', label: 'Tools & Cache', icon: HardDrive },
   { key: 'restore', label: 'Restore', icon: RotateCcw },
-  { key: 'cmd', label: 'CMD', icon: Code2 }
 ]
 const isActivated = ref(false)
 const licenseInfo = ref(null)
@@ -200,6 +197,39 @@ const { connected: socketConnected, reconnect: reconnectSocket } = useSocket({
   }
 })
 
+const minimizeToTray = async () => {
+  try {
+    await window.api?.trayMinimize?.()
+  } catch (err) {
+    console.warn('Minimize to tray failed:', err)
+  }
+}
+
+watchEffect(async () => {
+  if (!window.api?.traySetState) return
+  try {
+    if (revokedAlert.value || (!isActivated.value && bootGate.value === 'activate')) {
+      await window.api.traySetState('error')
+      return
+    }
+    if (latestVersionInfo.value.isOutdated && !latestVersionInfo.value.mandatory) {
+      await window.api.traySetState('update')
+      return
+    }
+    if (isActivated.value && socketConnected.value) {
+      await window.api.traySetState('active')
+      return
+    }
+    if (bootGate.value === 'ready' && isActivated.value) {
+      await window.api.traySetState('idle')
+      return
+    }
+    await window.api.traySetState('idle')
+  } catch (err) {
+    console.warn('Tray state update failed:', err)
+  }
+})
+
 onMounted(() => {
   checkLicense({ splash: true })
   checkAppVersion(true)
@@ -267,6 +297,15 @@ onMounted(() => {
         </nav>
 
         <div class="hud-top-right">
+          <button
+            class="btn-tray-mini"
+            type="button"
+            title="Thu nhỏ vào khay hệ thống (chạy ngầm)"
+            @click="minimizeToTray"
+          >
+            <ChevronDown :size="14" :stroke-width="2.2" />
+            ẨN VÀO TRAY
+          </button>
           <div v-if="licenseInfo?.offlineMode" class="status-badge offline">
             <span class="status-dot"></span>
             OFFLINE
