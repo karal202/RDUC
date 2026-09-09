@@ -209,6 +209,33 @@ body {
   background: rgba(244, 63, 94, 0.12);
 }
 
+.btn-tray-mini {
+  height: 32px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+.btn-tray-mini:hover {
+  color: #fff;
+  border-color: var(--accent-cyan);
+  background: rgba(34, 211, 238, 0.12);
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.08) inset;
+}
+
 .hud-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 168px;

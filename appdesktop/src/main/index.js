@@ -1,12 +1,14 @@
 import 'dotenv/config'
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import buildIcon from '../../build/icon.png?asset'
 import path from 'path'
 import os from 'os'
 import { execFile } from 'child_process'
+import { deflateSync } from 'zlib'
 import si from 'systeminformation'
 import {
   formatGpuVram,
@@ -27,8 +29,7 @@ import {
 } from './services/licenseService'
 import { ALLOWED_DAWA_SCRIPTS, runDawaScript } from './services/dawaScripts'
 
-const GITHUB_RELEASE_API =
-  'https://api.github.com/repos/karal202/RDUC/releases/latest'
+const GITHUB_RELEASE_API = 'https://api.github.com/repos/karal202/RDUC/releases/latest'
 const GITHUB_DOWNLOAD_FALLBACK =
   'https://github.com/karal202/RDUC/releases/latest/download/Dawa-Optimizer-Setup.exe'
 const BACKEND_URL_CHECK = process.env.BACKEND_URL
@@ -67,6 +68,290 @@ const WINDOWS_SHUTDOWN_PATH = path.join(
 )
 const licenseStore = createLicenseStore(LICENSE_FILE_PATH)
 const activateAttempts = []
+
+let tray = null
+let trayActiveImage = null
+let trayNormalImage = null
+let taskbarActiveOverlay = null
+let trayCurrentState = 'idle'
+
+function crc32Table() {
+  const table = new Uint32Array(256)
+  for (let n = 0; n < 256; n += 1) {
+    let c = n
+    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1
+    table[n] = c
+  }
+  return table
+}
+const crc32Tbl = crc32Table()
+
+function crc32(buf) {
+  let c = 0xffffffff
+  for (let i = 0; i < buf.length; i += 1) c = crc32Tbl[(c ^ buf[i]) & 0xff] ^ (c >>> 8)
+  return (c ^ 0xffffffff) >>> 0
+}
+function pngChunk(type, data) {
+  const len = Buffer.alloc(4)
+  len.writeUInt32BE(data.length, 0)
+  const typeBuf = Buffer.from(type, 'ascii')
+  const crcBuf = Buffer.alloc(4)
+  crcBuf.writeUInt32BE(crc32(Buffer.concat([typeBuf, data])), 0)
+  return Buffer.concat([len, typeBuf, data, crcBuf])
+}
+function generateCircleOverlay({ size = 16, hex = '#22c55e' } = {}) {
+  const hexRgb = typeof hex === 'string' && hex.startsWith('#') ? hex.substring(1) : '22c55e'
+  const r = parseInt(hexRgb.substring(0, 2), 16)
+  const g = parseInt(hexRgb.substring(2, 4), 16)
+  const b = parseInt(hexRgb.substring(4, 6), 16)
+  const pixels = Buffer.alloc(size * size * 4)
+  const cx = (size - 1) / 2
+  const cy = (size - 1) / 2
+  const radius = Math.max(1, size / 2 - 0.5)
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const idx = (y * size + x) * 4
+      const dx = x - cx
+      const dy = y - cy
+      const inside = dx * dx + dy * dy <= radius * radius
+      pixels[idx] = r
+      pixels[idx + 1] = g
+      pixels[idx + 2] = b
+      pixels[idx + 3] = inside ? 255 : 0
+    }
+  }
+  const raw = Buffer.alloc((size * 4 + 1) * size)
+  let pos = 0
+  for (let y = 0; y < size; y += 1) {
+    raw[pos] = 0
+    pos += 1
+    pixels.copy(raw, pos, y * size * 4, (y + 1) * size * 4)
+    pos += size * 4
+  }
+  const idat = deflateSync(raw)
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(size, 0)
+  ihdr.writeUInt32BE(size, 4)
+  ihdr[8] = 8
+  ihdr[9] = 6
+  ihdr[10] = 0
+  ihdr[11] = 0
+  ihdr[12] = 0
+  const sig = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  return Buffer.concat([
+    sig,
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', idat),
+    pngChunk('IEND', Buffer.alloc(0))
+  ])
+}
+function generateTintedTrayIcon({ size = 64, tintHex = '#22c55e' } = {}) {
+  const sizeX = typeof size === 'number' ? size : 64
+  const sizeInt = Math.max(16, Math.min(256, sizeX))
+  const hexRgb =
+    typeof tintHex === 'string' && tintHex.startsWith('#') ? tintHex.substring(1) : '22c55e'
+  const tr = parseInt(hexRgb.substring(0, 2), 16)
+  const tg = parseInt(hexRgb.substring(2, 4), 16)
+  const tb = parseInt(hexRgb.substring(4, 6), 16)
+  const pixels = Buffer.alloc(sizeInt * sizeInt * 4)
+  const cx = (sizeInt - 1) / 2
+  const cy = (sizeInt - 1) / 2
+  const outer = Math.max(2, sizeInt / 2 - 0.5)
+  const inner = Math.max(1, sizeInt / 2 - 3)
+  for (let y = 0; y < sizeInt; y += 1) {
+    for (let x = 0; x < sizeInt; x += 1) {
+      const idx = (y * sizeInt + x) * 4
+      const dx = x - cx
+      const dy = y - cy
+      const d2 = dx * dx + dy * dy
+      if (d2 > outer * outer) {
+        pixels[idx + 3] = 0
+        continue
+      }
+      let alpha = 255
+      if (d2 > inner * inner) {
+        const t = (outer - Math.sqrt(d2)) / (outer - inner)
+        alpha = Math.max(0, Math.min(255, Math.round(t * 255)))
+      }
+      pixels[idx] = tr
+      pixels[idx + 1] = tg
+      pixels[idx + 2] = tb
+      pixels[idx + 3] = alpha
+    }
+  }
+  const stride = sizeInt * 4
+  const raw = Buffer.alloc((stride + 1) * sizeInt)
+  let pos = 0
+  for (let y = 0; y < sizeInt; y += 1) {
+    raw[pos] = 0
+    pos += 1
+    pixels.copy(raw, pos, y * stride, (y + 1) * stride)
+    pos += stride
+  }
+  const idat = deflateSync(raw)
+  const ihdr = Buffer.alloc(13)
+  ihdr.writeUInt32BE(sizeInt, 0)
+  ihdr.writeUInt32BE(sizeInt, 4)
+  ihdr[8] = 8
+  ihdr[9] = 6
+  ihdr[10] = 0
+  ihdr[11] = 0
+  ihdr[12] = 0
+  const sig = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+  return Buffer.concat([
+    sig,
+    pngChunk('IHDR', ihdr),
+    pngChunk('IDAT', idat),
+    pngChunk('IEND', Buffer.alloc(0))
+  ])
+}
+
+function buildTrayIcons() {
+  try {
+    const fallback = nativeImage.createFromPath
+      ? nativeImage.createFromPath(buildIcon || icon)
+      : null
+    const base =
+      fallback && !fallback.isEmpty()
+        ? fallback.resize({ width: 64, height: 64, quality: 'best' })
+        : null
+    const normalPng =
+      base && !base.isEmpty()
+        ? base.toPNG()
+        : generateTintedTrayIcon({ size: 64, tintHex: '#64748b' })
+    const activePng = generateTintedTrayIcon({ size: 64, tintHex: '#22c55e' })
+    const overlayPng = generateCircleOverlay({ size: 16, hex: '#22c55e' })
+    trayNormalImage = nativeImage.createFromBuffer(normalPng, { width: 64, height: 64 })
+    trayActiveImage = nativeImage.createFromBuffer(activePng, { width: 64, height: 64 })
+    taskbarActiveOverlay = nativeImage.createFromBuffer(overlayPng, { width: 16, height: 16 })
+  } catch (e) {
+    const normalBase = nativeImage.createFromPath(buildIcon || icon)
+    trayNormalImage = normalBase
+    trayActiveImage = normalBase
+    taskbarActiveOverlay = normalBase.resize({ width: 16, height: 16 })
+    console.warn('[TRAY] Fallback to base icon tint:', e.message)
+  }
+}
+
+function setTrayState(state) {
+  trayCurrentState = state
+  if (!tray) {
+    return
+  }
+  if (state === 'active') {
+    if (trayActiveImage) tray.setImage(trayActiveImage)
+    tray.setToolTip('DAWA Optimizer • Đang hoạt động (Bản quyền đã kích hoạt)')
+    if (mainWindow && typeof mainWindow.setOverlayIcon === 'function' && taskbarActiveOverlay) {
+      mainWindow.setOverlayIcon(taskbarActiveOverlay, 'DAWA Optimizer - Đang kích hoạt')
+    }
+  } else if (state === 'update') {
+    if (trayNormalImage) tray.setImage(trayNormalImage)
+    tray.setToolTip('DAWA Optimizer • Có phiên bản mới')
+    if (mainWindow && typeof mainWindow.setOverlayIcon === 'function') {
+      mainWindow.setOverlayIcon(null, '')
+    }
+  } else if (state === 'error') {
+    if (trayNormalImage) tray.setImage(trayNormalImage)
+    tray.setToolTip('DAWA Optimizer • Lỗi bản quyền hoặc kết nối')
+    if (mainWindow && typeof mainWindow.setOverlayIcon === 'function') {
+      mainWindow.setOverlayIcon(null, '')
+    }
+  } else {
+    if (trayNormalImage) tray.setImage(trayNormalImage)
+    tray.setToolTip('DAWA Optimizer • Đang chạy ngầm')
+    if (mainWindow && typeof mainWindow.setOverlayIcon === 'function') {
+      mainWindow.setOverlayIcon(null, '')
+    }
+  }
+}
+
+function toggleMainWindow(forceShow = false) {
+  if (!mainWindow) {
+    createWindow()
+    return
+  }
+  if (forceShow) {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    if (!mainWindow.isVisible()) mainWindow.show()
+    mainWindow.focus()
+    return
+  }
+  if (mainWindow.isVisible() && !mainWindow.isMinimized()) {
+    mainWindow.hide()
+  } else {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    if (!mainWindow.isVisible()) mainWindow.show()
+    mainWindow.focus()
+  }
+}
+
+function createTray() {
+  buildTrayIcons()
+  try {
+    tray = new Tray(trayNormalImage || nativeImage.createFromPath(icon))
+  } catch (e) {
+    console.warn('[TRAY] Create failed, fallback to build icon:', e.message)
+    tray = new Tray(nativeImage.createFromPath(buildIcon || icon))
+  }
+  tray.setToolTip('DAWA Optimizer • Đang chạy ngầm')
+  const rebuildMenu = () => {
+    const stateLabel =
+      trayCurrentState === 'active'
+        ? 'Trạng thái: Đã kích hoạt (Xanh lá cây - Đang chạy tốt)'
+        : 'Trạng thái: Chờ kích hoạt'
+    const template = [
+      {
+        label: 'Mở / Ẩn DAWA Optimizer',
+        click: () => toggleMainWindow()
+      },
+      { type: 'separator' },
+      {
+        label: stateLabel,
+        enabled: false
+      },
+      {
+        label: 'Kiểm tra cập nhật',
+        click: async () => {
+          try {
+            toggleMainWindow(true)
+            if (!is.dev) autoUpdater.checkForUpdates().catch(() => {})
+            mainWindow?.webContents.send('app:update-status', { status: 'checking' })
+          } catch {
+            /* noop */
+          }
+        }
+      },
+      {
+        label: 'Trang chủ (Website)',
+        click: () => shell.openExternal('https://github.com/karal202/RDUC').catch(() => {})
+      },
+      { type: 'separator' },
+      {
+        label: 'Thoát hoàn toàn',
+        click: () => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.removeAllListeners('close')
+          }
+          app.isQuiting = true
+          app.quit()
+        }
+      }
+    ]
+    const menu = Menu.buildFromTemplate(template)
+    tray.setContextMenu(menu)
+  }
+  rebuildMenu()
+  setInterval(rebuildMenu, 10_000)
+  tray.on('click', () => {
+    rebuildMenu()
+    toggleMainWindow()
+  })
+  tray.on('double-click', () => toggleMainWindow(true))
+  if (process.platform === 'win32') {
+    tray.on('balloon-click', () => toggleMainWindow(true))
+  }
+  setTrayState(trayCurrentState)
+}
 
 function isActivateRateLimited() {
   const now = Date.now()
@@ -134,10 +419,7 @@ async function getLatestAppVersion() {
 
     const assets = Array.isArray(data.assets) ? data.assets : []
     const exeAsset = assets.find(
-      (a) =>
-        typeof a.name === 'string' &&
-        /\.exe$/i.test(a.name) &&
-        !a.name.endsWith('.blockmap')
+      (a) => typeof a.name === 'string' && /\.exe$/i.test(a.name) && !a.name.endsWith('.blockmap')
     )
 
     const tag = String(data.tag_name || '').replace(/^v/i, '')
@@ -149,8 +431,7 @@ async function getLatestAppVersion() {
       version: tag || app.getVersion(),
       name: releaseName || app.getName(),
       downloadUrl: exeAsset?.browser_download_url || GITHUB_DOWNLOAD_FALLBACK,
-      releaseNotes:
-        rawBody.trim() || 'Bản cập nhật mới tối ưu hiệu năng và sửa lỗi.',
+      releaseNotes: rawBody.trim() || 'Bản cập nhật mới tối ưu hiệu năng và sửa lỗi.',
       mandatory: false
     }
   } catch (error) {
@@ -187,6 +468,68 @@ function createWindow() {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+    setTrayState(trayCurrentState)
+  })
+
+  mainWindow.on('close', (event) => {
+    if (app.isQuiting) return
+    if (process.platform === 'darwin') return
+    event.preventDefault()
+    try {
+      if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false)
+      if (mainWindow.isMaximized()) mainWindow.unmaximize()
+      mainWindow.hide()
+      if (typeof tray?.displayBalloon === 'function') {
+        try {
+          tray.displayBalloon({
+            title: 'DAWA Optimizer vẫn đang chạy',
+            content:
+              'Ứng dụng đã ẩn vào khay hệ thống. Click icon DAWA để mở lại hoặc chuột phải để Thoát hoàn toàn.',
+            iconType: 'info',
+            noSound: true,
+            largeIcon: false
+          })
+        } catch {
+          /* noop */
+        }
+      }
+    } catch {
+      app.isQuiting = true
+      app.quit()
+    }
+  })
+
+  mainWindow.on('minimize', () => {
+    try {
+      if (tray && process.platform === 'win32' && typeof tray.displayBalloon === 'function') {
+        tray.displayBalloon({
+          title: 'DAWA Optimizer • Đã thu nhỏ',
+          content: 'Ứng dụng vẫn đang chạy ngầm. Click icon DAWA ở khay để mở lại nhanh.',
+          iconType: 'info',
+          noSound: true,
+          largeIcon: false
+        })
+      }
+      mainWindow.setSkipTaskbar?.(true)
+    } catch {
+      /* noop */
+    }
+    setTimeout(() => {
+      try {
+        mainWindow.setSkipTaskbar?.(false)
+      } catch {
+        /* noop */
+      }
+    }, 800)
+  })
+
+  mainWindow.on('show', () => {
+    try {
+      mainWindow.setSkipTaskbar?.(false)
+    } catch {
+      /* noop */
+    }
+    setTrayState(trayCurrentState)
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -233,12 +576,44 @@ function createWindow() {
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.dawa.optimizer')
 
+  // Create tray BEFORE main window so tray icon is available when window hides to it
+  try {
+    createTray()
+  } catch (trayErr) {
+    console.warn('[TRAY] Failed to create tray:', trayErr.message)
+  }
+
   // Warm-up static cache ngay khi app khởi động
   // → khi user vào Dashboard, CPU/GPU info đã sẵn, không cần fetch lại
   getStaticInfo().catch(() => {})
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
+  })
+
+  ipcMain.handle('tray:set-state', async (_, payload) => {
+    const state = typeof payload === 'string' ? payload : payload?.state || ''
+    const next = ['active', 'error', 'update', 'idle'].includes(state) ? state : 'idle'
+    setTrayState(next)
+    return { success: true, state: next }
+  })
+
+  ipcMain.handle('tray:minimize-to-tray', async () => {
+    try {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false)
+        if (mainWindow.isMaximized()) mainWindow.unmaximize()
+        mainWindow.hide()
+      }
+      return { success: true }
+    } catch (e) {
+      return { success: false, message: e.message }
+    }
+  })
+
+  ipcMain.handle('tray:show-window', async () => {
+    toggleMainWindow(true)
+    return { success: true }
   })
 
   ipcMain.handle('app:check-version', async () => {
@@ -286,7 +661,9 @@ app.whenReady().then(() => {
         ]
         if (
           parsed.protocol === 'https:' &&
-          allowedHosts.some((host) => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`))
+          allowedHosts.some(
+            (host) => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`)
+          )
         ) {
           targetUrl = parsed.toString()
         } else {
@@ -651,7 +1028,23 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
+  if (process.platform === 'darwin') return
+  if (tray && !app.isQuiting) {
+    try {
+      if (typeof tray.displayBalloon === 'function') {
+        tray.displayBalloon({
+          title: 'DAWA Optimizer • Chạy ngầm',
+          content:
+            'Tất cả cửa sổ đã đóng. Ứng dụng vẫn chạy ở khay hệ thống. Bấm chuột phải icon DAWA ở tray để Thoát hoàn toàn.',
+          iconType: 'info',
+          noSound: true,
+          largeIcon: false
+        })
+      }
+    } catch {
+      /* noop */
+    }
+    return
   }
+  app.quit()
 })

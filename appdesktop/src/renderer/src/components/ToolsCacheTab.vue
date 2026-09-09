@@ -6,7 +6,6 @@ import {
   Laptop,
   SlidersHorizontal,
   Wrench,
-  Sparkles,
   Play,
   CheckCircle2,
   Trash2

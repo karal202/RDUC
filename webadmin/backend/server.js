@@ -14,6 +14,22 @@ dotenv.config();
 const app = express();
 const PORT = Number(process.env.PORT || 3069);
 
+// Render / Cloudflare / Heroku / Nginx reverse proxy → tin tưởng X-Forwarded-* headers
+//   0 = Disable (local dev, đứng trực tiếp)
+//   1 = 1 lớp proxy (Render default)
+//   2 = 2 lớp proxy (VD: Cloudflare → Render)
+// env TRUST_PROXY=2 trên Render nếu dùng Cloudflare, mặc định = 1.
+const trustProxyRaw = process.env.TRUST_PROXY;
+if (typeof trustProxyRaw === "string" && trustProxyRaw.toLowerCase() === "true") {
+  app.set("trust proxy", true);
+} else if (typeof trustProxyRaw === "string" && /^\d+$/.test(trustProxyRaw.trim())) {
+  app.set("trust proxy", parseInt(trustProxyRaw.trim(), 10));
+} else if (typeof trustProxyRaw === "string" && trustProxyRaw.trim().length > 0) {
+  app.set("trust proxy", trustProxyRaw.split(",").map((x) => x.trim()).filter(Boolean));
+} else if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 app.use(
   helmet({
     crossOriginResourcePolicy: false,

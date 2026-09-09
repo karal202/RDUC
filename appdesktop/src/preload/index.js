@@ -39,7 +39,11 @@ const api = {
   getSystemStats: () => ipcRenderer.invoke('system:get-stats'),
   restartToBios: () => ipcRenderer.invoke('system:restart-to-bios'),
   runDawaScript: (scriptKey) => ipcRenderer.invoke('system:run-dawa-script', { scriptKey }),
-  listAllowedScripts: () => ipcRenderer.invoke('security:list-allowed-scripts')
+  listAllowedScripts: () => ipcRenderer.invoke('security:list-allowed-scripts'),
+
+  traySetState: (state) => ipcRenderer.invoke('tray:set-state', state),
+  trayMinimize: () => ipcRenderer.invoke('tray:minimize-to-tray'),
+  trayShowWindow: () => ipcRenderer.invoke('tray:show-window')
 }
 
 if (process.contextIsolated) {
