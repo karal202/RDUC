@@ -929,13 +929,14 @@ app.whenReady().then(() => {
 
   ipcMain.handle('system:get-stats', async () => {
     try {
-      // Chạy song song: load + mem + cpuTemp + gpuTemp + device type (cached)
-      const [currentLoad, mem, cpuTemp, graphics, deviceType] = await Promise.all([
+      // Chạy song song: load + mem + cpuTemp + gpuTemp + device type (cached) + battery
+      const [currentLoad, mem, cpuTemp, graphics, deviceType, batteryInfo] = await Promise.all([
         si.currentLoad(),
         si.mem(),
         si.cpuTemperature(),
         si.graphics(),
-        detectDeviceType()
+        detectDeviceType(),
+        si.battery().catch(() => null)
       ])
 
       // Lấy static info từ cache (không fetch lại mỗi poll)
@@ -976,7 +977,13 @@ app.whenReady().then(() => {
           arch: os.arch(),
           uptimeSeconds: Math.round(os.uptime()),
           release: os.release()
-        }
+        },
+        battery: batteryInfo?.hasBattery
+          ? {
+              percent: batteryInfo.percent ?? null,
+              charging: batteryInfo.isCharging ?? false
+            }
+          : { percent: null, charging: false }
       }
     } catch (err) {
       console.error('Failed to gather system stats:', err)

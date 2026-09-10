@@ -1,6 +1,17 @@
 <script setup>
 import { ref, reactive } from 'vue'
-import { BatteryCharging, Gamepad2, Sparkles, Play, Zap, ShieldOff, EyeOff, Snowflake, Sparkle, Shield } from 'lucide-vue-next'
+import {
+  BatteryCharging,
+  Gamepad2,
+  Sparkles,
+  Play,
+  Zap,
+  ShieldOff,
+  EyeOff,
+  Snowflake,
+  Sparkle,
+  Shield
+} from 'lucide-vue-next'
 
 const logOutput = ref('')
 const isRunning = ref(false)
@@ -88,7 +99,7 @@ const TWEAK_SWITCHES = Object.freeze([
   }
 ])
 
-const switchStates = reactive(Object.fromEntries(TWEAK_SWITCHES.map(s => [s.id, false])))
+const switchStates = reactive(Object.fromEntries(TWEAK_SWITCHES.map((s) => [s.id, false])))
 
 const runDawaScript = async (scriptKey, description) => {
   isRunning.value = true
@@ -155,7 +166,12 @@ const toggleWinSwitch = async (tweak) => {
               <p class="pg-card-desc">{{ card.desc }}</p>
             </div>
           </div>
-          <button class="pg-action-btn" :style="{ '--c': card.accent }" :disabled="isRunning" @click="runDawaScript(card.key, card.title)">
+          <button
+            class="pg-action-btn"
+            :style="{ '--c': card.accent }"
+            :disabled="isRunning"
+            @click="runDawaScript(card.key, card.title)"
+          >
             <Play :size="14" class="pg-play" />
             <span>{{ card.btnLabel }}</span>
           </button>
@@ -166,20 +182,38 @@ const toggleWinSwitch = async (tweak) => {
     <section class="pg-card pg-tile">
       <header class="pg-card-head">
         <h2 class="pg-title">Tinh chỉnh Windows <span class="pg-count">· 6 toggles</span></h2>
-        <p class="pg-subtitle">Mỗi mục là một cặp Enable/Disable từ thư mục Optimizer → Switch ON/OFF.</p>
+        <p class="pg-subtitle">
+          Mỗi mục là một cặp Enable/Disable từ thư mục Optimizer → Switch ON/OFF.
+        </p>
       </header>
       <div class="pg-switch-list">
         <div v-for="tw in TWEAK_SWITCHES" :key="tw.id" class="pg-switch-row">
-          <div class="pg-ic-small" :style="{ '--c': tw.accent }"><component :is="tw.icon" :size="18" /></div>
+          <div class="pg-switch-card-head">
+            <span class="pg-switch-tag" :style="{ '--c': tw.accent }">WINDOWS TWEAK</span>
+          </div>
           <div class="pg-switch-body">
             <div class="pg-switch-label">{{ tw.label }}</div>
             <div class="pg-switch-hint">{{ tw.hint }}</div>
           </div>
-          <span v-if="tw.unavailable" class="pg-unavailable">Windows Security</span>
-          <button v-else type="button" class="pg-switch" :class="{ on: switchStates[tw.id] }" :aria-label="tw.label" :aria-pressed="switchStates[tw.id]" :disabled="isRunning" @click="toggleWinSwitch(tw)">
-            <span class="pg-switch-track" />
-            <span class="pg-switch-thumb" />
-          </button>
+          <div class="pg-switch-footer">
+            <span v-if="tw.unavailable" class="pg-unavailable">Windows Security</span>
+            <span v-else class="pg-switch-state">{{
+              switchStates[tw.id] ? 'Đã bật' : 'Kích hoạt'
+            }}</span>
+            <button
+              v-if="!tw.unavailable"
+              type="button"
+              class="pg-switch"
+              :class="{ on: switchStates[tw.id] }"
+              :aria-label="tw.label"
+              :aria-pressed="switchStates[tw.id]"
+              :disabled="isRunning"
+              @click="toggleWinSwitch(tw)"
+            >
+              <span class="pg-switch-track" />
+              <span class="pg-switch-thumb" />
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -189,91 +223,372 @@ const toggleWinSwitch = async (tweak) => {
         <Sparkle :size="14" />
         <span>CONSOLE LOG OUTPUT</span>
       </div>
-      <pre class="pg-console-log">{{ logOutput || 'Sẵn sàng chờ thực thi script DAWA đã được ký và tweaks Windows toggle...' }}</pre>
+      <pre class="pg-console-log">{{
+        logOutput || 'Sẵn sàng chờ thực thi script DAWA đã được ký và tweaks Windows toggle...'
+      }}</pre>
     </section>
   </div>
 </template>
 
 <style scoped>
-.pg-wrap { display: flex; flex-direction: column; gap: 22px; padding: 22px 28px; max-width: 1560px; margin: 0 auto; }
+.pg-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 22px 28px;
+  max-width: 1560px;
+  margin: 0 auto;
+}
 
-.pg-tile { position: relative; overflow: hidden; }
+.pg-tile {
+  position: relative;
+  overflow: hidden;
+}
 .pg-tile::before {
-  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0;
-  background: radial-gradient(420px circle at var(--spot-x, 100%) var(--spot-y, 0%), rgba(22,119,255,.14), transparent 60%);
-  opacity: .9;
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    420px circle at var(--spot-x, 100%) var(--spot-y, 0%),
+    rgba(22, 119, 255, 0.14),
+    transparent 60%
+  );
+  opacity: 0.9;
 }
 .pg-card {
   position: relative;
-  background: linear-gradient(180deg, rgba(14, 20, 36, .82), rgba(9, 14, 26, .68));
-  border: 1px solid rgba(148,163,184,.12);
+  background: linear-gradient(180deg, rgba(14, 20, 36, 0.82), rgba(9, 14, 26, 0.68));
+  border: 1px solid rgba(148, 163, 184, 0.12);
   border-radius: 20px;
   padding: 22px;
   backdrop-filter: blur(26px) saturate(150%);
   -webkit-backdrop-filter: blur(26px) saturate(150%);
-  box-shadow: 0 18px 60px rgba(0,0,0,.38), inset 0 1px 0 rgba(255,255,255,.06);
+  box-shadow:
+    0 18px 60px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
-.pg-card-head { position: relative; z-index: 1; margin-bottom: 18px; }
-.pg-section-meta { display: inline-flex; align-items: center; gap: 7px; padding: 4px 10px; border-radius: 999px; background: rgba(22,119,255,.1); color: #60a5fa; font: 600 11px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 10px; border: 1px solid rgba(22,119,255,.2); }
-.pg-title { margin: 0; font: 800 22px/1.1 "Archivo", sans-serif; letter-spacing: -.01em; color: #fff; }
-.pg-count { color: rgba(148,163,184,.62); font-weight: 600; margin-left: 6px; }
-.pg-subtitle { margin: 8px 0 0; font-size: 13px; color: rgba(148,163,184,.78); line-height: 1.55; }
+.pg-card-head {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 18px;
+}
+.pg-section-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(22, 119, 255, 0.1);
+  color: #60a5fa;
+  font:
+    600 11px/1 'JetBrains Mono',
+    ui-monospace,
+    monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  border: 1px solid rgba(22, 119, 255, 0.2);
+}
+.pg-title {
+  margin: 0;
+  font:
+    800 22px/1.1 'Archivo',
+    sans-serif;
+  letter-spacing: -0.01em;
+  color: #fff;
+}
+.pg-count {
+  color: rgba(148, 163, 184, 0.62);
+  font-weight: 600;
+  margin-left: 6px;
+}
+.pg-subtitle {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: rgba(148, 163, 184, 0.78);
+  line-height: 1.55;
+}
 
-.pg-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; position: relative; z-index: 1; }
-.pg-card-item { display: flex; flex-direction: column; justify-content: space-between; gap: 16px; padding: 18px; background: rgba(255,255,255,.03); border: 1px solid rgba(148,163,184,.1); border-radius: 16px; transition: transform .35s cubic-bezier(.16,1,.3,1), border-color .35s; }
-.pg-card-item:hover { transform: translateY(-3px); border-color: rgba(148,163,184,.22); }
-.pg-card-inner { display: flex; gap: 14px; align-items: flex-start; }
-.pg-icon-wrap { width: 44px; height: 44px; flex: 0 0 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--c) 18%, transparent); color: var(--c); box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 8px 28px color-mix(in srgb, var(--c) 22%, transparent); }
-.pg-icon-core { stroke-width: 1.9; }
-.pg-card-body { display: flex; flex-direction: column; gap: 6px; }
-.pg-card-title { font-weight: 700; color: #fff; font-size: 15px; }
-.pg-card-desc { margin: 0; font-size: 12.5px; line-height: 1.5; color: rgba(148,163,184,.78); }
+.pg-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  position: relative;
+  z-index: 1;
+}
+.pg-card-item {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 16px;
+  transition:
+    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.35s;
+}
+.pg-card-item:hover {
+  transform: translateY(-3px);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+.pg-card-inner {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.pg-icon-wrap {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--c) 18%, transparent);
+  color: var(--c);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 8px 28px color-mix(in srgb, var(--c) 22%, transparent);
+}
+.pg-icon-core {
+  stroke-width: 1.9;
+}
+.pg-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pg-card-title {
+  font-weight: 700;
+  color: #fff;
+  font-size: 15px;
+}
+.pg-card-desc {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: rgba(148, 163, 184, 0.78);
+}
 
 .pg-action-btn {
-  --c: #1677ff; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 10.5px 16px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--c) 36%, transparent);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--c) 94%, #000 0%), color-mix(in srgb, var(--c) 70%, #000 30%));
-  color: #fff; font-weight: 700; font-size: 13px; cursor: pointer; transition: all .28s ease;
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--c) 30%, transparent), inset 0 1px 0 rgba(255,255,255,.18);
+  --c: #1677ff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10.5px 16px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--c) 36%, transparent);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--c) 94%, #000 0%),
+    color-mix(in srgb, var(--c) 70%, #000 30%)
+  );
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.28s ease;
+  box-shadow:
+    0 10px 28px color-mix(in srgb, var(--c) 30%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
-.pg-action-btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.06); }
-.pg-action-btn:active:not(:disabled) { transform: translateY(0) scale(.985); }
-.pg-action-btn:disabled { opacity: .55; cursor: not-allowed; }
-.pg-play { stroke-width: 2.2; }
+.pg-action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+.pg-action-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+}
+.pg-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.pg-play {
+  stroke-width: 2.2;
+}
 
-.pg-switch-list { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 2px; }
-.pg-switch-row { display: flex; align-items: center; gap: 14px; padding: 14px 14px; border-radius: 14px; transition: background .25s ease; }
-.pg-switch-row:hover { background: rgba(148,163,184,.05); }
-.pg-ic-small { width: 38px; height: 38px; flex: 0 0 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--c) 16%, transparent); color: var(--c); border: 1px solid color-mix(in srgb, var(--c) 18%, transparent); }
-.pg-switch-body { flex: 1; min-width: 0; }
-.pg-switch-label { font-weight: 700; font-size: 14px; color: #fff; }
-.pg-switch-hint { font-size: 12px; color: rgba(148,163,184,.7); margin-top: 2px; line-height: 1.5; }
+.pg-switch-list {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.pg-switch-row {
+  display: flex;
+  min-height: 170px;
+  padding: 18px;
+  flex-direction: column;
+  border: 1px solid rgba(148, 163, 184, 0.11);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.025);
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    transform 0.25s ease;
+}
+.pg-switch-row:hover {
+  background: rgba(148, 163, 184, 0.06);
+  border-color: rgba(96, 165, 250, 0.3);
+  transform: translateY(-2px);
+}
+.pg-switch-card-head {
+  min-height: 22px;
+}
+.pg-switch-tag {
+  display: inline-flex;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--c) 18%, #0f172a);
+  border: 1px solid color-mix(in srgb, var(--c) 36%, transparent);
+  color: color-mix(in srgb, var(--c) 78%, white);
+  font: 700 10px/1 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.06em;
+}
+.pg-switch-body {
+  min-width: 0;
+  flex: 1;
+  padding-top: 8px;
+}
+.pg-switch-label {
+  font-weight: 700;
+  font-size: 14px;
+  color: #fff;
+}
+.pg-switch-hint {
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.7);
+  margin-top: 2px;
+  line-height: 1.5;
+}
+.pg-switch-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 13px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+.pg-switch-state {
+  color: rgba(203, 213, 225, 0.72);
+  font-size: 12px;
+  font-weight: 650;
+}
 
-.pg-switch { position: relative; width: 56px; height: 32px; flex: 0 0 56px; padding: 0; border: none; background: transparent; cursor: pointer; }
-.pg-switch-track { position: absolute; inset: 0; border-radius: 999px; background: rgba(30,41,59,.75); border: 1px solid rgba(148,163,184,.18); transition: all .35s cubic-bezier(.16,1,.3,1); }
-.pg-switch-thumb { position: absolute; top: 4px; left: 4px; width: 24px; height: 24px; border-radius: 999px; background: linear-gradient(180deg, #cbd5e1, #94a3b8); box-shadow: 0 4px 14px rgba(0,0,0,.35); transition: all .35s cubic-bezier(.16,1,.3,1); }
-.pg-switch.on .pg-switch-track { background: linear-gradient(135deg, #1677ff 0%, #7c3aed 100%); border-color: rgba(124,58,237,.55); box-shadow: 0 0 0 1px rgba(22,119,255,.2), 0 8px 26px rgba(22,119,255,.35); }
-.pg-switch.on .pg-switch-thumb { left: 28px; background: linear-gradient(180deg, #fff, #e0e7ff); }
-.pg-switch:disabled { cursor: wait; opacity: .6; }
-.pg-unavailable { flex: 0 0 auto; padding: 6px 9px; border: 1px solid rgba(251,113,133,.25); border-radius: 999px; color: #fda4af; font-size: 11px; font-weight: 700; }
+.pg-switch {
+  position: relative;
+  width: 52px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+.pg-switch-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.pg-switch-thumb {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #cbd5e1, #94a3b8);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.pg-switch.on .pg-switch-track {
+  background: linear-gradient(135deg, #1677ff 0%, #7c3aed 100%);
+  border-color: rgba(124, 58, 237, 0.55);
+  box-shadow:
+    0 0 0 1px rgba(22, 119, 255, 0.2),
+    0 8px 26px rgba(22, 119, 255, 0.35);
+}
+.pg-switch.on .pg-switch-thumb {
+  left: 26px;
+  background: linear-gradient(180deg, #fff, #e0e7ff);
+}
+.pg-switch:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+.pg-unavailable {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border: 1px solid rgba(251, 113, 133, 0.25);
+  border-radius: 999px;
+  color: #fda4af;
+  font-size: 11px;
+  font-weight: 700;
+}
 
-.pg-console { padding: 18px; }
-.pg-console-head { display: inline-flex; align-items: center; gap: 8px; font: 700 12px/1 "JetBrains Mono", monospace; color: #10b981; letter-spacing: .08em; margin-bottom: 10px; }
+.pg-console {
+  padding: 18px;
+}
+.pg-console-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font:
+    700 12px/1 'JetBrains Mono',
+    monospace;
+  color: #10b981;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
 .pg-console-log {
-  margin: 0; padding: 14px 16px; min-height: 120px; max-height: 280px; overflow-y: auto;
-  font: 500 12.5px/1.65 "JetBrains Mono", ui-monospace, monospace; color: #6ee7b7;
-  background: #000; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; white-space: pre-wrap;
+  margin: 0;
+  padding: 14px 16px;
+  min-height: 120px;
+  max-height: 280px;
+  overflow-y: auto;
+  font:
+    500 12.5px/1.65 'JetBrains Mono',
+    ui-monospace,
+    monospace;
+  color: #6ee7b7;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  white-space: pre-wrap;
 }
 
 @media (max-width: 1100px) {
-  .pg-wrap { padding: 18px 16px; }
-  .pg-grid-3 { grid-template-columns: repeat(2, 1fr); }
+  .pg-wrap {
+    padding: 18px 16px;
+  }
+  .pg-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .pg-switch-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 @media (max-width: 720px) {
-  .pg-grid-3 { grid-template-columns: 1fr; }
-  .pg-switch-row { flex-wrap: wrap; }
+  .pg-grid-3 {
+    grid-template-columns: 1fr;
+  }
+  .pg-switch-list {
+    grid-template-columns: 1fr;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pg-card-item, .pg-action-btn, .pg-switch-thumb, .pg-switch-track { transition: none !important; }
+  .pg-card-item,
+  .pg-action-btn,
+  .pg-switch-thumb,
+  .pg-switch-track {
+    transition: none !important;
+  }
 }
 </style>
