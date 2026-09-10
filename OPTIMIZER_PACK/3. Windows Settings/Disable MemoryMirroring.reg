@@ -1,0 +1,31 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management]
+"DisableMemoryMirroring"=dword:00000001
+"SystemCacheWsSize"=dword:00000004
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options\*]
+"FineGrainedMemoryQuota"=dword:00100000
+"UseLargePages"=dword:00000001
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management]
+"LargePageMinimum"=dword:00000001
+"LargePageDrivers"=dword:00000001
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Ntfs]
+"MaxMftInMemory"=dword:00002000
+
+[HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags]
+"NoFullScreenOptimizationMemoryControl"=dword:00000001
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\intelppm\Parameters]
+"WppRecorder_TraceGuid"="{67fc721a-2852-4f62-a3b1-2afc53953777}"
+"PerfBoostMode"=dword:00000001
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling]
+"PowerThrottlingOff"=dword:00000001
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\LanmanServer\Parameters]
+"SizReqBuf"=dword:00217424
+
+

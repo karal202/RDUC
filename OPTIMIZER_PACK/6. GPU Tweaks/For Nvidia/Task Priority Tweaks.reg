@@ -1,0 +1,16 @@
+Windows Registry Editor Version 5.00
+
+; Made by Savenz
+; บังคับ CPU/GPU Priority ของ Windows Task ให้เกมรันเร็วขึ้น
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games]
+"Affinity"=dword:00000000
+"Background Only"="False"
+"Clock Rate"=dword:00002710
+"GPU Priority"=dword:00000008
+"Priority"=dword:00000006
+"Scheduling Category"="High"
+"SFIO Priority"="High"
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\nvlddmkm\Parameters]
+"ThreadPriority"=dword:0000001F

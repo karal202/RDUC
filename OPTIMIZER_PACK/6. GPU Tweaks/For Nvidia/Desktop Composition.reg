@@ -1,0 +1,11 @@
+Windows Registry Editor Version 5.00
+
+; Made by Savenz
+; ปิด Desktop Composition / Aero เพื่อให้ Windows DirectX ทำงานตรง ๆ ลด overhead
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DWM]
+"DisallowComposition"=dword:00000001
+"Composition"=dword:00000000
+
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\DWM]
+"Composition"=dword:00000000

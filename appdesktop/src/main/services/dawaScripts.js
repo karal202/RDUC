@@ -10,6 +10,22 @@ const WINDOWS_COMMANDS = Object.freeze({
   reg: join(WINDOWS_SYSTEM_DIRECTORY, 'System32', 'reg.exe'),
   cmd: join(WINDOWS_SYSTEM_DIRECTORY, 'System32', 'cmd.exe')
 })
+const RAM_PROFILES = Object.freeze({
+  2: '2GB RAM.reg',
+  3: '3GB RAM.reg',
+  4: '4GB Ram.reg',
+  6: '6GB Ram.reg',
+  8: '8GB Ram.reg',
+  10: '10GB RAM.reg',
+  12: '12GB Ram.reg',
+  16: '16GB Ram.reg',
+  20: '20GB Ram.reg',
+  24: '24GB Ram.reg',
+  32: '32GB Ram.reg',
+  48: '48GB RAM.reg',
+  64: '64GB Ram.reg',
+  reset: 'Reset to Default.reg'
+})
 
 export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   'dawa-gaming-boost': {
@@ -241,6 +257,22 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
     description: 'Mở MSI Utility V3',
     launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'MSI Utility', 'MSI Utility V3.exe')
   },
+  'ram-optimization': {
+    description: 'Áp dụng RAM Optimization',
+    profiles: RAM_PROFILES
+  },
+  'windows-settings-tweaks': {
+    description: 'Áp dụng Windows Settings Tweaks',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Windows Settings Tweaks.reg')
+        ]
+      ]
+    ]
+  },
   'ntfs-bat': {
     description: 'Kích hoạt sửa lỗi NTFS bằng file BAT',
     commands: [[WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', join(SCRIPT_DIRECTORY, 'NTFS.bat')]]]
@@ -311,7 +343,7 @@ function launchWhitelistedApp(file) {
   })
 }
 
-export async function runDawaScript(scriptKey) {
+export async function runDawaScript(scriptKey, options = {}) {
   const script = ALLOWED_DAWA_SCRIPTS[scriptKey]
   if (!script)
     return {
@@ -328,6 +360,23 @@ export async function runDawaScript(scriptKey) {
       message: result.success
         ? `Đã mở [${script.description}]`
         : `Không thể mở [${script.description}]: ${result.stderr}`,
+      stepResults: outputs
+    }
+  }
+
+  if (script.profiles) {
+    const profileFile = script.profiles[options.profile]
+    if (!profileFile) {
+      return { success: false, message: 'Cấu hình RAM không hợp lệ.' }
+    }
+    const file = join(SCRIPT_DIRECTORY, 'Optimizer', 'Ram Optimization', profileFile)
+    const result = await runWhitelistedCommand(WINDOWS_COMMANDS.reg, ['import', file])
+    outputs.push({ file: WINDOWS_COMMANDS.reg, args: `import ${file}`, ...result })
+    return {
+      success: result.success,
+      message: result.success
+        ? `Đã áp dụng RAM profile ${options.profile === 'reset' ? 'mặc định' : `${options.profile}GB`}.`
+        : `Không thể áp dụng RAM profile: ${result.stderr}`,
       stepResults: outputs
     }
   }

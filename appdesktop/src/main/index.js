@@ -1016,7 +1016,7 @@ app.whenReady().then(() => {
     })
   })
 
-  ipcMain.handle('system:run-dawa-script', async (_, { scriptKey }) => {
+  ipcMain.handle('system:run-dawa-script', async (_, { scriptKey, options = {} }) => {
     const { localCheck } = await getLocalLicenseGate()
     if (!localCheck.valid) {
       return { success: false, message: 'Yêu cầu bản quyền hợp lệ.' }
@@ -1030,7 +1030,7 @@ app.whenReady().then(() => {
     ) {
       return { success: false, message: 'Script không được phép.' }
     }
-    return runDawaScript(scriptKey)
+    return runDawaScript(scriptKey, options)
   })
 
   ipcMain.handle('security:list-allowed-scripts', () => {

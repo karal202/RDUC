@@ -1,0 +1,4 @@
+HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\kbdclass\Parameters
+ใครใช้ละหน่วงปรับเป็นDefault Windows
+
+Made by Savenz https://discord.gg/UE8Fy9fQ7a,https://www.tiktok.com/@savenzkub,https://www.youtube.com/@Savenzkub ดิสส่วนตัวkingsavenz
