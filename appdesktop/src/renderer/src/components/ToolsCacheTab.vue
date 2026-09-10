@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import {
   Bolt,
   Gamepad2,
@@ -13,6 +13,7 @@ import {
 
 const activeTool = ref('msi')
 const isCleaning = ref(false)
+const isLaunchingTool = ref(false)
 const cleanLog = ref('')
 
 const tools = [
@@ -21,7 +22,9 @@ const tools = [
     label: 'MSI UTILITY V3',
     icon: SlidersHorizontal,
     desc: 'Tối ưu MSI (Message Signaled-Based Interrupts) Mode giảm độ trễ ngắt DPC cho GPU/Audio.',
-    badge: 'INTERRUPTS'
+    badge: 'INTERRUPTS',
+    action: 'msi-utility',
+    actionLabel: 'Mở MSI Utility V3'
   },
   {
     key: 'device',
@@ -45,6 +48,22 @@ const tools = [
     badge: 'SYSTEM'
   }
 ]
+
+const selectedTool = computed(() => tools.find((tool) => tool.key === activeTool.value))
+
+const launchSelectedTool = async () => {
+  if (!selectedTool.value?.action || isLaunchingTool.value) return
+  isLaunchingTool.value = true
+  cleanLog.value = `[TOOLS] Đang mở ${selectedTool.value.label}...\n`
+  try {
+    const res = await window.api.runDawaScript(selectedTool.value.action)
+    cleanLog.value += res.success ? `✅ ${res.message}` : `❌ ${res.message}`
+  } catch (err) {
+    cleanLog.value += `❌ Lỗi mở công cụ: ${err.message || err}`
+  } finally {
+    isLaunchingTool.value = false
+  }
+}
 
 const handleRunCacheClean = async () => {
   isCleaning.value = true
@@ -188,6 +207,17 @@ const handleRunCacheClean = async () => {
         </button>
       </div>
 
+      <div v-if="selectedTool?.action" class="tool-launch-panel">
+        <div>
+          <strong>{{ selectedTool.label }}</strong>
+          <span>{{ selectedTool.desc }}</span>
+        </div>
+        <button class="btn-primary" :disabled="isLaunchingTool" @click="launchSelectedTool">
+          <Play :size="14" :stroke-width="2.2" />
+          <span>{{ isLaunchingTool ? 'Đang mở...' : selectedTool.actionLabel }}</span>
+        </button>
+      </div>
+
       <!-- Console Log Output -->
       <div
         style="
@@ -231,3 +261,35 @@ const handleRunCacheClean = async () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.tool-launch-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: -4px 0 20px;
+  padding: 14px 16px;
+  border: 1px solid rgba(34, 197, 94, 0.28);
+  border-radius: 10px;
+  background: rgba(34, 197, 94, 0.07);
+}
+.tool-launch-panel div {
+  display: grid;
+  gap: 3px;
+}
+.tool-launch-panel strong {
+  color: #fff;
+  font-size: 14px;
+}
+.tool-launch-panel span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+@media (max-width: 640px) {
+  .tool-launch-panel {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+</style>

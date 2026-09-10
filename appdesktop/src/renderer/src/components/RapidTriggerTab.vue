@@ -112,8 +112,8 @@ const invertSelection = () => {
               type="button"
               class="switch-control"
               :class="{ on: rapidTriggerEnabled }"
-              @click="rapidTriggerEnabled = !rapidTriggerEnabled"
               aria-label="Kích hoạt Rapid Trigger"
+              @click="rapidTriggerEnabled = !rapidTriggerEnabled"
             >
               <span></span>
             </button>
@@ -125,8 +125,8 @@ const invertSelection = () => {
               type="button"
               class="switch-control"
               :class="{ on: continuousEnabled }"
-              @click="continuousEnabled = !continuousEnabled"
               aria-label="Kích hoạt Continuous"
+              @click="continuousEnabled = !continuousEnabled"
             >
               <span></span>
             </button>

@@ -4,8 +4,13 @@ import { RotateCcw, History, WifiOff, SlidersHorizontal, Play } from 'lucide-vue
 
 const logOutput = ref('')
 const isRunning = ref(false)
+const SUPPORTED_ACTIONS = new Set()
 
 const runCmdHook = async (actionName, description) => {
+  if (!SUPPORTED_ACTIONS.has(actionName)) {
+    logOutput.value = `[RESTORE] ${description}: chưa có file khôi phục tương ứng trong thư mục resources.`
+    return
+  }
   isRunning.value = true
   logOutput.value = `[CMD HOOK] Đang gọi lệnh Restore Default [${actionName}] - ${description}...`
 

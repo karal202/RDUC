@@ -39,6 +39,8 @@ const api = {
   getSystemStats: () => ipcRenderer.invoke('system:get-stats'),
   restartToBios: () => ipcRenderer.invoke('system:restart-to-bios'),
   runDawaScript: (scriptKey) => ipcRenderer.invoke('system:run-dawa-script', { scriptKey }),
+  executeCmdScript: ({ action }) =>
+    ipcRenderer.invoke('system:run-dawa-script', { scriptKey: action }),
   listAllowedScripts: () => ipcRenderer.invoke('security:list-allowed-scripts'),
 
   traySetState: (state) => ipcRenderer.invoke('tray:set-state', state),
