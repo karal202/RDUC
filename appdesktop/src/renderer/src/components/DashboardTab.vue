@@ -54,7 +54,8 @@ const stats = ref({
   },
   network: { iface: '', rx_sec: 0, tx_sec: 0 },
   disk: { fs: '', usePercent: 0, size: '0', used: '0', available: '0' },
-  system: { platform: 'win32', hostname: 'PC-HOST', uptimeSeconds: 0, arch: 'x64', release: '' }
+  system: { platform: 'win32', hostname: 'PC-HOST', uptimeSeconds: 0, arch: 'x64', release: '' },
+  battery: { percent: null, charging: false }
 })
 
 const isLoading = ref(true)
@@ -76,6 +77,18 @@ const uptimeParts = computed(() => {
   }
 })
 
+// Chu vi vòng tròn gauge pin trong SVG laptop (r=19) -> 2 * PI * 19 ≈ 119.4
+const BATTERY_RING_CIRC = 119.4
+const batteryDasharray = computed(() => {
+  const pct = Math.min(Math.max(Number(stats.value.battery?.percent) || 0, 0), 100)
+  const filled = (pct / 100) * BATTERY_RING_CIRC
+  return `${filled} ${BATTERY_RING_CIRC}`
+})
+const batteryColor = computed(() => (stats.value.battery?.charging ? '#fbbf24' : '#4ade80'))
+const batteryLabel = computed(() =>
+  stats.value.battery?.percent != null ? `${stats.value.battery.percent}%` : '—'
+)
+
 const fetchStats = async () => {
   if (isFetching || !isMonitoring || document.hidden) return
   isFetching = true
@@ -91,7 +104,8 @@ const fetchStats = async () => {
           network: res.network || stats.value.network || { iface: '', rx_sec: 0, tx_sec: 0 },
           disk: res.disk ||
             stats.value.disk || { fs: 'C:', usePercent: 0, size: '0', used: '0', available: '0' },
-          system: { ...stats.value.system, ...(res.system || {}) }
+          system: { ...stats.value.system, ...(res.system || {}) },
+          battery: { ...stats.value.battery, ...(res.battery || {}) }
         }
         liveUptime.value = res.system?.uptimeSeconds || 0
       }
@@ -150,7 +164,7 @@ const cpuFullName = computed(() => {
 const emit = defineEmits(['go-tab'])
 
 const quickTools = computed(() => [
-  { key: 'dawa', label: 'Tối ưu', icon: Sparkles, accent: '#1677ff', hint: 'DAWA AI' },
+  { key: 'dawa', label: 'Tối ưu', icon: Sparkles, accent: '#1677ff', hint: 'Optimize' },
   { key: 'bios', label: 'BIOS Tune', icon: Power, accent: '#f59e0b', hint: 'Cấu hình' },
   { key: 'network', label: 'Network', icon: Network, accent: '#22c55e', hint: 'Ping & Packet' }
 ])
@@ -161,7 +175,6 @@ const presetTools = computed(() => [
   { key: 'tools', label: 'Clean Cache', icon: HardDrive },
   { key: 'restore', label: 'Restore', icon: RotateCcw }
 ])
-
 
 const handleTileHover = (e, tileEl) => {
   if (!tileEl) return
@@ -235,6 +248,10 @@ onUnmounted(() => {
             <!-- LEFT: HERO DEVICE VISUAL (SVG, no 3D) -->
             <div class="dp-device-stage">
               <div class="dp-device-shine"></div>
+              <div class="dp-machine-identity">
+                <span>{{ stats.deviceType === 'laptop' ? 'LAPTOP STATION' : 'PC DESKTOP' }}</span>
+                <strong>{{ stats.system.hostname }}</strong>
+              </div>
               <div
                 class="dp-device-wrapper"
                 :class="{ 'is-laptop': stats.deviceType === 'laptop' }"
@@ -262,28 +279,84 @@ onUnmounted(() => {
                   </defs>
                   <rect x="56" y="8" width="308" height="180" rx="14" fill="url(#laptopBody)" />
                   <rect x="64" y="16" width="292" height="160" rx="8" fill="url(#laptopScreen)" />
+
+                  <!-- Màn hình mini: header + gauge pin + biểu đồ -->
+                  <rect x="104" y="44" width="212" height="104" rx="8" fill="#0c1226" />
                   <rect
                     x="104"
                     y="44"
                     width="212"
                     height="104"
-                    rx="6"
+                    rx="8"
                     fill="url(#laptopGlow)"
-                    opacity="0.35"
+                    opacity="0.14"
                   />
                   <text
-                    x="210"
-                    y="108"
+                    x="114"
+                    y="60"
                     font-family="Archivo, sans-serif"
-                    font-size="38"
+                    font-size="13"
                     font-weight="800"
-                    text-anchor="middle"
                     fill="#ffffff"
-                    opacity="0.92"
-                    letter-spacing="2"
+                    opacity="0.95"
+                    letter-spacing="1"
                   >
                     DAWA
                   </text>
+                  <circle cx="298" cy="56" r="3" fill="#4ade80" />
+                  <rect x="112" y="67" width="196" height="1" fill="rgba(255,255,255,0.08)" />
+
+                  <!-- Gauge pin động, thay cho số tĩnh 64% -->
+                  <circle
+                    cx="140"
+                    cy="105"
+                    r="19"
+                    fill="none"
+                    stroke="rgba(255,255,255,0.14)"
+                    stroke-width="5"
+                  />
+                  <circle
+                    cx="140"
+                    cy="105"
+                    r="19"
+                    fill="none"
+                    :stroke="batteryColor"
+                    stroke-width="5"
+                    stroke-linecap="round"
+                    :stroke-dasharray="batteryDasharray"
+                    transform="rotate(-90 140 105)"
+                  />
+                  <text
+                    x="140"
+                    y="106"
+                    font-family="JetBrains Mono, monospace"
+                    font-size="10"
+                    font-weight="700"
+                    text-anchor="middle"
+                    fill="#fff"
+                  >
+                    {{ batteryLabel }}
+                  </text>
+                  <text
+                    x="140"
+                    y="118"
+                    font-family="JetBrains Mono, monospace"
+                    font-size="6"
+                    font-weight="600"
+                    text-anchor="middle"
+                    fill="#94a3b8"
+                  >
+                    {{ stats.battery?.charging ? 'CHG' : 'BAT' }}
+                  </text>
+
+                  <rect x="176" y="80" width="118" height="5" rx="2.5" fill="rgba(255,255,255,0.2)" />
+                  <rect x="176" y="90" width="78" height="5" rx="2.5" fill="rgba(255,255,255,0.12)" />
+                  <rect x="176" y="120" width="8" height="18" rx="2" fill="#60a5fa" />
+                  <rect x="188" y="110" width="8" height="28" rx="2" fill="#4ade80" />
+                  <rect x="200" y="124" width="8" height="14" rx="2" fill="#c084fc" />
+                  <rect x="212" y="102" width="8" height="36" rx="2" fill="#fbbf24" />
+                  <rect x="224" y="116" width="8" height="22" rx="2" fill="#f87171" />
+
                   <circle cx="80" cy="30" r="2.6" fill="#ef4444" />
                   <circle cx="92" cy="30" r="2.6" fill="#f59e0b" />
                   <circle cx="104" cy="30" r="2.6" fill="#22c55e" />
@@ -392,22 +465,39 @@ onUnmounted(() => {
                 <div class="dp-rgb-strip"></div>
               </div>
 
-              <!-- Floating metric chips -->
-              <div class="dp-chip dp-chip--cpu" data-pulse="1">
-                <Cpu :size="12" />
-                <span>{{ stats.cpu.usagePercent }}%</span>
-              </div>
-              <div class="dp-chip dp-chip--gpu">
-                <CircuitBoard :size="12" />
-                <span>{{ stats.gpu.usagePercent ?? 0 }}%</span>
-              </div>
-              <div class="dp-chip dp-chip--ram">
-                <MemoryStick :size="12" />
-                <span>{{ stats.ram.usedGB }}G</span>
+              <div class="dp-device-callouts" aria-label="Thông tin thiết bị">
+                <div class="dp-callout dp-callout--cpu">
+                  <span>CPU</span>
+                  <div class="dp-callout-detail">
+                    <strong>{{ cpuFullName }}</strong
+                    ><em>{{ stats.cpu.usagePercent }}%</em>
+                  </div>
+                </div>
+                <div class="dp-callout dp-callout--gpu">
+                  <span>GPU</span>
+                  <div class="dp-callout-detail">
+                    <strong>{{ stats.gpu.model }}</strong
+                    ><em>{{ stats.gpu.usagePercent ?? 0 }}%</em>
+                  </div>
+                </div>
+                <div class="dp-callout dp-callout--ram">
+                  <span>RAM</span>
+                  <div class="dp-callout-detail">
+                    <strong>{{ stats.ram.totalGB }}GB installed</strong
+                    ><em>{{ stats.ram.usedGB }}GB used</em>
+                  </div>
+                </div>
+                <div class="dp-callout dp-callout--os">
+                  <span>HỆ ĐIỀU HÀNH</span>
+                  <div class="dp-callout-detail">
+                    <strong>Windows {{ stats.system.arch }}</strong
+                    ><em>{{ uptimeParts.hh }}:{{ uptimeParts.mm }}</em>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <!-- RIGHT: SPEC LIST -->
+            <!-- RIGHT: SPEC LIST (ẩn theo layout hiện tại, giữ lại cho tương lai) -->
             <div class="dp-spec-panel">
               <div class="dp-spec-header">
                 <span class="dp-spec-kicker">
@@ -487,7 +577,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- ============== INSIGHT / TIP CARD ============== -->
+        <!-- ============== INSIGHT / TIP CARD (ẩn theo layout hiện tại) ============== -->
         <div
           class="dp-insight-card dp-tile"
           @mousemove="handleTileHover($event, $event.currentTarget)"
@@ -790,7 +880,7 @@ onUnmounted(() => {
           </header>
           <div class="dp-wg-toggle-top">
             <strong class="dp-wg-toggle-num">Ready</strong>
-            <span>lượt tối ưu hôm qua</span>
+            <span>Sẵn sàng tối ưu</span>
           </div>
           <div class="dp-wg-toggle-mid">
             <div class="dp-wg-toggle-icon-row">
@@ -918,8 +1008,10 @@ onUnmounted(() => {
 .dp-banner {
   position: relative;
   padding: 0;
+  width: 100%;
 }
 .dp-banner > :deep(.hero-banner) {
+  aspect-ratio: 21 / 9;
   border-radius: 18px;
   overflow: hidden;
   border: 1px solid rgba(148, 163, 184, 0.12);
@@ -1107,26 +1199,145 @@ onUnmounted(() => {
 /* =========== MY GEAR GRID =========== */
 .dp-gear-grid {
   display: grid;
-  grid-template-columns: 1.55fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
+}
+
+/* The machine is one focused surface: artwork, identity and the primary action. */
+.dp-insight-card,
+.dp-chip,
+.dp-spec-list {
+  display: none;
 }
 
 /* ---- HERO DEVICE CARD ---- */
 .dp-hero-card .dp-tile-inner {
   display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  min-height: 320px;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 410px;
 }
 .dp-device-stage {
   position: relative;
-  padding: 28px 24px 24px;
+  padding: 64px 150px 48px;
   display: grid;
   place-items: center;
   background:
     radial-gradient(ellipse at 50% 40%, rgba(22, 119, 255, 0.22), transparent 60%),
     radial-gradient(ellipse at 80% 80%, rgba(168, 85, 247, 0.18), transparent 62%);
-  border-right: 1px solid rgba(148, 163, 184, 0.1);
   overflow: hidden;
+}
+.dp-machine-identity {
+  position: absolute;
+  top: 24px;
+  left: 28px;
+  display: grid;
+  gap: 4px;
+}
+.dp-machine-identity span,
+.dp-callout span {
+  color: #60a5fa;
+  font: 700 10px/1.2 var(--font-mono, ui-monospace, monospace);
+  letter-spacing: 0.1em;
+}
+.dp-machine-identity strong {
+  max-width: 300px;
+  overflow: hidden;
+  color: #f8fafc;
+  font-size: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dp-device-callouts {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.dp-callout {
+  position: absolute;
+  display: grid;
+  gap: 4px;
+  max-width: min(230px, 22%);
+  color: #cbd5e1;
+}
+.dp-callout strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.dp-callout-detail {
+  display: block;
+}
+.dp-callout-detail strong {
+  display: inline;
+  overflow-wrap: anywhere;
+}
+.dp-callout em {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 0;
+  margin-left: 7px;
+  padding: 2px 9px;
+  border: 1px solid rgba(96, 165, 250, 0.42);
+  border-radius: 999px;
+  background: rgba(96, 165, 250, 0.14);
+  color: #dbeafe;
+  font: 800 13px/1.3 var(--font-mono, ui-monospace, monospace);
+  font-style: normal;
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 10px rgba(96, 165, 250, 0.45);
+}
+.dp-callout--ram em,
+.dp-callout--os em {
+  border-color: rgba(168, 85, 247, 0.42);
+  background: rgba(168, 85, 247, 0.14);
+  color: #ede9fe;
+  text-shadow: 0 0 10px rgba(168, 85, 247, 0.45);
+}
+.dp-callout::after {
+  content: '';
+  position: absolute;
+  height: 1px;
+  width: 62px;
+  background: linear-gradient(90deg, rgba(96, 165, 250, 0.7), transparent);
+}
+.dp-callout--cpu {
+  top: 31%;
+  left: 28px;
+  text-align: left;
+}
+.dp-callout--cpu::after {
+  top: 50%;
+  left: calc(100% + 10px);
+}
+.dp-callout--gpu {
+  top: 56%;
+  left: 28px;
+  text-align: left;
+}
+.dp-callout--gpu::after {
+  top: 50%;
+  left: calc(100% + 10px);
+}
+.dp-callout--ram {
+  top: 31%;
+  right: 28px;
+  text-align: right;
+}
+.dp-callout--ram::after {
+  top: 50%;
+  right: calc(100% + 10px);
+  transform: rotate(180deg);
+}
+.dp-callout--os {
+  top: 56%;
+  right: 28px;
+  text-align: right;
+}
+.dp-callout--os::after {
+  top: 50%;
+  right: calc(100% + 10px);
+  transform: rotate(180deg);
 }
 .dp-device-shine {
   position: absolute;
@@ -1258,6 +1469,7 @@ onUnmounted(() => {
 
 /* ---- SPEC PANEL ---- */
 .dp-spec-panel {
+  display: none !important;
   padding: 26px 24px 22px;
   display: flex;
   flex-direction: column;
@@ -2400,7 +2612,6 @@ onUnmounted(() => {
     grid-template-columns: 1fr;
   }
   .dp-hero-card .dp-tile-inner {
-    grid-template-columns: 1.15fr 1fr;
     min-height: 280px;
   }
 }
@@ -2421,8 +2632,9 @@ onUnmounted(() => {
     min-height: auto;
   }
   .dp-device-stage {
-    border-right: none;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    min-height: 390px;
+    padding-left: 115px;
+    padding-right: 115px;
   }
   .dp-bento {
     grid-template-columns: 1fr;
@@ -2435,6 +2647,28 @@ onUnmounted(() => {
   }
 }
 @media (max-width: 560px) {
+  .dp-device-stage {
+    min-height: 460px;
+    padding: 88px 24px 88px;
+  }
+  .dp-machine-identity {
+    top: 20px;
+    left: 20px;
+  }
+  .dp-callout {
+    max-width: calc(50% - 30px);
+  }
+  .dp-callout--cpu,
+  .dp-callout--gpu {
+    left: 18px;
+  }
+  .dp-callout--ram,
+  .dp-callout--os {
+    right: 18px;
+  }
+  .dp-callout::after {
+    width: 26px;
+  }
   .dp-gauge-row {
     gap: 6px;
   }

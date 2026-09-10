@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { RotateCcw, Keyboard, AlertCircle, Sparkles } from 'lucide-vue-next'
+import { RotateCcw, Keyboard, Sparkles } from 'lucide-vue-next'
 
 const rapidTriggerEnabled = ref(false)
 const continuousEnabled = ref(false)
@@ -53,35 +53,6 @@ const invertSelection = () => {
         </div>
       </div>
 
-      <!-- Technical Notice -->
-      <div
-        style="
-          display: flex;
-          align-items: flex-start;
-          gap: 12px;
-          margin-bottom: 20px;
-          padding: 14px 16px;
-          border-radius: 8px;
-          background: rgba(245, 158, 11, 0.08);
-          border: 1px solid rgba(245, 158, 11, 0.25);
-          font-size: 12.5px;
-          line-height: 1.5;
-          color: #fde68a;
-        "
-      >
-        <AlertCircle
-          :size="18"
-          style="color: var(--accent-amber); flex-shrink: 0; margin-top: 2px"
-        />
-        <div>
-          <strong style="color: #fbbf24">Lưu ý kỹ thuật:</strong>
-          <span style="color: #cbd5e1; margin-left: 4px">
-            Tính năng Rapid Trigger vật lý theo điểm chiều sâu (mm) yêu cầu bàn phím cơ trang bị
-            switch từ tính nam châm Hall Effect (Wooting, Razer, DrunkDeer...). Bảng điều khiển này
-            hoạt động dưới dạng mô phỏng giao diện và test phím.
-          </span>
-        </div>
-      </div>
 
       <!-- Interactive Cyber Keyboard -->
       <section class="keyboard-card">
@@ -106,30 +77,36 @@ const invertSelection = () => {
       <section class="rapid-settings">
         <div class="rapid-switches">
           <div class="rapid-setting">
-            <strong>Kích hoạt Rapid Trigger</strong>
+            <div class="rapid-setting-head">
+              <strong>Kích hoạt Rapid Trigger</strong>
+              <button
+                type="button"
+                class="switch-control"
+                :class="{ on: rapidTriggerEnabled }"
+                :aria-pressed="rapidTriggerEnabled"
+                aria-label="Kích hoạt Rapid Trigger"
+                @click="rapidTriggerEnabled = !rapidTriggerEnabled"
+              >
+                <span></span>
+              </button>
+            </div>
             <span>Tự động nhận diện khoảng cách nhấn/nhả linh hoạt</span>
-            <button
-              type="button"
-              class="switch-control"
-              :class="{ on: rapidTriggerEnabled }"
-              aria-label="Kích hoạt Rapid Trigger"
-              @click="rapidTriggerEnabled = !rapidTriggerEnabled"
-            >
-              <span></span>
-            </button>
           </div>
           <div class="rapid-setting">
-            <strong>Chế độ Continuous</strong>
+            <div class="rapid-setting-head">
+              <strong>Chế độ Continuous</strong>
+              <button
+                type="button"
+                class="switch-control"
+                :class="{ on: continuousEnabled }"
+                :aria-pressed="continuousEnabled"
+                aria-label="Kích hoạt Continuous"
+                @click="continuousEnabled = !continuousEnabled"
+              >
+                <span></span>
+              </button>
+            </div>
             <span>Rapid Trigger kích hoạt toàn bộ hành trình switch</span>
-            <button
-              type="button"
-              class="switch-control"
-              :class="{ on: continuousEnabled }"
-              aria-label="Kích hoạt Continuous"
-              @click="continuousEnabled = !continuousEnabled"
-            >
-              <span></span>
-            </button>
           </div>
         </div>
 
