@@ -32,6 +32,46 @@ export function getDiscreteGpuController(graphics) {
 }
 
 let staticCache = null
+let deviceTypeCache = null
+
+function detectDeviceTypeByChassisOrBattery(chassis, battery) {
+  if (chassis) {
+    const t = String(chassis.type || chassis.chassis || '').toLowerCase()
+    if (/(laptop|notebook|convertible|handset|dock|subnotebook|netbook|ultrabook)/i.test(t))
+      return 'laptop'
+    if (/(desktop|tower|space|allinone|expansionchassis|server|mini-pc|minipc|sff)/i.test(t))
+      return 'pc'
+    if (chassis.type === 'Laptop' || chassis.type === 'Notebook' || chassis.type === 'Convertible')
+      return 'laptop'
+    if (chassis.type === 'Desktop' || chassis.type === 'Tower') return 'pc'
+  }
+  if (battery) {
+    const dc = Number(battery.designCapacity || 0)
+    const hasCharge = Number(battery.percent || battery.currentCapacity || 0) > 0 || dc > 0
+    if (hasCharge || battery.hasBattery === true || dc >= 4000) return 'laptop'
+  }
+  return 'pc'
+}
+
+export async function detectDeviceType() {
+  if (deviceTypeCache) return deviceTypeCache
+  try {
+    const [chassis, battery] = await Promise.all([
+      Promise.resolve()
+        .then(() => si.chassis?.())
+        .catch(() => null),
+      Promise.resolve()
+        .then(() => si.battery?.())
+        .catch(() => null)
+    ])
+    deviceTypeCache = detectDeviceTypeByChassisOrBattery(chassis, battery)
+  } catch (err) {
+    console.warn('Detect device type failed, fallback to pc:', err?.message || err)
+    deviceTypeCache = 'pc'
+  }
+  return deviceTypeCache
+}
+
 export async function getStaticInfo() {
   if (staticCache) return staticCache
   const [cpu, graphics] = await Promise.all([si.cpu(), si.graphics()])

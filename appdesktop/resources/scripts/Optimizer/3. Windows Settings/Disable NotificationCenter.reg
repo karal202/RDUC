@@ -1,0 +1,6 @@
+Windows Registry Editor Version 5.00
+
+; Made by Savenz
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Explorer]
+"DisableNotificationCenter"=dword:00000001

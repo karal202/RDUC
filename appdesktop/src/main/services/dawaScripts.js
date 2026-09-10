@@ -1,4 +1,4 @@
-import { execFile } from 'child_process'
+import { execFile, spawn } from 'child_process'
 import { readdir, rm } from 'fs/promises'
 import { join } from 'path'
 
@@ -64,6 +64,183 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
     description: 'Khởi động vào BIOS bằng file BAT',
     commands: [[WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', join(SCRIPT_DIRECTORY, 'bios.bat')]]]
   },
+  'win-disable-hibernate': {
+    description: 'Tắt Hibernate',
+    commands: [[WINDOWS_COMMANDS.powercfg, ['/h', 'off']]]
+  },
+  'win-enable-hibernate': {
+    description: 'Bật Hibernate',
+    commands: [[WINDOWS_COMMANDS.powercfg, ['/h', 'on']]]
+  },
+  'win-disable-fso-gamebar': {
+    description: 'Tắt Game Bar và Game DVR',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'add',
+          'HKCU\\Software\\Microsoft\\GameBar',
+          '/v',
+          'ShowStartupPanel',
+          '/t',
+          'REG_DWORD',
+          '/d',
+          '0',
+          '/f'
+        ]
+      ],
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'add',
+          'HKCU\\System\\GameConfigStore',
+          '/v',
+          'GameDVR_Enabled',
+          '/t',
+          'REG_DWORD',
+          '/d',
+          '0',
+          '/f'
+        ]
+      ]
+    ]
+  },
+  'win-enable-fso-gamebar': {
+    description: 'Bật lại Game Bar và Game DVR',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'add',
+          'HKCU\\Software\\Microsoft\\GameBar',
+          '/v',
+          'ShowStartupPanel',
+          '/t',
+          'REG_DWORD',
+          '/d',
+          '1',
+          '/f'
+        ]
+      ],
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'add',
+          'HKCU\\System\\GameConfigStore',
+          '/v',
+          'GameDVR_Enabled',
+          '/t',
+          'REG_DWORD',
+          '/d',
+          '1',
+          '/f'
+        ]
+      ]
+    ]
+  },
+  'win-disable-telemetry': {
+    description: 'Tắt dịch vụ Telemetry',
+    commands: [
+      [WINDOWS_COMMANDS.sc, ['stop', 'DiagTrack']],
+      [WINDOWS_COMMANDS.sc, ['config', 'DiagTrack', 'start=', 'disabled']]
+    ]
+  },
+  'win-enable-telemetry': {
+    description: 'Bật lại dịch vụ Telemetry',
+    commands: [[WINDOWS_COMMANDS.sc, ['config', 'DiagTrack', 'start=', 'auto']]]
+  },
+  'win-disable-superfetch': {
+    description: 'Tắt dịch vụ SysMain',
+    commands: [
+      [WINDOWS_COMMANDS.sc, ['stop', 'SysMain']],
+      [WINDOWS_COMMANDS.sc, ['config', 'SysMain', 'start=', 'disabled']]
+    ]
+  },
+  'win-enable-superfetch': {
+    description: 'Bật lại dịch vụ SysMain',
+    commands: [[WINDOWS_COMMANDS.sc, ['config', 'SysMain', 'start=', 'auto']]]
+  },
+  'win-disable-transparency': {
+    description: 'Tắt hiệu ứng Transparency',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'add',
+          'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize',
+          '/v',
+          'EnableTransparency',
+          '/t',
+          'REG_DWORD',
+          '/d',
+          '0',
+          '/f'
+        ]
+      ]
+    ]
+  },
+  'win-enable-transparency': {
+    description: 'Bật hiệu ứng Transparency',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'add',
+          'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize',
+          '/v',
+          'EnableTransparency',
+          '/t',
+          'REG_DWORD',
+          '/d',
+          '1',
+          '/f'
+        ]
+      ]
+    ]
+  },
+  'network-tcp-ping': {
+    description: 'Áp dụng TCP ACK low-latency',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        ['import', join(SCRIPT_DIRECTORY, 'Network', 'AckTicksandAckFrequency.reg')]
+      ]
+    ]
+  },
+  'network-flush-dns': {
+    description: 'Flush DNS',
+    commands: [
+      [WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', join(SCRIPT_DIRECTORY, 'Network', 'DNS.cmd')]]
+    ]
+  },
+  'network-dns-gaming': {
+    description: 'Làm mới DNS cache',
+    commands: [
+      [WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', join(SCRIPT_DIRECTORY, 'Network', 'DNS.cmd')]]
+    ]
+  },
+  'mouse-disable-acceleration': {
+    description: 'Áp dụng cấu hình chuột gaming',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        ['import', join(SCRIPT_DIRECTORY, 'Input Lag', 'Mouse', 'MouseSetting.reg')]
+      ]
+    ]
+  },
+  'keyboard-zero-delay': {
+    description: 'Áp dụng cấu hình graphics low-latency',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        ['import', join(SCRIPT_DIRECTORY, 'Input Lag', 'Reduce Input Lag', 'Graphics.reg')]
+      ]
+    ]
+  },
+  'msi-utility': {
+    description: 'Mở MSI Utility V3',
+    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'MSI Utility', 'MSI Utility V3.exe')
+  },
   'ntfs-bat': {
     description: 'Kích hoạt sửa lỗi NTFS bằng file BAT',
     commands: [[WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', join(SCRIPT_DIRECTORY, 'NTFS.bat')]]]
@@ -119,6 +296,21 @@ function runWhitelistedCommand(file, args) {
   })
 }
 
+function launchWhitelistedApp(file) {
+  return new Promise((resolve) => {
+    try {
+      const child = spawn(file, [], { detached: true, stdio: 'ignore', windowsHide: false })
+      child.once('error', (error) => resolve({ success: false, stderr: error.message }))
+      child.once('spawn', () => {
+        child.unref()
+        resolve({ success: true, stdout: `Đã mở ${file}` })
+      })
+    } catch (error) {
+      resolve({ success: false, stderr: error.message })
+    }
+  })
+}
+
 export async function runDawaScript(scriptKey) {
   const script = ALLOWED_DAWA_SCRIPTS[scriptKey]
   if (!script)
@@ -127,6 +319,18 @@ export async function runDawaScript(scriptKey) {
       message: `Script [${scriptKey}] không nằm trong danh sách được phép thực thi.`
     }
   const outputs = []
+
+  if (script.launch) {
+    const result = await launchWhitelistedApp(script.launch)
+    outputs.push({ file: script.launch, args: '', ...result })
+    return {
+      success: result.success,
+      message: result.success
+        ? `Đã mở [${script.description}]`
+        : `Không thể mở [${script.description}]: ${result.stderr}`,
+      stepResults: outputs
+    }
+  }
 
   if (scriptKey === 'dawa-cleaner') {
     const directories = [process.env.TEMP, join(WINDOWS_SYSTEM_DIRECTORY, 'Prefetch')].filter(

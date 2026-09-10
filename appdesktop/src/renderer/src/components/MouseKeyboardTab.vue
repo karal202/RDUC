@@ -4,8 +4,13 @@ import { MousePointer2, ShieldAlert, Crosshair, Keyboard, Play } from 'lucide-vu
 
 const logOutput = ref('')
 const isRunning = ref(false)
+const SUPPORTED_ACTIONS = new Set(['mouse-disable-acceleration', 'keyboard-zero-delay'])
 
 const runCmdHook = async (actionName, description) => {
+  if (!SUPPORTED_ACTIONS.has(actionName)) {
+    logOutput.value = `[INPUT LAG] ${description}: chưa có file script tương ứng trong thư mục resources.`
+    return
+  }
   isRunning.value = true
   logOutput.value = `[CMD HOOK] Đang gọi lệnh script Mouse & Keyboard [${actionName}] - ${description}...`
 

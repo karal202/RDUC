@@ -44,7 +44,7 @@ export function verifyLocalLicense(licenseData, currentDeviceHash) {
   if (
     LEGACY_SIGNATURE_CHECK_ENABLED &&
     licenseData.signature !==
-    calculateSignature(licenseData.keyCode, licenseData.deviceHash, licenseData.timestamp)
+      calculateSignature(licenseData.keyCode, licenseData.deviceHash, licenseData.timestamp)
   )
     return { valid: false, message: 'Phát hiện can thiệp vào file license (Signature Invalid)' }
   if (licenseData.expiresAt && new Date(licenseData.expiresAt).getTime() < Date.now())
@@ -77,7 +77,9 @@ function writeEncryptedJson(filePath, data) {
   const dir = path.dirname(filePath)
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
   if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error('Operating-system secure storage is unavailable; refusing to store a license locally')
+    throw new Error(
+      'Operating-system secure storage is unavailable; refusing to store a license locally'
+    )
   }
   const encrypted = safeStorage.encryptString(JSON.stringify(data)).toString('base64')
   fs.writeFileSync(filePath, encrypted, { encoding: 'utf-8', mode: 0o600 })
@@ -104,7 +106,7 @@ export function createLicenseStore(licenseFilePath) {
         keyCode,
         deviceHash,
         activatedAt: new Date().toISOString(),
-        expiresAt,
+        expiresAt
         // Authorization is verified online; no signing secret is shipped in the app.
       }
       writeEncryptedJson(licenseFilePath, data)

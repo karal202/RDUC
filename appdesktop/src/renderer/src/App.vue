@@ -16,7 +16,6 @@ import ToolsCacheTab from './components/ToolsCacheTab.vue'
 import logo from './assets/logo.png'
 import { verticalBanners } from './assets/banners'
 import {
-  ChevronDown,
   CircleCheck,
   CircleX,
   HardDrive,
@@ -66,7 +65,7 @@ const toolNav = [
   { key: 'mouse', label: 'Input Lag', icon: MousePointer2 },
   { key: 'rapid', label: 'Rapid Trigger', icon: KeyboardIcon },
   { key: 'tools', label: 'Tools & Cache', icon: HardDrive },
-  { key: 'restore', label: 'Restore', icon: RotateCcw },
+  { key: 'restore', label: 'Restore', icon: RotateCcw }
 ]
 const isActivated = ref(false)
 const licenseInfo = ref(null)
@@ -197,11 +196,9 @@ const { connected: socketConnected, reconnect: reconnectSocket } = useSocket({
   }
 })
 
-const minimizeToTray = async () => {
-  try {
-    await window.api?.trayMinimize?.()
-  } catch (err) {
-    console.warn('Minimize to tray failed:', err)
+const handleGoTab = (tabKey) => {
+  if (tabKey && typeof tabKey === 'string' && tabComponents[tabKey]) {
+    activeTab.value = tabKey
   }
 }
 
@@ -297,15 +294,6 @@ onMounted(() => {
         </nav>
 
         <div class="hud-top-right">
-          <button
-            class="btn-tray-mini"
-            type="button"
-            title="Thu nhỏ vào khay hệ thống (chạy ngầm)"
-            @click="minimizeToTray"
-          >
-            <ChevronDown :size="14" :stroke-width="2.2" />
-            ẨN VÀO TRAY
-          </button>
           <div v-if="licenseInfo?.offlineMode" class="status-badge offline">
             <span class="status-dot"></span>
             OFFLINE
@@ -328,7 +316,7 @@ onMounted(() => {
             <div class="hud-frame-mark">DAWA / {{ pageTitle }}</div>
             <div class="tab-container">
               <KeepAlive>
-                <component :is="activeComponent" />
+                <component :is="activeComponent" @go-tab="handleGoTab" />
               </KeepAlive>
             </div>
           </div>
@@ -347,7 +335,12 @@ onMounted(() => {
         <div class="hud-bar-item">
           <span>
             <span v-if="socketConnected" class="link-radar-dot"></span>
-            <CircleCheck v-if="socketConnected" :size="12" :stroke-width="2" class="icon-live-glow" />
+            <CircleCheck
+              v-if="socketConnected"
+              :size="12"
+              :stroke-width="2"
+              class="icon-live-glow"
+            />
             <CircleX v-else :size="12" :stroke-width="2" />
             LINK
           </span>

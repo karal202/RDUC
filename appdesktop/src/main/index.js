@@ -10,7 +10,9 @@ import os from 'os'
 import { execFile } from 'child_process'
 import { deflateSync } from 'zlib'
 import si from 'systeminformation'
+import fs from 'fs'
 import {
+  detectDeviceType,
   formatGpuVram,
   getDiscreteGpuController,
   getStaticInfo,
@@ -58,6 +60,24 @@ if (!is.dev) {
   }
   app.commandLine.appendSwitch('disable-remote-debugging')
   app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor')
+}
+
+app.commandLine.appendSwitch('disable-http-cache')
+app.commandLine.appendSwitch('media-cache-size', '0')
+app.commandLine.appendSwitch('disk-cache-size', '0')
+app.commandLine.appendSwitch('disable-gpu-shader-disk-cache')
+app.commandLine.appendSwitch('js-flags', '--no-compilation-cache --no-wasm-code-cache')
+app.commandLine.appendSwitch('disable-wasm-code-cache')
+app.commandLine.appendSwitch('no-first-run')
+app.commandLine.appendSwitch('no-default-browser-check')
+
+try {
+  const cacheRoot = path.join(os.tmpdir(), 'dawa-chromium-cache')
+  if (!fs.existsSync(cacheRoot)) fs.mkdirSync(cacheRoot, { recursive: true })
+  app.commandLine.appendSwitch('disk-cache-dir', cacheRoot)
+  app.commandLine.appendSwitch('gpu-cache-dir', path.join(cacheRoot, 'gpu'))
+} catch {
+  void 0
 }
 
 const LICENSE_FILE_PATH = path.join(app.getPath('userData'), 'dawa_license_vault.dat')
@@ -909,12 +929,13 @@ app.whenReady().then(() => {
 
   ipcMain.handle('system:get-stats', async () => {
     try {
-      // Chạy song song: load + mem + cpuTemp + gpuTemp (dynamic data)
-      const [currentLoad, mem, cpuTemp, graphics] = await Promise.all([
+      // Chạy song song: load + mem + cpuTemp + gpuTemp + device type (cached)
+      const [currentLoad, mem, cpuTemp, graphics, deviceType] = await Promise.all([
         si.currentLoad(),
         si.mem(),
         si.cpuTemperature(),
-        si.graphics()
+        si.graphics(),
+        detectDeviceType()
       ])
 
       // Lấy static info từ cache (không fetch lại mỗi poll)
@@ -925,6 +946,7 @@ app.whenReady().then(() => {
 
       return {
         success: true,
+        deviceType: deviceType === 'laptop' ? 'laptop' : 'pc',
         cpu: {
           ...staticInfo.cpu,
           usagePercent: Math.round(currentLoad.currentLoad),

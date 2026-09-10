@@ -1,13 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import {
-  Sparkles,
-  Download,
-  ExternalLink,
-  RotateCcw,
-  AlertTriangle,
-  X
-} from 'lucide-vue-next'
+import { Sparkles, Download, ExternalLink, RotateCcw, AlertTriangle, X } from 'lucide-vue-next'
 
 const props = defineProps({
   versionInfo: {
@@ -87,9 +80,7 @@ const handleStartAutoUpdate = async () => {
   try {
     const res = await window.api?.startAutoUpdate?.()
     if (!res?.success) {
-      updateError.value = beautifyUpdateError(
-        res?.isDev ? 'dev' : res?.message || ''
-      )
+      updateError.value = beautifyUpdateError(res?.isDev ? 'dev' : res?.message || '')
       isDownloading.value = false
     }
   } catch (err) {
@@ -119,8 +110,8 @@ const handleQuitAndInstall = () => {
         v-if="!props.versionInfo.mandatory"
         type="button"
         class="modal-close-btn"
-        @click="emit('close')"
         aria-label="Đóng"
+        @click="emit('close')"
       >
         <X :size="16" />
       </button>
@@ -205,8 +196,8 @@ const handleQuitAndInstall = () => {
         <button
           type="button"
           class="btn-secondary btn-update-secondary"
-          @click="handleOpenDownloadPage"
           title="Tải trực tiếp file cài đặt Setup .exe từ web"
+          @click="handleOpenDownloadPage"
         >
           <ExternalLink :size="15" :stroke-width="2" />
           <span>Tải File Cài Đặt (.EXE)</span>
