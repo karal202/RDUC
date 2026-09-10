@@ -1,6 +1,0 @@
-Windows Registry Editor Version 5.00  
- 
-; Made by Savenz
- 
-[HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\Personalize]
-"EnableTransparency"=dword:00000000
