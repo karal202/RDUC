@@ -15,6 +15,8 @@ const activeTool = ref('msi')
 const isCleaning = ref(false)
 const isLaunchingTool = ref(false)
 const cleanLog = ref('')
+const ramProfile = ref('16')
+const ramProfiles = ['2', '3', '4', '6', '8', '10', '12', '16', '20', '24', '32', '48', '64']
 
 const tools = [
   {
@@ -38,14 +40,18 @@ const tools = [
     label: 'MEMORY CLEANER',
     icon: Gamepad2,
     desc: 'Xả sạch Standby List và Working Set RAM, chống drop FPS đột ngột khi chơi game nặng.',
-    badge: 'RAM CACHE'
+    badge: 'RAM CACHE',
+    action: 'ram-optimization',
+    actionLabel: 'Áp dụng RAM profile'
   },
   {
     key: 'tweaks',
     label: 'WIN UTIL TWEAKS',
     icon: Bolt,
     desc: 'Bộ tinh chỉnh hệ điều hành chuyên sâu tối ưu phản hồi và dịch vụ nền Windows.',
-    badge: 'SYSTEM'
+    badge: 'SYSTEM',
+    action: 'windows-settings-tweaks',
+    actionLabel: 'Áp dụng Windows Tweaks'
   }
 ]
 
@@ -56,7 +62,9 @@ const launchSelectedTool = async () => {
   isLaunchingTool.value = true
   cleanLog.value = `[TOOLS] Đang mở ${selectedTool.value.label}...\n`
   try {
-    const res = await window.api.runDawaScript(selectedTool.value.action)
+    const options =
+      selectedTool.value.action === 'ram-optimization' ? { profile: ramProfile.value } : {}
+    const res = await window.api.runDawaScript(selectedTool.value.action, options)
     cleanLog.value += res.success ? `✅ ${res.message}` : `❌ ${res.message}`
   } catch (err) {
     cleanLog.value += `❌ Lỗi mở công cụ: ${err.message || err}`
@@ -212,6 +220,14 @@ const handleRunCacheClean = async () => {
           <strong>{{ selectedTool.label }}</strong>
           <span>{{ selectedTool.desc }}</span>
         </div>
+        <label v-if="selectedTool.action === 'ram-optimization'" class="ram-profile-select">
+          <span>Dung lượng RAM</span>
+          <select v-model="ramProfile">
+            <option v-for="profile in ramProfiles" :key="profile" :value="profile">
+              {{ profile }} GB
+            </option>
+          </select>
+        </label>
         <button class="btn-primary" :disabled="isLaunchingTool" @click="launchSelectedTool">
           <Play :size="14" :stroke-width="2.2" />
           <span>{{ isLaunchingTool ? 'Đang mở...' : selectedTool.actionLabel }}</span>
@@ -285,6 +301,21 @@ const handleRunCacheClean = async () => {
 .tool-launch-panel span {
   color: var(--text-muted);
   font-size: 12px;
+}
+.ram-profile-select {
+  display: grid;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.ram-profile-select select {
+  min-width: 100px;
+  padding: 7px 9px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: #0b1220;
+  color: #fff;
 }
 @media (max-width: 640px) {
   .tool-launch-panel {
