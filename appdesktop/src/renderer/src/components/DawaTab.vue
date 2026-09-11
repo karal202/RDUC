@@ -10,11 +10,85 @@ import {
   EyeOff,
   Snowflake,
   Sparkle,
-  Shield
+  Shield,
+  SlidersHorizontal
 } from 'lucide-vue-next'
 
 const logOutput = ref('')
 const isRunning = ref(false)
+const selectedWin32Priority = ref('26')
+const selectedRegistryScript = ref('network-full-tweaks')
+
+const WIN32_PRIORITY_OPTIONS = Object.freeze([
+  { value: 'default', label: 'Default (02)' },
+  { value: '14', label: '14' },
+  { value: '15', label: '15' },
+  { value: '16', label: '16' },
+  { value: '18', label: '18' },
+  { value: '19', label: '19' },
+  { value: '1a', label: '1A' },
+  { value: '24', label: '24' },
+  { value: '25', label: '25' },
+  { value: '26', label: '26 (khuyến nghị)' },
+  { value: '28', label: '28' },
+  { value: '2a', label: '2A' },
+  { value: 'fa2a2a', label: 'FA2A2A' },
+  { value: 'fa332a', label: 'FA332A' },
+  { value: 'fb000000', label: 'FB000000' },
+  { value: 'fff9887', label: 'FFF9887' }
+])
+
+const REGISTRY_SCRIPT_OPTIONS = Object.freeze([
+  { value: 'network-full-tweaks', label: 'Network: Full TCP/IP Tweaks' },
+  { value: 'network-fast-send', label: 'Network: Fast Send Datagram Threshold' },
+  { value: 'mouse-queue-10', label: 'Mouse: Data Queue Size 10' },
+  { value: 'mouse-queue-20', label: 'Mouse: Data Queue Size 20' },
+  { value: 'mouse-queue-22', label: 'Mouse: Data Queue Size 22' },
+  { value: 'mouse-queue-25', label: 'Mouse: Data Queue Size 25' },
+  { value: 'mouse-queue-default', label: 'Mouse: Data Queue Size — Windows default' },
+  { value: 'keyboard-queue-10', label: 'Keyboard: Data Queue Size 10' },
+  { value: 'keyboard-queue-15', label: 'Keyboard: Data Queue Size 15' },
+  { value: 'keyboard-queue-20', label: 'Keyboard: Data Queue Size 20' },
+  { value: 'keyboard-queue-22', label: 'Keyboard: Data Queue Size 22' },
+  { value: 'keyboard-queue-25', label: 'Keyboard: Data Queue Size 25' },
+  { value: 'keyboard-queue-default', label: 'Keyboard: Data Queue Size — Windows default' },
+  { value: 'input-avx', label: 'Input Lag: AVX' },
+  { value: 'input-cache', label: 'Input Lag: Cache' },
+  { value: 'input-desktop', label: 'Input Lag: Desktop' },
+  { value: 'input-low-latency', label: 'Input Lag: Low Latency' },
+  { value: 'input-misc', label: 'Input Lag: Misc' },
+  { value: 'input-scripts', label: 'Input Lag: Scripts' },
+  { value: 'input-system', label: 'Input Lag: System' },
+  { value: 'win-desktop-settings', label: 'Windows: Desktop Settings' },
+  { value: 'win-disable-maintenance', label: 'Windows: Disable Automatic Maintenance' },
+  { value: 'win-disable-background-apps', label: 'Windows: Disable Background Apps' },
+  { value: 'win-disable-timer-coalescing', label: 'Windows: Disable Timer Coalescing' },
+  { value: 'win-disable-cpu-throttling', label: 'Windows: Disable CPU Throttling' },
+  { value: 'win-enable-cpu-throttling', label: 'Windows: Enable CPU Throttling' },
+  { value: 'win-disable-driver-updates', label: 'Windows: Disable Driver Updates' },
+  { value: 'win-enable-driver-updates', label: 'Windows: Enable Driver Updates' },
+  { value: 'win-disable-extra-services', label: 'Windows: Disable Extra Services' },
+  { value: 'win-enable-extra-services', label: 'Windows: Enable Extra Services' },
+  { value: 'win-disable-memory-mirroring', label: 'Windows: Disable Memory Mirroring' },
+  { value: 'win-disable-network-throttling', label: 'Windows: Disable Network Throttling' },
+  { value: 'win-disable-notifications', label: 'Windows: Disable Notification Center' },
+  { value: 'win-enable-notifications', label: 'Windows: Enable Notification Center' },
+  { value: 'win-disable-runtime-broker', label: 'Windows: Disable Runtime Broker' },
+  { value: 'win-disable-spectre-meltdown', label: 'Windows: Disable Spectre/Meltdown mitigations' },
+  { value: 'win-disable-sync', label: 'Windows: Disable Sync' },
+  { value: 'win-disable-windows-apps', label: 'Windows: Disable Windows Apps' },
+  { value: 'win-fine-memory-quota', label: 'Windows: Fine Grained Memory Quota' },
+  { value: 'win-large-page', label: 'Windows: Large Page' },
+  { value: 'win-low-latency', label: 'Windows: Low Latency' },
+  { value: 'win-memory-management', label: 'Windows: Memory Management' },
+  { value: 'win-perf-boost-mode', label: 'Windows: Performance Boost Mode' },
+  { value: 'win-power-settings', label: 'Windows: Power Settings' },
+  { value: 'win-prioritize-gpu', label: 'Windows: Prioritize GPU' },
+  { value: 'classic-menu-win10', label: 'Tools: Classic right-click menu — Windows 10' },
+  { value: 'classic-menu-win11', label: 'Tools: Classic right-click menu — Windows 11' },
+  { value: 'restore-gamer-services', label: 'Restore: Gamer services' },
+  { value: 'restore-professional-services', label: 'Restore: Professional services' }
+])
 
 const DAWA_ACTIONS = Object.freeze([
   {
@@ -101,11 +175,11 @@ const TWEAK_SWITCHES = Object.freeze([
 
 const switchStates = reactive(Object.fromEntries(TWEAK_SWITCHES.map((s) => [s.id, false])))
 
-const runDawaScript = async (scriptKey, description) => {
+const runDawaScript = async (scriptKey, description, options = {}) => {
   isRunning.value = true
   logOutput.value = `[DAWA] Đang thực thi [${scriptKey}] - ${description}...\n`
   try {
-    const res = await window.api.runDawaScript(scriptKey)
+    const res = await window.api.runDawaScript(scriptKey, options)
     if (res.success) {
       logOutput.value += `✅ ${res.message}\n`
       if (res.stepResults) {
@@ -146,6 +220,16 @@ const toggleWinSwitch = async (tweak) => {
     isRunning.value = false
   }
 }
+
+const applyWin32Priority = () =>
+  runDawaScript('win32-priority', `Win32Priority: ${selectedWin32Priority.value}`, {
+    profile: selectedWin32Priority.value
+  })
+
+const applyRegistryScript = () =>
+  runDawaScript('registry-profile', selectedRegistryScript.value, {
+    profile: selectedRegistryScript.value
+  })
 </script>
 
 <template>
@@ -214,6 +298,71 @@ const toggleWinSwitch = async (tweak) => {
               <span class="pg-switch-thumb" />
             </button>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="pg-card pg-tile">
+      <header class="pg-card-head">
+        <div class="pg-section-meta"><SlidersHorizontal :size="13" /><span>SCHEDULER</span></div>
+        <h2 class="pg-title">Win32PrioritySeparation</h2>
+        <p class="pg-subtitle">Chọn giá trị Win32PrioritySeparation rồi áp dụng vào Windows.</p>
+      </header>
+      <div class="pg-priority-control">
+        <label class="pg-priority-label" for="win32-priority">Win32Priority</label>
+        <div class="pg-priority-actions">
+          <select id="win32-priority" v-model="selectedWin32Priority" :disabled="isRunning">
+            <option
+              v-for="option in WIN32_PRIORITY_OPTIONS"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.label }}
+            </option>
+          </select>
+          <button
+            type="button"
+            class="pg-action-btn pg-priority-btn"
+            :disabled="isRunning"
+            @click="applyWin32Priority"
+          >
+            <Play :size="14" class="pg-play" />
+            <span>Áp dụng</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section class="pg-card pg-tile">
+      <header class="pg-card-head">
+        <div class="pg-section-meta"><Sparkles :size="13" /><span>SCRIPT LIBRARY</span></div>
+        <h2 class="pg-title">Thư viện tinh chỉnh</h2>
+        <p class="pg-subtitle">
+          Kết nối trực tiếp các script có sẵn trong resources: Network, Input Lag, Windows Settings,
+          menu chuột phải và khôi phục dịch vụ.
+        </p>
+      </header>
+      <div class="pg-priority-control">
+        <label class="pg-priority-label" for="registry-script">Chọn script</label>
+        <div class="pg-priority-actions">
+          <select id="registry-script" v-model="selectedRegistryScript" :disabled="isRunning">
+            <option
+              v-for="option in REGISTRY_SCRIPT_OPTIONS"
+              :key="option.value"
+              :value="option.value"
+            >
+              {{ option.label }}
+            </option>
+          </select>
+          <button
+            type="button"
+            class="pg-action-btn pg-priority-btn"
+            :disabled="isRunning"
+            @click="applyRegistryScript"
+          >
+            <Play :size="14" class="pg-play" />
+            <span>Chạy script</span>
+          </button>
         </div>
       </div>
     </section>
@@ -531,6 +680,52 @@ const toggleWinSwitch = async (tweak) => {
   color: #fda4af;
   font-size: 11px;
   font-weight: 700;
+}
+
+.pg-priority-control {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.11);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.025);
+}
+.pg-priority-label {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+}
+.pg-priority-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pg-priority-actions select {
+  min-width: 180px;
+  padding: 10px 12px;
+  color: #e2e8f0;
+  font:
+    600 13px/1.2 'JetBrains Mono',
+    ui-monospace,
+    monospace;
+  background: #111827;
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  border-radius: 10px;
+  outline: none;
+}
+.pg-priority-actions select:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+.pg-priority-actions select:disabled {
+  opacity: 0.6;
+}
+.pg-priority-btn {
+  padding: 10px 16px;
 }
 
 .pg-console {
