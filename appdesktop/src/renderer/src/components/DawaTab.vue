@@ -17,7 +17,7 @@ import {
 const logOutput = ref('')
 const isRunning = ref(false)
 const selectedWin32Priority = ref('26')
-const selectedRegistryScript = ref('network-full-tweaks')
+const selectedPowerPlan = ref('dawa-ultimate')
 
 const WIN32_PRIORITY_OPTIONS = Object.freeze([
   { value: 'default', label: 'Default (02)' },
@@ -36,6 +36,14 @@ const WIN32_PRIORITY_OPTIONS = Object.freeze([
   { value: 'fa332a', label: 'FA332A' },
   { value: 'fb000000', label: 'FB000000' },
   { value: 'fff9887', label: 'FFF9887' }
+])
+
+const POWER_PLAN_OPTIONS = Object.freeze([
+  { value: 'dawa-ultimate', label: 'DAWA Ultimate Performance' },
+  { value: 'atlas', label: 'Atlas Power Plan' },
+  { value: 'bitsum-highest', label: 'Bitsum Highest Performance' },
+  { value: 'amitv3-idle', label: 'Amitv3 Idle Enabled' },
+  { value: 'framesync-boost', label: 'FrameSync Boost' }
 ])
 
 const REGISTRY_SCRIPT_OPTIONS = Object.freeze([
@@ -226,10 +234,12 @@ const applyWin32Priority = () =>
     profile: selectedWin32Priority.value
   })
 
-const applyRegistryScript = () =>
-  runDawaScript('registry-profile', selectedRegistryScript.value, {
-    profile: selectedRegistryScript.value
+const applyPowerPlan = () => {
+  const opt = POWER_PLAN_OPTIONS.find(o => o.value === selectedPowerPlan.value)
+  runDawaScript('power-plan', opt?.label || selectedPowerPlan.value, {
+    profile: selectedPowerPlan.value
   })
+}
 </script>
 
 <template>
@@ -335,19 +345,16 @@ const applyRegistryScript = () =>
 
     <section class="pg-card pg-tile">
       <header class="pg-card-head">
-        <div class="pg-section-meta"><Sparkles :size="13" /><span>SCRIPT LIBRARY</span></div>
-        <h2 class="pg-title">Thư viện tinh chỉnh</h2>
-        <p class="pg-subtitle">
-          Kết nối trực tiếp các script có sẵn trong resources: Network, Input Lag, Windows Settings,
-          menu chuột phải và khôi phục dịch vụ.
-        </p>
+        <div class="pg-section-meta"><BatteryCharging :size="13" /><span>POWER PLAN</span></div>
+        <h2 class="pg-title">Power Plan Optimization</h2>
+        <p class="pg-subtitle">Chọn Power Plan hiệu năng cao nhất từ thư mục Optimizer/PowerPlan.</p>
       </header>
       <div class="pg-priority-control">
-        <label class="pg-priority-label" for="registry-script">Chọn script</label>
+        <label class="pg-priority-label" for="power-plan">Power Plan</label>
         <div class="pg-priority-actions">
-          <select id="registry-script" v-model="selectedRegistryScript" :disabled="isRunning">
+          <select id="power-plan" v-model="selectedPowerPlan" :disabled="isRunning">
             <option
-              v-for="option in REGISTRY_SCRIPT_OPTIONS"
+              v-for="option in POWER_PLAN_OPTIONS"
               :key="option.value"
               :value="option.value"
             >
@@ -358,10 +365,10 @@ const applyRegistryScript = () =>
             type="button"
             class="pg-action-btn pg-priority-btn"
             :disabled="isRunning"
-            @click="applyRegistryScript"
+            @click="applyPowerPlan"
           >
             <Play :size="14" class="pg-play" />
-            <span>Chạy script</span>
+            <span>Áp dụng</span>
           </button>
         </div>
       </div>

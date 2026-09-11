@@ -1,32 +1,43 @@
 <script setup>
 import { ref } from 'vue'
-import { RotateCcw, History, WifiOff, SlidersHorizontal, Play } from 'lucide-vue-next'
+import { RotateCcw, Gamepad2, Briefcase, Play } from 'lucide-vue-next'
 
 const logOutput = ref('')
 const isRunning = ref(false)
-const SUPPORTED_ACTIONS = new Set()
+const selectedRestoreScript = ref('restore-gamer-services')
 
-const runCmdHook = async (actionName, description) => {
-  if (!SUPPORTED_ACTIONS.has(actionName)) {
-    logOutput.value = `[RESTORE] ${description}: chưa có file khôi phục tương ứng trong thư mục resources.`
-    return
-  }
+const RESTORE_SCRIPT_OPTIONS = [
+  { value: 'restore-gamer-services', label: 'Disable Services For Gamers Restore' },
+  { value: 'restore-professional-services', label: 'Disable Services For Professionals Restore' }
+]
+
+const run = async (scriptKey, description, options = {}) => {
+  if (isRunning.value) return
   isRunning.value = true
-  logOutput.value = `[CMD HOOK] Đang gọi lệnh Restore Default [${actionName}] - ${description}...`
-
+  logOutput.value = `[RESTORE] Dang thuc thi [${scriptKey}] - ${description}...\n`
   try {
-    const res = await window.api.executeCmdScript({ action: actionName })
+    const res = await window.api.runDawaScript(scriptKey, options)
     if (res.success) {
-      logOutput.value += `\n✅ ${res.message}`
-      if (res.stdout) logOutput.value += `\nOutput: ${res.stdout}`
+      logOutput.value += `OK ${res.message}\n`
+      if (res.stepResults) res.stepResults.forEach((s, i) => {
+        logOutput.value += `  [${i + 1}] ${s.file} ${s.args}\n`
+        if (s.stdout) logOutput.value += `      ${s.stdout.trim()}\n`
+      })
     } else {
-      logOutput.value += `\n❌ ${res.message}`
+      logOutput.value += `NG ${res.message}\n`
     }
   } catch (err) {
-    logOutput.value += `\n❌ Error: ${err.message}`
+    logOutput.value += `Error: ${err.message}\n`
   } finally {
     isRunning.value = false
   }
+}
+
+const runProfile = (key, label) => run('registry-profile', label, { profile: key })
+
+const applyRestoreScript = () => {
+  const opt = RESTORE_SCRIPT_OPTIONS.find(o => o.value === selectedRestoreScript.value)
+  runProfile(selectedRestoreScript.value, opt?.label || selectedRestoreScript.value)
 }
 </script>
 
@@ -44,14 +55,14 @@ const runCmdHook = async (actionName, description) => {
           <div>
             <div>KHÔI PHỤC MẶC ĐỊNH (RESTORE DEFAULT)</div>
             <div style="font-size: 11px; font-weight: 400; color: var(--text-muted)">
-              Khôi Phục Cài Đặt Gốc Cho Windows, Network & System Registry
+              Khôi Phục Cài Đặt Services Từ Thư Mục Restore
             </div>
           </div>
         </div>
       </div>
 
       <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px">
-        Khôi phục các thông số Windows về trạng thái mặc định ban đầu nếu xảy ra xung đột ứng dụng.
+        Khôi phục các dịch vụ Windows về trạng thái mặc định từ thư mục resources/scripts/Restore.
       </p>
 
       <div class="grid-3">
@@ -70,21 +81,21 @@ const runCmdHook = async (actionName, description) => {
           <div>
             <div class="cyber-tool-header">
               <div class="cyber-icon-badge violet-glow">
-                <History :size="17" :stroke-width="2.2" class="icon-spin-hover" />
+                <Gamepad2 :size="17" :stroke-width="2.2" />
               </div>
-              <div style="font-weight: 700; color: #fff; font-size: 14px">Restore All Settings</div>
+              <div style="font-weight: 700; color: #fff; font-size: 14px">Restore Gamer Services</div>
             </div>
             <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px">
-              Khôi phục toàn bộ Registry & Services về mặc định Windows.
+              Khôi phục các dịch vụ đã bị tắt cho Game thủ về mặc định.
             </div>
           </div>
           <button
             class="btn-secondary"
             :disabled="isRunning"
-            @click="runCmdHook('restore-all-default', 'Khôi phục tất cả cài đặt mặc định')"
+            @click="runProfile('restore-gamer-services', 'Disable Services For Gamers Restore')"
           >
             <Play :size="13" :stroke-width="2.2" />
-            <span>Chạy Script Khôi Phục Mặc Định</span>
+            <span>Chạy Script Restore Gamer</span>
           </button>
         </div>
 
@@ -103,60 +114,50 @@ const runCmdHook = async (actionName, description) => {
           <div>
             <div class="cyber-tool-header">
               <div class="cyber-icon-badge cyan-glow">
-                <WifiOff :size="17" :stroke-width="2.2" />
+                <Briefcase :size="17" :stroke-width="2.2" />
               </div>
               <div style="font-weight: 700; color: #fff; font-size: 14px">
-                Restore Default Network
+                Restore Professional Services
               </div>
             </div>
             <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px">
-              Xóa cấu hình DNS custom & đặt lại IP mặc định DHCP.
+              Khôi phục các dịch vụ đã bị tắt cho Professional về mặc định.
             </div>
           </div>
           <button
             class="btn-secondary"
             :disabled="isRunning"
-            @click="runCmdHook('restore-network-default', 'Khôi phục cấu hình mạng mặc định')"
+            @click="runProfile('restore-professional-services', 'Disable Services For Professionals Restore')"
           >
             <Play :size="13" :stroke-width="2.2" />
-            <span>Chạy Script Mạng Mặc Định</span>
+            <span>Chạy Script Restore Professional</span>
           </button>
         </div>
+      </div>
+    </div>
 
-        <div
-          style="
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            gap: 12px;
-          "
-        >
+    <!-- Restore Script Selection -->
+    <div class="dashboard-card">
+      <div class="card-header" style="margin-bottom: 12px">
+        <div class="card-title">
+          <div class="card-icon" style="background-color: rgba(22, 119, 255, 0.15); color: #60a5fa">
+            <RotateCcw :size="18" :stroke-width="2" />
+          </div>
           <div>
-            <div class="cyber-tool-header">
-              <div class="cyber-icon-badge amber-glow">
-                <SlidersHorizontal :size="17" :stroke-width="2.2" />
-              </div>
-              <div style="font-weight: 700; color: #fff; font-size: 14px">
-                Restore Default Mouse & KB
-              </div>
-            </div>
-            <div style="font-size: 12px; color: var(--text-muted); margin-top: 6px">
-              Đặt lại tốc độ chuột & gia tốc mặc định của Windows.
+            <div>RESTORE SCRIPTS</div>
+            <div style="font-size: 11px; font-weight: 400; color: var(--text-muted)">
+              resources/scripts/Restore
             </div>
           </div>
-          <button
-            class="btn-secondary"
-            :disabled="isRunning"
-            @click="runCmdHook('restore-mouse-default', 'Khôi phục cài đặt chuột mặc định')"
-          >
-            <Play :size="13" :stroke-width="2.2" />
-            <span>Chạy Script Chuột Mặc Định</span>
-          </button>
         </div>
+      </div>
+      <div class="reg-row" style="border-color: rgba(22, 119, 255, 0.3); background: rgba(22, 119, 255, 0.05)">
+        <select v-model="selectedRestoreScript" class="reg-select" :disabled="isRunning">
+          <option v-for="opt in RESTORE_SCRIPT_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+        </select>
+        <button class="btn-primary" :disabled="isRunning" @click="applyRestoreScript">
+          <Play :size="13" :stroke-width="2.2" /><span>Áp dụng</span>
+        </button>
       </div>
     </div>
 
@@ -171,7 +172,7 @@ const runCmdHook = async (actionName, description) => {
           margin-bottom: 8px;
         "
       >
-        CONSOLE RESTORE DEFAULT CMD LOG OUTPUT
+        CONSOLE RESTORE LOG OUTPUT
       </div>
       <pre
         style="
@@ -186,7 +187,31 @@ const runCmdHook = async (actionName, description) => {
           overflow-y: auto;
           border: 1px solid rgba(255, 255, 255, 0.08);
         "
-        >{{ logOutput || 'Sẵn sàng chờ thực thi script Restore Default CMD...' }}</pre>
+        >{{ logOutput || 'Sẵn sàng chờ thực thi script Restore...' }}</pre>
     </div>
   </div>
 </template>
+
+<style scoped>
+.reg-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(22, 119, 255, 0.25);
+  border-radius: 10px;
+  background: rgba(22, 119, 255, 0.05);
+}
+.reg-select {
+  flex: 1;
+  padding: 9px 12px;
+  color: #e2e8f0;
+  font: 500 13px/1.2 var(--font-mono, ui-monospace, monospace);
+  background: #0d1526;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  border-radius: 8px;
+  outline: none;
+}
+.reg-select:focus { border-color: #60a5fa; }
+.reg-select:disabled { opacity: 0.6; }
+</style>
