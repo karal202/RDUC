@@ -147,11 +147,13 @@ const applyKeyQueue = () => {
   flex: 1;
   padding: 9px 12px;
   color: #e2e8f0;
-  font: 500 13px/1.2 var(--font-mono, ui-monospace, monospace);
+  font: 500 12px/1.2 var(--font-mono, ui-monospace, monospace);
   background: #0d1526;
   border: 1px solid rgba(96,165,250,0.3);
   border-radius: 8px;
   outline: none;
+  max-height: 180px;
+  overflow-y: auto;
 }
 .reg-select:focus { border-color: #60a5fa; }
 .reg-select:disabled { opacity: 0.6; }

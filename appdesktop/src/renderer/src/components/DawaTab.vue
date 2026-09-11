@@ -318,9 +318,9 @@ const applyPowerPlan = () => {
         <h2 class="pg-title">Win32PrioritySeparation</h2>
         <p class="pg-subtitle">Chọn giá trị Win32PrioritySeparation rồi áp dụng vào Windows.</p>
       </header>
-      <div class="pg-priority-control">
-        <label class="pg-priority-label" for="win32-priority">Win32Priority</label>
-        <div class="pg-priority-actions">
+      <div class="pg-priority-compact">
+        <div class="pg-priority-compact-select">
+          <label class="pg-priority-label-sm" for="win32-priority">Win32Priority</label>
           <select id="win32-priority" v-model="selectedWin32Priority" :disabled="isRunning">
             <option
               v-for="option in WIN32_PRIORITY_OPTIONS"
@@ -330,16 +330,16 @@ const applyPowerPlan = () => {
               {{ option.label }}
             </option>
           </select>
-          <button
-            type="button"
-            class="pg-action-btn pg-priority-btn"
-            :disabled="isRunning"
-            @click="applyWin32Priority"
-          >
-            <Play :size="14" class="pg-play" />
-            <span>Áp dụng</span>
-          </button>
         </div>
+        <button
+          type="button"
+          class="pg-action-btn pg-priority-btn"
+          :disabled="isRunning"
+          @click="applyWin32Priority"
+        >
+          <Play :size="14" class="pg-play" />
+          <span>Áp dụng</span>
+        </button>
       </div>
     </section>
 
@@ -349,9 +349,9 @@ const applyPowerPlan = () => {
         <h2 class="pg-title">Power Plan Optimization</h2>
         <p class="pg-subtitle">Chọn Power Plan hiệu năng cao nhất từ thư mục Optimizer/PowerPlan.</p>
       </header>
-      <div class="pg-priority-control">
-        <label class="pg-priority-label" for="power-plan">Power Plan</label>
-        <div class="pg-priority-actions">
+      <div class="pg-priority-compact">
+        <div class="pg-priority-compact-select">
+          <label class="pg-priority-label-sm" for="power-plan">Power Plan</label>
           <select id="power-plan" v-model="selectedPowerPlan" :disabled="isRunning">
             <option
               v-for="option in POWER_PLAN_OPTIONS"
@@ -361,16 +361,16 @@ const applyPowerPlan = () => {
               {{ option.label }}
             </option>
           </select>
-          <button
-            type="button"
-            class="pg-action-btn pg-priority-btn"
-            :disabled="isRunning"
-            @click="applyPowerPlan"
-          >
-            <Play :size="14" class="pg-play" />
-            <span>Áp dụng</span>
-          </button>
         </div>
+        <button
+          type="button"
+          class="pg-action-btn pg-priority-btn"
+          :disabled="isRunning"
+          @click="applyPowerPlan"
+        >
+          <Play :size="14" class="pg-play" />
+          <span>Áp dụng</span>
+        </button>
       </div>
     </section>
 
@@ -706,23 +706,50 @@ const applyPowerPlan = () => {
   font-size: 14px;
   font-weight: 700;
 }
+.pg-priority-compact {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.11);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.025);
+}
+.pg-priority-compact-select {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.pg-priority-label-sm {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
 .pg-priority-actions {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-.pg-priority-actions select {
-  min-width: 180px;
+.pg-priority-compact-select select {
+  width: 100%;
+  min-width: 200px;
+  max-width: 280px;
   padding: 10px 12px;
   color: #e2e8f0;
   font:
-    600 13px/1.2 'JetBrains Mono',
+    600 12px/1.2 'JetBrains Mono',
     ui-monospace,
     monospace;
   background: #111827;
   border: 1px solid rgba(96, 165, 250, 0.35);
   border-radius: 10px;
   outline: none;
+  max-height: 180px;
+  overflow-y: auto;
 }
 .pg-priority-actions select:focus {
   border-color: #60a5fa;
