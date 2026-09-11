@@ -10,8 +10,8 @@ const router = express.Router();
 // These are deliberately an allowlist. Admin can enable/disable a feature, but can
 // never turn an uploaded or arbitrary file into something the desktop executes.
 const FEATURE_FILES = [
-  ["bios-bat", "BIOS", "bios.bat"],
-  ["ntfs-bat", "BIOS / NTFS", "ntfs.bat"],
+  ["bios-bat", "BIOS", "BIOS/bios.bat"],
+  ["ntfs-bat", "BIOS / NTFS", "BIOS/NTFS.bat"],
   ["network-tcp-ping", "Network", "Network/AckTicksandAckFrequency.reg"],
   ["network-flush-dns", "Network", "Network/DNS.cmd"],
   ["mouse-disable-acceleration", "Input Lag", "Input Lag/Reduce Input Lag/System.reg"],
@@ -41,6 +41,7 @@ async function buildFeatures() {
       section,
       file: relativePath,
       exists,
+      linked: true,
       size: stat?.size || 0,
       enabled: policy[key] !== false,
     };

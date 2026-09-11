@@ -78,7 +78,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   },
   'bios-bat': {
     description: 'Khởi động vào BIOS bằng file BAT',
-    commands: [[WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', join(SCRIPT_DIRECTORY, 'bios.bat')]]]
+    commands: [[WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', join(SCRIPT_DIRECTORY, 'BIOS', 'bios.bat')]]]
   },
   'win-disable-hibernate': {
     description: 'Tắt Hibernate',
@@ -275,7 +275,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   },
   'ntfs-bat': {
     description: 'Kích hoạt sửa lỗi NTFS bằng file BAT',
-    commands: [[WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', join(SCRIPT_DIRECTORY, 'NTFS.bat')]]]
+    commands: [[WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', join(SCRIPT_DIRECTORY, 'BIOS', 'NTFS.bat')]]]
   },
   'dawa-cleaner': {
     description: 'Dọn dẹp bộ nhớ tạm & Temp files',
