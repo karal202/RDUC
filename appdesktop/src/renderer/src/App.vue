@@ -9,7 +9,7 @@ import DashboardTab from './components/DashboardTab.vue'
 import DawaTab from './components/DawaTab.vue'
 import BiosTab from './components/BiosTab.vue'
 import NetworkTab from './components/NetworkTab.vue'
-import MouseKeyboardTab from './components/MouseKeyboardTab.vue'
+import InputLagTab from './components/InputLagTab.vue'
 import RestoreDefaultTab from './components/RestoreDefaultTab.vue'
 import RapidTriggerTab from './components/RapidTriggerTab.vue'
 import ToolsCacheTab from './components/ToolsCacheTab.vue'
@@ -36,7 +36,7 @@ const tabComponents = {
   dawa: DawaTab,
   bios: BiosTab,
   network: NetworkTab,
-  mouse: MouseKeyboardTab,
+  inputlag: InputLagTab,
   restore: RestoreDefaultTab,
   rapid: RapidTriggerTab,
   tools: ToolsCacheTab
@@ -49,7 +49,7 @@ const pageTitle = computed(
       dawa: 'Optimize',
       bios: 'BIOS',
       network: 'Network',
-      mouse: 'Input Lag',
+      inputlag: 'Input Lag',
       restore: 'Restore',
       rapid: 'Rapid Trigger',
       tools: 'Tools & Cache'
@@ -62,7 +62,7 @@ const coreNav = [
 const toolNav = [
   { key: 'bios', label: 'BIOS', icon: Power },
   { key: 'network', label: 'Network', icon: Network },
-  { key: 'mouse', label: 'Input Lag', icon: MousePointer2 },
+  { key: 'inputlag', label: 'Input Lag', icon: MousePointer2 },
   { key: 'rapid', label: 'Rapid Trigger', icon: KeyboardIcon },
   { key: 'tools', label: 'Tools & Cache', icon: HardDrive },
   { key: 'restore', label: 'Restore', icon: RotateCcw }
