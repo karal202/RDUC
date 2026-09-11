@@ -113,13 +113,14 @@ body {
   background: rgba(5, 5, 8, 0.72);
 }
 
-.hud-logo {
-  width: 118px;
-  height: 34px;
-  object-fit: contain;
-  flex-shrink: 0;
-  filter: brightness(1.18);
-}
+  .hud-logo {
+    width: 118px;
+    height: 34px;
+    object-fit: contain;
+    flex-shrink: 0;
+    filter: brightness(1.18);
+    pointer-events: none;
+  }
 
 .hud-nav {
   display: flex;

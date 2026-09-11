@@ -193,3 +193,11 @@ export async function checkWithBackend(accessToken) {
   })
   return { status: response.status, data: await response.json() }
 }
+
+export async function getDesktopFeaturePolicy(accessToken) {
+  const response = await fetch(`${BACKEND_ORIGIN}/api/file-manager/desktop-policy`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  })
+  if (!response.ok) throw new Error(`Feature policy request failed (${response.status})`)
+  return response.json()
+}

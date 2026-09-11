@@ -26,6 +26,7 @@ import {
   normalizeLicenseKey,
   refreshWithBackend,
   checkWithBackend,
+  getDesktopFeaturePolicy,
   validateWithBackend,
   verifyLocalLicense
 } from './services/licenseService'
@@ -1036,6 +1037,18 @@ app.whenReady().then(() => {
       !(ALLOWED_DAWA_SCRIPTS[scriptKey] || scriptKey === 'dawa-cleaner')
     ) {
       return { success: false, message: 'Script không được phép.' }
+    }
+    // The server policy can only disable known allowlisted actions; it never supplies commands.
+    try {
+      const token = licenseStore.getTokens()?.accessToken
+      if (token) {
+        const policy = await getDesktopFeaturePolicy(token)
+        if (policy?.enabled?.[scriptKey] === false) {
+          return { success: false, message: 'Chức năng này đang được Admin tạm tắt.' }
+        }
+      }
+    } catch (error) {
+      console.warn('Feature policy unavailable; using local allowlist:', error.message)
     }
     return runDawaScript(scriptKey, options)
   })

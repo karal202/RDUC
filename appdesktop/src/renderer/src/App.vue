@@ -13,7 +13,7 @@ import MouseKeyboardTab from './components/MouseKeyboardTab.vue'
 import RestoreDefaultTab from './components/RestoreDefaultTab.vue'
 import RapidTriggerTab from './components/RapidTriggerTab.vue'
 import ToolsCacheTab from './components/ToolsCacheTab.vue'
-import logo from './assets/logo.png'
+import logoVideo from '../../../public/logo.mp4'
 import { verticalBanners } from './assets/banners'
 import {
   CircleCheck,
@@ -261,7 +261,9 @@ onMounted(() => {
       <div class="hud-grid" aria-hidden="true"></div>
 
       <header class="hud-top">
-        <img class="hud-logo" :src="logo" alt="DAWA" />
+        <video class="hud-logo" autoplay muted loop playsinline aria-label="DAWA">
+          <source :src="logoVideo" type="video/mp4" />
+        </video>
 
         <nav class="hud-nav" aria-label="Main navigation">
           <button
