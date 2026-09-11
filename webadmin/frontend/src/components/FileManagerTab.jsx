@@ -29,9 +29,9 @@ export default function FileManagerTab({ onStatus }) {
     <div className="panel-header"><div><h3>Quản lý file &amp; chức năng desktop</h3><p>Kiểm soát các file đã gắn với nút chức năng. App chỉ chạy allowlist an toàn.</p></div></div>
     {loading ? <div className="empty-state">Đang tải danh sách file…</div> : <div className="file-manager-list">
       {items.map((item) => <article className="file-manager-row" key={item.key}>
-        <span className={`file-state ${item.exists ? "ready" : "missing"}`}>{item.exists ? <FileCode size={21} weight="duotone" /> : <WarningCircle size={21} weight="fill" />}</span>
-        <div className="file-manager-info"><strong>{item.key}</strong><span>{item.section} · <code>{item.file}</code> · {formatBytes(item.size)}</span>{!item.exists && <em>Không tìm thấy file trong bản build hiện tại</em>}</div>
-        <span className={`feature-status ${item.enabled && item.exists ? "enabled" : "disabled"}`}>{item.enabled && item.exists ? <CheckCircle size={15} weight="fill" /> : <WarningCircle size={15} weight="fill" />}{item.enabled ? "Đang bật" : "Đã tắt"}</span>
+        <span className="file-state ready"><FileCode size={21} weight="duotone" /></span>
+        <div className="file-manager-info"><strong>{item.key}</strong><span>{item.section} · <code>{item.file}</code> · {formatBytes(item.size)}</span><em className="linked-note">Đã liên kết với nút chức năng trong app</em>{!item.exists && <small>File desktop được đóng gói cùng app; server admin không lưu bản source này.</small>}</div>
+        <span className={`feature-status ${item.enabled ? "enabled" : "disabled"}`}>{item.enabled ? <CheckCircle size={15} weight="fill" /> : <WarningCircle size={15} weight="fill" />}{item.enabled ? "Đang bật" : "Đã tắt"}</span>
         <button className="btn-secondary feature-toggle" disabled={saving === item.key} onClick={() => toggle(item)}>{item.enabled ? <ToggleRight size={21} weight="fill" /> : <ToggleLeft size={21} weight="fill" />}{item.enabled ? "Tắt" : "Bật"}</button>
       </article>)}
     </div>}

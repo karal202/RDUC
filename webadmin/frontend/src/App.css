@@ -1529,6 +1529,8 @@ tbody tr:hover td {
 .file-manager-info strong { font-family: var(--font-mono); font-size: 13px; }
 .file-manager-info span, .file-manager-info em { color: var(--text-secondary); font-size: 12px; overflow-wrap: anywhere; }
 .file-manager-info em { color: #fbbf24; font-style: normal; }
+.file-manager-info .linked-note { color: #34d399; }
+.file-manager-info small { color: var(--text-tertiary); font-size: 11px; }
 .file-manager-info code { color: #c4b5fd; }
 .feature-status { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; font-size: 12px; font-weight: 600; }
 .feature-status.enabled { color: #34d399; }.feature-status.disabled { color: #fbbf24; }
