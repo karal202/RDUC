@@ -8,6 +8,7 @@ import UsersTab from "./components/UsersTab";
 import DevicesTab from "./components/DevicesTab";
 import LogsTab from "./components/LogsTab";
 import DownloadTab from "./components/DownloadTab";
+import FileManagerTab from "./components/FileManagerTab";
 import ValidationModal from "./components/ValidationModal";
 import AdminLogin from "./components/AdminLogin";
 import { Gauge, Users, FileText, Globe, HardDrives, CheckCircle, XCircle, Broadcast, Wrench } from "@phosphor-icons/react";
@@ -18,6 +19,7 @@ const defaultValidationForm = { key_code: "", device_hash: "", device_name: "", 
 const formatDate = (value) => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? value : date.toLocaleString("vi-VN"); };
 
 const titleConfig = {
+  files: { Icon: FileText, label: "Quản lý File & Chức năng" },
   dashboard: { Icon: Gauge, label: "Dashboard Tổng quan" },
   users: { Icon: Users, label: "Quản lý Người dùng & Key" },
   devices: { Icon: HardDrives, label: "Danh sách thiết bị" },
@@ -121,6 +123,7 @@ function AdminDashboard({ onLogout }) {
       {activeTab === "devices" && <DevicesTab devices={devices} onBlock={blockHardware} onUnblock={unblockHardware} />}
       {activeTab === "logs" && <LogsTab logs={logs} filter={ipFilter} setFilter={setIpFilter} formatDate={formatDate} />}
       {activeTab === "download" && <DownloadTab onOpenValidation={() => setShowKeyModal(true)} />}
+      {activeTab === "files" && <FileManagerTab onStatus={setStatusMessage} />}
       {showKeyModal && <ValidationModal form={validationForm} setForm={setValidationForm} onSubmit={submitValidation} onClose={() => setShowKeyModal(false)} />}
     </main>
   </div>;

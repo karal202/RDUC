@@ -21,6 +21,16 @@ CREATE TABLE admins (
     active_session_id VARCHAR(64) NULL
 );
 
+-- Chức năng/file desktop mà Admin được phép bật/tắt.
+-- feature_key phải khớp allowlist trong app; không lưu lệnh hay đường dẫn tùy ý.
+CREATE TABLE feature_file_policies (
+    feature_key VARCHAR(100) PRIMARY KEY,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    updated_by INT NULL,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_feature_policy_admin FOREIGN KEY (updated_by) REFERENCES admins(id) ON DELETE SET NULL
+);
+
 -- 2. Bảng license key (đã bỏ product_id, thêm thông tin khách hàng + IP binding)
 CREATE TABLE license_keys (
     id INT PRIMARY KEY AUTO_INCREMENT,
