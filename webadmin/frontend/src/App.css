@@ -1813,6 +1813,8 @@ tbody tr:hover td {
 .file-manager-info code { color: #c4b5fd; }
 .file-manager-row .row-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .file-manager-row .file-action { padding: 8px 11px; }
+.upload-script-control { display: inline-flex; align-items: center; gap: 8px; margin-top: 9px; color: var(--text-secondary); font-size: 12px; cursor: pointer; }
+.upload-script-control input { max-width: 225px; color: var(--text-secondary); font-size: 12px; }
 .feature-status { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; font-size: 12px; font-weight: 600; }
 .feature-status.enabled { color: #34d399; }.feature-status.disabled { color: #fbbf24; }
 .feature-toggle { min-width: 82px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }

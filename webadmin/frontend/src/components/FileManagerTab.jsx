@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { FileCode, ToggleLeft, ToggleRight, WarningCircle, CheckCircle, Plus, Pencil, Trash, FolderOpen, X } from "@phosphor-icons/react";
-import { API_BASE, fetchJson } from "../api/licenseApi";
+import { API_BASE, fetchJson, uploadScriptFile } from "../api/licenseApi";
 
 const formatBytes = (size) => !size ? "—" : size < 1024 * 1024 ? `${Math.ceil(size / 1024)} KB` : `${(size / 1024 / 1024).toFixed(2)} MB`;
 
@@ -84,6 +84,23 @@ export default function FileManagerTab({ onStatus }) {
     setShowScanner(false);
   };
 
+  const handleUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setSaving("upload");
+    try {
+      const result = await uploadScriptFile(`${managerBase}/file-manager/upload`, file);
+      setFormData((current) => ({ ...current, file_path: result.data.relative_path }));
+      onStatus({ type: "success", text: `Đã tải ${file.name} vào kho chờ gán.` });
+      await scanFiles();
+    } catch (error) {
+      onStatus({ type: "error", text: error.message });
+    } finally {
+      event.target.value = "";
+      setSaving("");
+    }
+  };
+
   return <section className="panel file-manager-panel">
     <div className="panel-header">
       <div>
@@ -117,6 +134,11 @@ export default function FileManagerTab({ onStatus }) {
               <button type="button" className="btn-secondary" onClick={() => setShowScanner(true)}><FolderOpen size={18} /></button>
             </div>
           </div>
+          <label className="upload-script-control">
+            <span>{saving === "upload" ? "Đang tải file…" : "Chọn file từ máy tính"}</span>
+            <input type="file" accept=".reg,.bat,.cmd,.ps1,.pow" disabled={saving === "upload"} onChange={handleUpload} />
+          </label>
+          <small>Chấp nhận .reg, .bat, .cmd, .ps1, .pow; tối đa 5 MB. File được lưu trong kho chờ gán.</small>
           <div className="form-group">
             <label>
               <input type="checkbox" checked={formData.enabled} onChange={(e) => setFormData({ ...formData, enabled: e.target.checked })} />

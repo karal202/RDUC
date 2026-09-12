@@ -29,6 +29,16 @@ export async function fetchJson(url, options = {}) {
   return json;
 }
 
+export async function uploadScriptFile(url, file) {
+  const accessToken = localStorage.getItem("accessToken");
+  const body = new FormData();
+  body.append("file", file);
+  const res = await fetch(url, { method: "POST", headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, body });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json?.message || "Upload failed");
+  return json;
+}
+
 export async function loadLicenseData() {
   let healthRes;
   try {
