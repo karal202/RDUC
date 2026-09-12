@@ -1,4 +1,4 @@
-import { Gauge, Users, FileText, Globe, HardDrives, ShieldCheck, SignOut, FolderSimple, Stack } from "@phosphor-icons/react";
+import { Gauge, Users, FileText, Globe, HardDrives, ShieldCheck, SignOut, FolderSimple } from "@phosphor-icons/react";
 
 export default function AdminSidebar({ activeTab, setActiveTab, dbHealth, onLogout }) {
   const items = [
@@ -8,7 +8,6 @@ export default function AdminSidebar({ activeTab, setActiveTab, dbHealth, onLogo
     ["logs", FileText, "Nhật ký Kích hoạt & IP"],
     ["download", Globe, "Web Tải App & Test Key"],
     ["files", FolderSimple, "Quản lý File & Chức năng"],
-    ["features", Stack, "Quản lý Tính năng & Profiles"],
   ];
 
   return (

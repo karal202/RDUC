@@ -8,11 +8,10 @@ import UsersTab from "./components/UsersTab";
 import DevicesTab from "./components/DevicesTab";
 import LogsTab from "./components/LogsTab";
 import DownloadTab from "./components/DownloadTab";
-import FileManagerTab from "./components/FileManagerTab";
 import FeatureManagerTab from "./components/FeatureManagerTab";
 import ValidationModal from "./components/ValidationModal";
 import AdminLogin from "./components/AdminLogin";
-import { Gauge, Users, FileText, Globe, HardDrives, CheckCircle, XCircle, Broadcast, Wrench, Stack } from "@phosphor-icons/react";
+import { Gauge, Users, FileText, Globe, HardDrives, CheckCircle, XCircle, Broadcast, Wrench } from "@phosphor-icons/react";
 
 const SOCKET_URL = BACKEND_URL;
 const defaultLicenseForm = { customer_name: "", customer_contact: "", key_code: "", max_devices: 1, expires_at: "", created_by: 1, note: "" };
@@ -21,7 +20,6 @@ const formatDate = (value) => { if (!value) return "—"; const date = new Date(
 
 const titleConfig = {
   files: { Icon: FileText, label: "Quản lý File & Chức năng" },
-  features: { Icon: Stack, label: "Quản lý Tính năng & Profiles" },
   dashboard: { Icon: Gauge, label: "Dashboard Tổng quan" },
   users: { Icon: Users, label: "Quản lý Người dùng & Key" },
   devices: { Icon: HardDrives, label: "Danh sách thiết bị" },
@@ -125,8 +123,7 @@ function AdminDashboard({ onLogout }) {
       {activeTab === "devices" && <DevicesTab devices={devices} onBlock={blockHardware} onUnblock={unblockHardware} />}
       {activeTab === "logs" && <LogsTab logs={logs} filter={ipFilter} setFilter={setIpFilter} formatDate={formatDate} />}
       {activeTab === "download" && <DownloadTab onOpenValidation={() => setShowKeyModal(true)} />}
-      {activeTab === "files" && <FileManagerTab onStatus={setStatusMessage} />}
-      {activeTab === "features" && <FeatureManagerTab onStatus={setStatusMessage} />}
+      {activeTab === "files" && <FeatureManagerTab onStatus={setStatusMessage} />}
       {showKeyModal && <ValidationModal form={validationForm} setForm={setValidationForm} onSubmit={submitValidation} onClose={() => setShowKeyModal(false)} />}
     </main>
   </div>;
