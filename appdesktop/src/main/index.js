@@ -1043,6 +1043,16 @@ app.whenReady().then(() => {
       const token = licenseStore.getTokens()?.accessToken
       if (token) {
         const policy = await getDesktopFeaturePolicy(token)
+        const feature = policy?.features?.[scriptKey]
+        if (feature?.deleted) {
+          return { success: false, message: 'File kích hoạt này đã bị Admin xóa. Vui lòng liên hệ hỗ trợ.' }
+        }
+        if (feature && !feature.exists) {
+          return { success: false, message: 'File kích hoạt hiện không tồn tại hoặc không khả dụng. Vui lòng liên hệ hỗ trợ.' }
+        }
+        if (feature && !feature.enabled) {
+          return { success: false, message: 'Chức năng này đang được Admin tạm tắt.' }
+        }
         if (policy?.enabled?.[scriptKey] === false) {
           return { success: false, message: 'Chức năng này đang được Admin tạm tắt.' }
         }

@@ -12,7 +12,7 @@ import FileManagerTab from "./components/FileManagerTab";
 import FeatureManagerTab from "./components/FeatureManagerTab";
 import ValidationModal from "./components/ValidationModal";
 import AdminLogin from "./components/AdminLogin";
-import { Gauge, Users, FileText, Globe, HardDrives, CheckCircle, XCircle, Broadcast, Wrench, Layers } from "@phosphor-icons/react";
+import { Gauge, Users, FileText, Globe, HardDrives, CheckCircle, XCircle, Broadcast, Wrench, Stack } from "@phosphor-icons/react";
 
 const SOCKET_URL = BACKEND_URL;
 const defaultLicenseForm = { customer_name: "", customer_contact: "", key_code: "", max_devices: 1, expires_at: "", created_by: 1, note: "" };
@@ -21,7 +21,7 @@ const formatDate = (value) => { if (!value) return "—"; const date = new Date(
 
 const titleConfig = {
   files: { Icon: FileText, label: "Quản lý File & Chức năng" },
-  features: { Icon: Layers, label: "Quản lý Tính năng & Profiles" },
+  features: { Icon: Stack, label: "Quản lý Tính năng & Profiles" },
   dashboard: { Icon: Gauge, label: "Dashboard Tổng quan" },
   users: { Icon: Users, label: "Quản lý Người dùng & Key" },
   devices: { Icon: HardDrives, label: "Danh sách thiết bị" },

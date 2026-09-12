@@ -9,6 +9,21 @@ const router = express.Router();
 
 const resolveScriptsDir = () => path.resolve(process.cwd(), "../../appdesktop/resources/scripts");
 
+function validateFeatureKey(key) {
+  if (typeof key !== "string" || !/^[a-z0-9-]+$/.test(key)) {
+    throw new Error("Feature key must use lowercase letters, numbers, and hyphens only.");
+  }
+}
+
+function validateFilePath(filePath) {
+  const scriptsDir = resolveScriptsDir();
+  const fullPath = path.resolve(scriptsDir, String(filePath || ""));
+  const scriptsPrefix = scriptsDir.endsWith(path.sep) ? scriptsDir : `${scriptsDir}${path.sep}`;
+  if (!filePath || !fullPath.startsWith(scriptsPrefix) || !fs.existsSync(fullPath) || !fs.statSync(fullPath).isFile()) {
+    throw new Error("File must exist inside resources/scripts.");
+  }
+}
+
 // Scan directory recursively to find all files
 async function scanDirectory(dir, baseDir = dir) {
   const files = [];
@@ -35,8 +50,9 @@ async function scanDirectory(dir, baseDir = dir) {
 }
 
 // Build features list from database
-async function buildFeatures() {
+async function buildFeatures({ includeDeleted = false } = {}) {
   const policyRows = await FeatureFilePolicy.findAll({ 
+    where: includeDeleted ? undefined : { deleted_at: null },
     attributes: ["feature_key", "enabled", "section", "file_path"],
     order: [['section', 'ASC'], ['feature_key', 'ASC']]
   });
@@ -54,6 +70,7 @@ async function buildFeatures() {
       linked: true,
       size: stat?.size || 0,
       enabled: row.enabled !== false,
+      deleted: Boolean(row.deleted_at),
     };
   });
   
@@ -80,11 +97,27 @@ router.post("/features", authMiddleware, async (req, res) => {
   
   // Check if key already exists
   const existing = await FeatureFilePolicy.findOne({ where: { feature_key: key } });
+  if (existing?.deleted_at) {
+    validateFeatureKey(key);
+    validateFilePath(file_path);
+    await existing.update({
+      section,
+      file_path,
+      enabled: Boolean(enabled),
+      deleted_at: null,
+      updated_by: req.user.id,
+      updated_at: new Date(),
+    });
+    const data = await buildFeatures();
+    return res.json({ success: true, data: data.find((item) => item.key === key) });
+  }
   if (existing) {
     return res.status(400).json({ success: false, message: "Key này đã tồn tại." });
   }
   
   try {
+    validateFeatureKey(key);
+    validateFilePath(file_path);
     await FeatureFilePolicy.create({
       feature_key: key,
       section,
@@ -112,10 +145,11 @@ router.patch("/features/:key", authMiddleware, async (req, res) => {
   }
   
   try {
+    if (file_path !== undefined) validateFilePath(file_path);
     const updateData = { updated_by: req.user.id, updated_at: new Date() };
     if (section !== undefined) updateData.section = section;
     if (file_path !== undefined) updateData.file_path = file_path;
-    if (enabled !== undefined) updateData.enabled = enabled;
+    if (enabled !== undefined) updateData.enabled = Boolean(enabled);
     
     await FeatureFilePolicy.update(updateData, { where: { feature_key: key } });
     
@@ -136,7 +170,10 @@ router.delete("/features/:key", authMiddleware, async (req, res) => {
   }
   
   try {
-    await FeatureFilePolicy.destroy({ where: { feature_key: key } });
+    await FeatureFilePolicy.update(
+      { enabled: false, deleted_at: new Date(), updated_by: req.user.id, updated_at: new Date() },
+      { where: { feature_key: key } }
+    );
     res.json({ success: true, message: "Đã xóa feature." });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -163,8 +200,14 @@ router.post("/upload", authMiddleware, (req, res) => {
 
 // Desktop receives only a compact policy after its license has been verified.
 router.get("/desktop-policy", desktopLicenseMiddleware, async (req, res) => {
-  const enabled = Object.fromEntries((await buildFeatures()).map((item) => [item.key, item.enabled]));
-  res.json({ success: true, enabled });
+  const features = Object.fromEntries((await buildFeatures({ includeDeleted: true })).map((item) => [item.key, {
+    enabled: item.enabled && item.exists && !item.deleted,
+    exists: item.exists,
+    deleted: item.deleted,
+  }]));
+  // Keep the existing compact shape for older desktop versions.
+  const enabled = Object.fromEntries(Object.entries(features).map(([key, item]) => [key, item.enabled]));
+  res.json({ success: true, enabled, features });
 });
 
 export default router;
