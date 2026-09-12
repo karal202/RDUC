@@ -1,13 +1,31 @@
 import express from "express";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
+import multer from "multer";
 import { authMiddleware } from "../common/middleware/auth.middleware.js";
 import { desktopLicenseMiddleware } from "../common/middleware/desktopLicense.middleware.js";
 import FeatureFilePolicy from "../models/featureFilePolicy.model.js";
+import ScriptLibraryFile from "../models/scriptLibraryFile.model.js";
 
 const router = express.Router();
 
 const resolveScriptsDir = () => path.resolve(process.cwd(), "../../appdesktop/resources/scripts");
+const resolveLibraryDir = () => path.join(resolveScriptsDir(), "Unassigned");
+const ALLOWED_SCRIPT_EXTENSIONS = new Set([".reg", ".bat", ".cmd", ".ps1", ".pow"]);
+const uploadStorage = multer.diskStorage({
+  destination: (_req, _file, callback) => {
+    const directory = resolveLibraryDir();
+    fs.mkdirSync(directory, { recursive: true });
+    callback(null, directory);
+  },
+  filename: (_req, file, callback) => callback(null, `${crypto.randomUUID()}${path.extname(file.originalname).toLowerCase()}`),
+});
+const uploadScriptFile = multer({
+  storage: uploadStorage,
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, callback) => callback(null, ALLOWED_SCRIPT_EXTENSIONS.has(path.extname(file.originalname).toLowerCase())),
+});
 
 function validateFeatureKey(key) {
   if (typeof key !== "string" || !/^[a-z0-9-]+$/.test(key)) {
@@ -191,6 +209,51 @@ router.get("/scan", authMiddleware, async (req, res) => {
   }
 });
 
+// POST /upload - Store an unassigned file. It is never served to desktop clients.
+router.post("/upload", authMiddleware, uploadScriptFile.single("file"), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: "Chỉ chấp nhận file .reg, .bat, .cmd, .ps1 hoặc .pow (tối đa 5 MB)." });
+  }
+  const relativePath = path.posix.join("Unassigned", req.file.filename);
+  try {
+    const sha256 = crypto.createHash("sha256").update(await fs.promises.readFile(req.file.path)).digest("hex");
+    const entry = await ScriptLibraryFile.create({
+      original_name: path.basename(req.file.originalname),
+      storage_name: req.file.filename,
+      relative_path: relativePath,
+      mime_type: req.file.mimetype,
+      size: req.file.size,
+      sha256,
+      created_by: req.user.id,
+    });
+    res.status(201).json({ success: true, data: entry });
+  } catch (error) {
+    await fs.promises.unlink(req.file.path).catch(() => {});
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+router.get("/library", authMiddleware, async (_req, res) => {
+  const data = await ScriptLibraryFile.findAll({ order: [["created_at", "DESC"]] });
+  res.json({ success: true, data });
+});
+
+router.delete("/library/:id", authMiddleware, async (req, res) => {
+  const entry = await ScriptLibraryFile.findByPk(req.params.id);
+  if (!entry) return res.status(404).json({ success: false, message: "Không tìm thấy file trong kho chờ gán." });
+  const libraryDir = resolveLibraryDir();
+  const filePath = path.resolve(libraryDir, entry.storage_name);
+  if (!filePath.startsWith(`${libraryDir}${path.sep}`)) {
+    return res.status(400).json({ success: false, message: "Đường dẫn file không hợp lệ." });
+  }
+  await fs.promises.unlink(filePath).catch((error) => {
+    if (error.code !== "ENOENT") throw error;
+  });
+  await entry.destroy();
+  res.json({ success: true });
+});
+
+// Legacy route kept below for source compatibility; the secure route above handles requests.
 // POST /upload - Upload file to scripts directory
 router.post("/upload", authMiddleware, (req, res) => {
   // Note: This would need multer or similar middleware for file uploads

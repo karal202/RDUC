@@ -1038,27 +1038,31 @@ app.whenReady().then(() => {
     ) {
       return { success: false, message: 'Script không được phép.' }
     }
-    // The server policy can only disable known allowlisted actions; it never supplies commands.
+    // Fail closed: a local allowlist is not enough to bypass an admin action.
+    // The backend only returns status flags; it never provides executable commands.
+    const token = licenseStore.getTokens()?.accessToken
+    if (!token) {
+      return { success: false, message: 'Không thể xác thực chính sách Admin. Vui lòng đăng nhập lại hoặc kiểm tra kết nối mạng.' }
+    }
+    let policy
     try {
-      const token = licenseStore.getTokens()?.accessToken
-      if (token) {
-        const policy = await getDesktopFeaturePolicy(token)
-        const feature = policy?.features?.[scriptKey]
-        if (feature?.deleted) {
-          return { success: false, message: 'File kích hoạt này đã bị Admin xóa. Vui lòng liên hệ hỗ trợ.' }
-        }
-        if (feature && !feature.exists) {
-          return { success: false, message: 'File kích hoạt hiện không tồn tại hoặc không khả dụng. Vui lòng liên hệ hỗ trợ.' }
-        }
-        if (feature && !feature.enabled) {
-          return { success: false, message: 'Chức năng này đang được Admin tạm tắt.' }
-        }
-        if (policy?.enabled?.[scriptKey] === false) {
-          return { success: false, message: 'Chức năng này đang được Admin tạm tắt.' }
-        }
-      }
+      policy = await getDesktopFeaturePolicy(token)
     } catch (error) {
-      console.warn('Feature policy unavailable; using local allowlist:', error.message)
+      console.warn('Feature policy unavailable; blocking execution:', error.message)
+      return { success: false, message: 'Không thể kiểm tra trạng thái chức năng với máy chủ. Vui lòng kiểm tra mạng rồi thử lại.' }
+    }
+    const feature = policy?.features?.[scriptKey]
+    if (feature?.deleted) {
+      return { success: false, message: 'File kích hoạt này đã bị Admin xóa. Vui lòng liên hệ hỗ trợ.' }
+    }
+    if (feature && !feature.exists) {
+      return { success: false, message: 'File kích hoạt hiện không tồn tại hoặc không khả dụng. Vui lòng liên hệ hỗ trợ.' }
+    }
+    if (feature && !feature.enabled) {
+      return { success: false, message: 'Chức năng này đang được Admin tạm tắt.' }
+    }
+    if (policy?.enabled?.[scriptKey] === false) {
+      return { success: false, message: 'Chức năng này đang được Admin tạm tắt.' }
     }
     return runDawaScript(scriptKey, options)
   })
