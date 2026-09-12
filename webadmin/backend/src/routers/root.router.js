@@ -4,6 +4,7 @@ import path from "path";
 import licenseRouter from "./license.router.js";
 import authRouter from "./auth.router.js";
 import fileManagerRouter from "./fileManager.router.js";
+import featureManagerRouter from "./featureManager.router.js";
 
 const rootRouter = express.Router();
 
@@ -87,5 +88,6 @@ rootRouter.get("/app-version", async (req, res) => {
 rootRouter.use("/license", licenseRouter);
 rootRouter.use("/auth", authRouter);
 rootRouter.use("/file-manager", fileManagerRouter);
+rootRouter.use("/feature-manager", featureManagerRouter);
 
 export default rootRouter;
