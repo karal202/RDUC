@@ -16,11 +16,16 @@ export default function FeatureManagerTab({ onStatus }) {
   const [editingProfile, setEditingProfile] = useState(null);
   const [parentFeatureKey, setParentFeatureKey] = useState(null);
   const [showScanner, setShowScanner] = useState(false);
+  const [activeSection, setActiveSection] = useState("all");
   
   const [featureForm, setFeatureForm] = useState({ feature_key: "", feature_name: "", section: "", description: "" });
   const [profileForm, setProfileForm] = useState({ profile_key: "", profile_name: "", file_path: "", enabled: true, sort_order: 0 });
   
   const managerBase = API_BASE.replace("/license", "");
+  const sections = [...new Set(features.map((feature) => feature.section).filter(Boolean))];
+  const visibleFeatures = activeSection === "all"
+    ? features
+    : features.filter((feature) => feature.section === activeSection);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -171,6 +176,11 @@ export default function FeatureManagerTab({ onStatus }) {
       </div>
     </div>
 
+    <div className="feature-section-nav" role="tablist" aria-label="Menu desktop">
+      <button className={activeSection === "all" ? "active" : ""} type="button" onClick={() => setActiveSection("all")}>Tất cả</button>
+      {sections.map((section) => <button key={section} className={activeSection === section ? "active" : ""} type="button" onClick={() => setActiveSection(section)}>{section}</button>)}
+    </div>
+
     {showFeatureForm && <div className="modal-overlay">
       <div className="modal-content">
         <div className="modal-header">
@@ -265,7 +275,7 @@ export default function FeatureManagerTab({ onStatus }) {
 
     {loading ? <div className="empty-state">Đang tải danh sách tính năng…</div> : 
     <div className="feature-list">
-      {features.map((feature) => (
+      {visibleFeatures.map((feature) => (
         <div key={feature.feature_key} className="feature-card">
           <div className="feature-header" onClick={() => toggleExpand(feature.feature_key)}>
             <div className="feature-info">
