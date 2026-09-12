@@ -1811,6 +1811,8 @@ tbody tr:hover td {
 .file-manager-info .linked-note { color: #34d399; }
 .file-manager-info small { color: var(--text-tertiary); font-size: 11px; }
 .file-manager-info code { color: #c4b5fd; }
+.file-manager-row .row-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.file-manager-row .file-action { padding: 8px 11px; }
 .feature-status { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; font-size: 12px; font-weight: 600; }
 .feature-status.enabled { color: #34d399; }.feature-status.disabled { color: #fbbf24; }
 .feature-toggle { min-width: 82px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }

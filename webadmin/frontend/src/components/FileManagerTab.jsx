@@ -168,8 +168,8 @@ export default function FileManagerTab({ onStatus }) {
           {item.enabled ? "Đang bật" : "Đã tắt"}
         </span>
         <div className="row-actions">
-          <button className="btn-icon" onClick={() => handleEdit(item)} title="Sửa"><Pencil size={18} /></button>
-          <button className="btn-icon" onClick={() => handleDelete(item.key)} title="Xóa"><Trash size={18} /></button>
+          <button className="btn-secondary file-action" onClick={() => handleEdit(item)}><Pencil size={18} />Sửa</button>
+          <button className="btn-danger file-action" onClick={() => handleDelete(item.key)}><Trash size={18} />Xóa</button>
           <button className="btn-secondary feature-toggle" disabled={saving === item.key} onClick={() => toggle(item)}>
             {item.enabled ? <ToggleRight size={21} weight="fill" /> : <ToggleLeft size={21} weight="fill" />}
             {item.enabled ? "Tắt" : "Bật"}

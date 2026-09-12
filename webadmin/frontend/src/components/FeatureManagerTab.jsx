@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Layers, Plus, Pencil, Trash, FolderOpen, X, ChevronDown, ChevronUp, CheckCircle, WarningCircle } from "@phosphor-icons/react";
+import { Stack, Plus, Pencil, Trash, FolderOpen, X, CaretDown, CaretUp, CheckCircle, WarningCircle } from "@phosphor-icons/react";
 import { API_BASE, fetchJson } from "../api/licenseApi";
 
 const formatBytes = (size) => !size ? "—" : size < 1024 * 1024 ? `${Math.ceil(size / 1024)} KB` : `${(size / 1024 / 1024).toFixed(2)} MB`;
@@ -253,7 +253,7 @@ export default function FeatureManagerTab({ onStatus }) {
           <div className="file-list">
             {scannedFiles.map((file) => (
               <div key={file.path} className="file-item" onClick={() => selectFile(file.path)}>
-                <Layers size={16} />
+                <Stack size={16} />
                 <span>{file.path}</span>
                 <small>{formatBytes(file.size)}</small>
               </div>
@@ -277,7 +277,7 @@ export default function FeatureManagerTab({ onStatus }) {
               <button className="btn-icon" onClick={(e) => { e.stopPropagation(); handleEditFeature(feature); }} title="Sửa"><Pencil size={18} /></button>
               <button className="btn-icon" onClick={(e) => { e.stopPropagation(); handleDeleteFeature(feature.feature_key); }} title="Xóa"><Trash size={18} /></button>
               <button className="btn-icon" title={expandedFeatures.has(feature.feature_key) ? "Thu gọn" : "Mở rộng"}>
-                {expandedFeatures.has(feature.feature_key) ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                {expandedFeatures.has(feature.feature_key) ? <CaretUp size={20} /> : <CaretDown size={20} />}
               </button>
             </div>
           </div>
