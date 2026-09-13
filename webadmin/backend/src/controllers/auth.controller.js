@@ -1,12 +1,14 @@
 import { authService } from "../services/auth.service.js";
 import { responseSuccess } from "../common/helpers/response.helper.js";
 
-// cấu hình cookies để chặn JS truy cập vào cookie
+const isProduction = process.env.NODE_ENV === "production";
+
+// Cấu hình cookies an toàn chống XSS và đánh cắp token
 const COOKIE_OPTIONS = {
-  httpOnly: true, //chặn JS truy cập vào cookie
-  sameSite: "lax", //chỉ gửi cookie trong cùng 1 trang web
-  secure: false, // develop: false, production: true
-  maxAge: 7 * 24 * 60 * 60 * 1000, //7 ngày
+  httpOnly: true, // Chặn JS truy cập vào cookie chống XSS
+  sameSite: isProduction ? "none" : "lax", // None khi chạy cross-site HTTPS giữa frontend và backend
+  secure: isProduction, // Bắt buộc HTTPS (secure: true) trong production
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 ngày
 };
 
 export const authController = {

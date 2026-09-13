@@ -4,11 +4,24 @@ import { decryptKey, hashKeyForLookup } from "../../utils/licenseUtils.js";
 
 dotenv.config();
 
+const isProduction = process.env.NODE_ENV === "production";
 const dbHost = process.env.DB_HOST || "localhost";
 const dbPort = process.env.DB_PORT || 3306;
 const dbUser = process.env.DB_USER || "root";
 const dbPassword = process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : "";
 const dbName = process.env.DB_NAME || "license_system";
+
+if (isProduction) {
+  if (!process.env.DB_PASSWORD && !process.env.DB_URL) {
+    throw new Error(
+      "[SECURITY FATAL] Production environment detected with empty database credentials. Please provide a strong DB_PASSWORD or DB_URL in .env.",
+    );
+  }
+} else if (!dbPassword) {
+  console.warn(
+    "[SECURITY WARNING] Database password is empty or using defaults. Please set a strong DB_PASSWORD in .env for security.",
+  );
+}
 
 const databaseUrl =
   process.env.DB_URL || `mysql://${dbUser}:${dbPassword}@${dbHost}:${dbPort}/${dbName}`;

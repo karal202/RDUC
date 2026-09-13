@@ -14,7 +14,6 @@ import {
   Gauge,
   Power,
   MousePointer2,
-  KeyboardIcon,
   RotateCcw,
   Laptop,
   TrendingUp,
@@ -142,7 +141,8 @@ const startMonitoring = () => {
   if (isMonitoring || document.hidden) return
   isMonitoring = true
   fetchStats()
-  timer = setInterval(fetchStats, 15000)
+  // Increase polling interval from 15s to 30s to reduce CPU usage
+  timer = setInterval(fetchStats, 30000)
   liveTimer = setInterval(() => {
     liveUptime.value++
   }, 1000)
@@ -170,8 +170,7 @@ const quickTools = computed(() => [
 ])
 
 const presetTools = computed(() => [
-  { key: 'mouse', label: 'Input Lag', icon: MousePointer2 },
-  { key: 'rapid', label: 'Rapid Trigger', icon: KeyboardIcon },
+  { key: 'inputlag', label: 'Input Lag', icon: MousePointer2 },
   { key: 'tools', label: 'Clean Cache', icon: HardDrive },
   { key: 'restore', label: 'Restore', icon: RotateCcw }
 ])
@@ -349,8 +348,22 @@ onUnmounted(() => {
                     {{ stats.battery?.charging ? 'CHG' : 'BAT' }}
                   </text>
 
-                  <rect x="176" y="80" width="118" height="5" rx="2.5" fill="rgba(255,255,255,0.2)" />
-                  <rect x="176" y="90" width="78" height="5" rx="2.5" fill="rgba(255,255,255,0.12)" />
+                  <rect
+                    x="176"
+                    y="80"
+                    width="118"
+                    height="5"
+                    rx="2.5"
+                    fill="rgba(255,255,255,0.2)"
+                  />
+                  <rect
+                    x="176"
+                    y="90"
+                    width="78"
+                    height="5"
+                    rx="2.5"
+                    fill="rgba(255,255,255,0.12)"
+                  />
                   <rect x="176" y="120" width="8" height="18" rx="2" fill="#60a5fa" />
                   <rect x="188" y="110" width="8" height="28" rx="2" fill="#4ade80" />
                   <rect x="200" y="124" width="8" height="14" rx="2" fill="#c084fc" />

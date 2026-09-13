@@ -6,10 +6,18 @@ import dotenv from "dotenv";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import path from "path";
+import cookieParser from "cookie-parser";
 import rootRouter from "./src/routers/root.router.js";
 import { bootstrapDatabase } from "./src/common/squelize/connect.sequelize.js";
 
 dotenv.config();
+
+// Tắt console.log trong production để tránh lộ lọt dữ liệu nhạy cảm
+if (process.env.NODE_ENV === "production") {
+  console.log = () => {};
+  console.info = () => {};
+  console.debug = () => {};
+}
 
 const app = express();
 const PORT = Number(process.env.PORT || 3069);
@@ -57,16 +65,20 @@ app.use(
   }),
 );
 
-const defaultOrigins = [
-  "https://rductest.vercel.app",
-  "https://rduc.onrender.com",
-  "http://localhost:5173",
-  "http://localhost:3000",
-  "http://localhost:3069",
-  "http://127.0.0.1:5173",
-  "http://127.0.0.1:3000",
-  "http://127.0.0.1:3069",
-];
+const isProduction = process.env.NODE_ENV === "production";
+
+const defaultOrigins = isProduction
+  ? ["https://rductest.vercel.app", "https://rduc.onrender.com"]
+  : [
+      "https://rductest.vercel.app",
+      "https://rduc.onrender.com",
+      "http://localhost:5173",
+      "http://localhost:3000",
+      "http://localhost:3069",
+      "http://127.0.0.1:5173",
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:3069",
+    ];
 
 const envOrigins = (process.env.CORS || "")
   .split(",")
@@ -76,22 +88,26 @@ const envOrigins = (process.env.CORS || "")
 const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
 
 const isOriginAllowed = (origin) => {
-  if (!origin) return true;
+  if (!origin) return true; // Cho phép non-browser requests (Electron backend fetch, curl, healthcheck)
   const clean = origin.replace(/\/+$/, "");
+
   if (allowedOrigins.includes(clean)) return true;
-  if (/^https?:\/\/localhost(:\d+)?$/.test(clean)) return true;
-  if (/^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(clean)) return true;
-  // Chỉ cho phép domain Vercel cụ thể của dự án (chính thức & preview deployments)
-  if (/^https:\/\/(rductest|rductest-[a-zA-Z0-9_-]+)\.vercel\.app$/.test(clean)) return true;
-  // Chỉ cho phép domain Render cụ thể của dự án
-  if (clean === "https://rduc.onrender.com") return true;
-  if (
-    clean.startsWith("file://") ||
-    clean.startsWith("devtools://") ||
-    clean.startsWith("chrome-extension://")
-  ) {
+
+  // Trong môi trường development, cho phép localhost và 127.0.0.1
+  if (!isProduction) {
+    if (/^https?:\/\/localhost(:\d+)?$/.test(clean)) return true;
+    if (/^https?:\/\/127\.0\.0\.1(:\d+)?$/.test(clean)) return true;
+  }
+
+  // Cho phép domain Vercel và Render chính thức của dự án
+  if (clean === "https://rductest.vercel.app" || clean === "https://rduc.onrender.com") return true;
+
+  // Cho phép Electron packaged protocol (file://)
+  if (clean === "file://" || clean.startsWith("file:///")) {
     return true;
   }
+
+  // ĐÃ XÓA các origin nguy hiểm: chrome-extension://, devtools://, wildcards không kiểm soát
   return false;
 };
 
@@ -122,6 +138,7 @@ app.use(
 );
 
 app.use(express.json({ limit: "1mb" }));
+app.use(cookieParser());
 
 const releaseDir = path.resolve(process.cwd(), "../../appdesktop/release");
 
@@ -141,8 +158,11 @@ app.get("/updates", (req, res) => {
 app.use("/api", rootRouter);
 
 app.use((err, req, res, next) => {
-  console.error("Unhandled error:", err);
-  res.status(500).json({
+  if (!isProduction) {
+    console.error("Unhandled error:", err);
+  }
+  const statusCode = err?.statusCode || err?.status || 500;
+  res.status(statusCode).json({
     success: false,
     message: err?.message || "Internal Server Error",
   });

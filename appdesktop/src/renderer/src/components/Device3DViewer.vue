@@ -28,6 +28,7 @@ let frameId = null
 let Three = null
 let CSS2DRenderer = null
 let CSS2DObject = null
+let isRendering = false
 
 const loadThree = async () => {
   try {
@@ -447,6 +448,7 @@ const initThreeScene = async () => {
   // Animation loop
   const clock = new Three.Clock()
   const animate = () => {
+    if (!isRendering) return
     frameId = requestAnimationFrame(animate)
     const dt = clock.getDelta()
     const t = clock.getElapsedTime()
@@ -490,7 +492,34 @@ const initThreeScene = async () => {
     renderer.render(scene, camera)
     if (labelRenderer) labelRenderer.render(scene, camera)
   }
-  animate()
+
+  const startRendering = () => {
+    if (!isRendering) {
+      isRendering = true
+      animate()
+    }
+  }
+
+  const stopRendering = () => {
+    isRendering = false
+    if (frameId) {
+      cancelAnimationFrame(frameId)
+      frameId = null
+    }
+  }
+
+  // Start rendering initially
+  startRendering()
+
+  // Pause rendering when document is hidden for performance
+  const handleVisibilityChange = () => {
+    if (document.hidden) {
+      stopRendering()
+    } else {
+      startRendering()
+    }
+  }
+  document.addEventListener('visibilitychange', handleVisibilityChange)
 
   // Resize handling
   const handleResize = () => {
@@ -515,6 +544,7 @@ const initThreeScene = async () => {
     window.removeEventListener('pointermove', onMove)
     dom.removeEventListener('pointerdown', onDown)
     dom.removeEventListener('wheel', onWheel)
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
     if (scene)
       scene.traverse((obj) => {
         if (obj.geometry) obj.geometry.dispose && obj.geometry.dispose()

@@ -8,7 +8,13 @@
 # Environment files and local secrets
 .env
 .env.*
-!.env.example
+**/.env
+**/.env.*
+**/.env.local
+**/.env.development.local
+**/.env.test.local
+**/.env.production.local
+!**/.env.example
 
 # Logs and local tooling
 *.log
@@ -23,3 +29,6 @@ webadmin/frontend/public/downloads/*.exe
 webadmin/frontend/public/downloads/*.blockmap
 
 SECURITY.md
+
+# Large files (>100MB exceeds GitHub limit)
+appdesktop/resources/scripts/Tool&cache/AME Beta.exe

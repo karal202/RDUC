@@ -53,7 +53,6 @@ const invertSelection = () => {
         </div>
       </div>
 
-
       <!-- Interactive Cyber Keyboard -->
       <section class="keyboard-card">
         <div v-for="(row, rowIndex) in rows" :key="rowIndex" class="keyboard-row">
