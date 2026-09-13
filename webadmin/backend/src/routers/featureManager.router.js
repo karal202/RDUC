@@ -2,6 +2,7 @@ import express from "express";
 import fs from "fs";
 import path from "path";
 import { authMiddleware } from "../common/middleware/auth.middleware.js";
+import { requireAdmin } from "../common/middleware/role.middleware.js";
 import { desktopLicenseMiddleware } from "../common/middleware/desktopLicense.middleware.js";
 import Feature from "../models/feature.model.js";
 import FeatureProfile from "../models/featureProfile.model.js";
@@ -75,7 +76,7 @@ async function scanDirectory(dir, baseDir = dir) {
 }
 
 // GET /features - List all features with their profiles
-router.get("/features", authMiddleware, async (req, res) => {
+router.get("/features", authMiddleware, requireAdmin, async (req, res) => {
   try {
     const features = await Feature.findAll({
       order: [['section', 'ASC'], ['feature_name', 'ASC']]
@@ -117,7 +118,7 @@ router.get("/features", authMiddleware, async (req, res) => {
 });
 
 // POST /features - Create new feature
-router.post("/features", authMiddleware, async (req, res) => {
+router.post("/features", authMiddleware, requireAdmin, async (req, res) => {
   const { feature_key, feature_name, section, description } = req.body;
   const ipAddress = req.ip || req.connection.remoteAddress;
   
@@ -147,7 +148,7 @@ router.post("/features", authMiddleware, async (req, res) => {
 });
 
 // PATCH /features/:key - Update feature
-router.patch("/features/:key", authMiddleware, async (req, res) => {
+router.patch("/features/:key", authMiddleware, requireAdmin, async (req, res) => {
   const { key } = req.params;
   const { feature_name, section, description } = req.body;
   const ipAddress = req.ip || req.connection.remoteAddress;
@@ -176,7 +177,7 @@ router.patch("/features/:key", authMiddleware, async (req, res) => {
 });
 
 // DELETE /features/:key - Delete feature (cascades to profiles)
-router.delete("/features/:key", authMiddleware, async (req, res) => {
+router.delete("/features/:key", authMiddleware, requireAdmin, async (req, res) => {
   const { key } = req.params;
   const ipAddress = req.ip || req.connection.remoteAddress;
   
@@ -196,7 +197,7 @@ router.delete("/features/:key", authMiddleware, async (req, res) => {
 });
 
 // POST /features/:key/profiles - Add profile to feature
-router.post("/features/:key/profiles", authMiddleware, async (req, res) => {
+router.post("/features/:key/profiles", authMiddleware, requireAdmin, async (req, res) => {
   const { key } = req.params;
   const { profile_key, profile_name, file_path, enabled = true, sort_order = 0 } = req.body;
   const ipAddress = req.ip || req.connection.remoteAddress;
@@ -237,7 +238,7 @@ router.post("/features/:key/profiles", authMiddleware, async (req, res) => {
 });
 
 // PATCH /features/:key/profiles/:profileKey - Update profile
-router.patch("/features/:key/profiles/:profileKey", authMiddleware, async (req, res) => {
+router.patch("/features/:key/profiles/:profileKey", authMiddleware, requireAdmin, async (req, res) => {
   const { key, profileKey } = req.params;
   const { profile_name, file_path, enabled, sort_order } = req.body;
   const ipAddress = req.ip || req.connection.remoteAddress;
@@ -266,7 +267,7 @@ router.patch("/features/:key/profiles/:profileKey", authMiddleware, async (req, 
       where: { feature_key: key, profile_key: profileKey } 
     });
     
-    await logAudit('UPDATE', 'PROFILE', `${key}:${profileKey}`, oldValue, updated.toJSON(), req.user.id, ipAddress);
+    await logAudit('UPDATE', 'PROFILE', `${key}:${profile_key}`, oldValue, updated.toJSON(), req.user.id, ipAddress);
     
     res.json({ success: true, data: updated });
   } catch (error) {
@@ -275,7 +276,7 @@ router.patch("/features/:key/profiles/:profileKey", authMiddleware, async (req, 
 });
 
 // DELETE /features/:key/profiles/:profileKey - Delete profile
-router.delete("/features/:key/profiles/:profileKey", authMiddleware, async (req, res) => {
+router.delete("/features/:key/profiles/:profileKey", authMiddleware, requireAdmin, async (req, res) => {
   const { key, profileKey } = req.params;
   const ipAddress = req.ip || req.connection.remoteAddress;
   
@@ -299,7 +300,7 @@ router.delete("/features/:key/profiles/:profileKey", authMiddleware, async (req,
 });
 
 // GET /scan - Scan scripts directory
-router.get("/scan", authMiddleware, async (req, res) => {
+router.get("/scan", authMiddleware, requireAdmin, async (req, res) => {
   try {
     const scriptsDir = resolveScriptsDir();
     const files = await scanDirectory(scriptsDir);

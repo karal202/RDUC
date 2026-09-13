@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onMounted, watchEffect } from 'vue'
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useSocket } from './composables/useSocket'
 import ActivationModal from './components/ActivationModal.vue'
 import UpdateModal from './components/UpdateModal.vue'
@@ -11,7 +11,6 @@ import BiosTab from './components/BiosTab.vue'
 import NetworkTab from './components/NetworkTab.vue'
 import InputLagTab from './components/InputLagTab.vue'
 import RestoreDefaultTab from './components/RestoreDefaultTab.vue'
-import RapidTriggerTab from './components/RapidTriggerTab.vue'
 import ToolsCacheTab from './components/ToolsCacheTab.vue'
 import logoVideo from '../../../public/logo.mp4'
 import { verticalBanners } from './assets/banners'
@@ -26,8 +25,7 @@ import {
   Network,
   Power,
   RotateCcw,
-  Sparkles,
-  KeyboardIcon
+  Sparkles
 } from 'lucide-vue-next'
 
 const activeTab = ref('dashboard')
@@ -38,7 +36,6 @@ const tabComponents = {
   network: NetworkTab,
   inputlag: InputLagTab,
   restore: RestoreDefaultTab,
-  rapid: RapidTriggerTab,
   tools: ToolsCacheTab
 }
 const activeComponent = computed(() => tabComponents[activeTab.value])
@@ -51,7 +48,6 @@ const pageTitle = computed(
       network: 'Network',
       inputlag: 'Input Lag',
       restore: 'Restore',
-      rapid: 'Rapid Trigger',
       tools: 'Tools & Cache'
     })[activeTab.value] || 'Dashboard'
 )
@@ -63,7 +59,6 @@ const toolNav = [
   { key: 'bios', label: 'BIOS', icon: Power },
   { key: 'network', label: 'Network', icon: Network },
   { key: 'inputlag', label: 'Input Lag', icon: MousePointer2 },
-  { key: 'rapid', label: 'Rapid Trigger', icon: KeyboardIcon },
   { key: 'tools', label: 'Tools & Cache', icon: HardDrive },
   { key: 'restore', label: 'Restore', icon: RotateCcw }
 ]
@@ -87,6 +82,9 @@ const latestVersionInfo = ref({
 
 const SPLASH_MIN_MS = 2400
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+// Performance optimization: Handle visibility changes
+let visibilityHandler = null
 
 const playRocket = async () => {
   bootGate.value = 'rocket'
@@ -202,7 +200,9 @@ const handleGoTab = (tabKey) => {
   }
 }
 
-watchEffect(async () => {
+// Debounced tray state update to reduce CPU usage
+let trayUpdateTimeout = null
+const updateTrayState = async () => {
   if (!window.api?.traySetState) return
   try {
     if (revokedAlert.value || (!isActivated.value && bootGate.value === 'activate')) {
@@ -225,7 +225,24 @@ watchEffect(async () => {
   } catch (err) {
     console.warn('Tray state update failed:', err)
   }
-})
+}
+
+// Watch all relevant reactive variables with debounce
+watch(
+  [
+    revokedAlert,
+    isActivated,
+    bootGate,
+    () => latestVersionInfo.value.isOutdated,
+    () => latestVersionInfo.value.mandatory,
+    socketConnected
+  ],
+  () => {
+    if (trayUpdateTimeout) clearTimeout(trayUpdateTimeout)
+    trayUpdateTimeout = setTimeout(updateTrayState, 500) // 500ms debounce
+  },
+  { deep: true }
+)
 
 onMounted(() => {
   checkLicense({ splash: true })
@@ -239,6 +256,27 @@ onMounted(() => {
       revokedAlert.value = false
     }, 8000)
   })
+
+  // Performance optimization: Pause animations when document is hidden
+  const handleVisibilityChange = () => {
+    if (document.hidden) {
+      document.body.classList.add('page-hidden')
+    } else {
+      document.body.classList.remove('page-hidden')
+    }
+  }
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  // Store handler for cleanup
+  visibilityHandler = handleVisibilityChange
+})
+
+onUnmounted(() => {
+  if (visibilityHandler) {
+    document.removeEventListener('visibilitychange', visibilityHandler)
+  }
+  if (trayUpdateTimeout) {
+    clearTimeout(trayUpdateTimeout)
+  }
 })
 </script>
 

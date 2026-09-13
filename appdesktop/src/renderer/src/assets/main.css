@@ -69,9 +69,15 @@ body {
 ::-webkit-scrollbar-thumb {
   background: #2a2a2a;
   border-radius: 3px;
+  /* Performance optimization: avoid expensive hover effects on scrollbar */
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #3a3a3a;
+}
+
+/* Performance optimization: Reduce repaints with will-change only when needed */
+* {
+  will-change: auto;
 }
 
 /* ══════════════════════════════════════════
@@ -113,14 +119,14 @@ body {
   background: rgba(5, 5, 8, 0.72);
 }
 
-  .hud-logo {
-    width: 118px;
-    height: 34px;
-    object-fit: contain;
-    flex-shrink: 0;
-    filter: brightness(1.18);
-    pointer-events: none;
-  }
+.hud-logo {
+  width: 118px;
+  height: 34px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: brightness(1.18);
+  pointer-events: none;
+}
 
 .hud-nav {
   display: flex;
@@ -393,6 +399,23 @@ body {
   .hud-tab-core {
     font-size: 12px;
   }
+}
+
+/* Performance optimization: Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Performance optimization: Pause animations when page is not visible */
+.page-hidden * {
+  animation-play-state: paused !important;
 }
 
 /* ── Status badge ── */

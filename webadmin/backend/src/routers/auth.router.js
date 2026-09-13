@@ -1,25 +1,38 @@
 import express from "express";
-import { authController } from "../controllers/auth.controller.js";
-import { authMiddleware } from "../common/middleware/auth.middleware.js";
-import { protectMiddleware } from "../common/middleware/protect.middleware.js";
-import { authCookie } from "../common/middleware/authCookie.middleware.js";
+import rateLimit from "express-rate-limit";
 import passport from "passport";
+import { authController } from "../controllers/auth.controller.js";
+import { authCookie } from "../common/middleware/authCookie.middleware.js";
+import {
+  validateLoginInput,
+  validateRegisterInput,
+  validateForgotPasswordInput,
+} from "../common/middleware/validation.middleware.js";
+
 const authRouter = express.Router();
 
-// Tạo route CRUD
-// http://localhost:3069/api/auth/login
-authRouter.post("/login", authController.login);
-// http://localhost:3069/api/auth/register
-authRouter.post("/register", authController.register);
-// http://localhost:3069/api/auth/forgot-password
-authRouter.post("/forgot-password", authController.forgotPassword);
+// Rate limiter chống brute-force đăng nhập / đăng ký
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 phút
+  max: 10, // Tối đa 10 lần thử từ 1 IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.method === "OPTIONS",
+  message: {
+    success: false,
+    message: "Quá nhiều yêu cầu đăng nhập/đăng ký. Vui lòng thử lại sau 15 phút.",
+  },
+});
+
+// Authentication endpoints có rate limit và input validation
+authRouter.post("/login", authLimiter, validateLoginInput, authController.login);
+authRouter.post("/register", authLimiter, validateRegisterInput, authController.register);
+authRouter.post("/forgot-password", authLimiter, validateForgotPasswordInput, authController.forgotPassword);
 
 authRouter.get("/get-info", authCookie, authController.getInfo);
-
 authRouter.post("/refresh-token", authController.refreshToken);
 
-//khi user click nút login -> gọi api get bằng thanh url
-//passport sẽ được kích hoạt, điều hướng người dùng tới trang chọn tài khoản google, dùng scope để xác định thông tin nào của người dùng sẽ được trả về sau khi đăng nhập thành công
+// Google OAuth
 authRouter.get(
   "/google",
   passport.authenticate("google", { scope: ["profile", "email"] }),
@@ -29,13 +42,8 @@ authRouter.get(
   "/google/callback",
   passport.authenticate("google", {
     failureRedirect: "/login",
-    session: false, // không sử dụng session để xử lý đăng nhập, để BE tự xử lý jwt
+    session: false,
   }),
-  // function (req, res) {
-  //   console.log("middleware tiếp theo sau khi verify thành công", req.user);
-  //   // Successful authentication, redirect home.
-  //   // res.redirect("/");
-  // },
   authController.googleCallback,
 );
 

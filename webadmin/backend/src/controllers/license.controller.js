@@ -236,23 +236,20 @@ export async function createLicense(req, res) {
   try {
     const body = req.body || {};
     const maxDevices = Number(body.max_devices || 1);
-    let createdBy = Number(body.created_by || 1);
     const customerName = String(body.customer_name || "").trim() || "Khách mới";
     const customerContact = String(body.customer_contact || "").trim() || "";
+    let createdBy = req.user?.id || (body.created_by ? Number(body.created_by) : null);
 
-    let admin = await Admin.findByPk(createdBy);
+    let admin = createdBy ? await Admin.findByPk(createdBy) : null;
     if (!admin) {
       const firstAdmin = await Admin.findOne({ order: [["id", "ASC"]] });
       if (firstAdmin) {
         createdBy = firstAdmin.id;
       } else {
-        const newAdmin = await Admin.create({
-          username: "admin",
-          password_hash: "system_admin_hash",
-          role: "super_admin",
-          created_at: new Date(),
+        return res.status(400).json({
+          success: false,
+          message: "Hệ thống chưa có tài khoản quản trị hợp lệ. Vui lòng tạo tài khoản quản trị trước.",
         });
-        createdBy = newAdmin.id;
       }
     }
 

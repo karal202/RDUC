@@ -1,0 +1,9 @@
+FlipQueueSize ของ AMDเหมือนกับ Maximum Pre-rendered Framesของค่ายเขียว
+FlipQueueSize คือจำนวนเฟรมที่ไดรเวอร์ของ AMDจะเรนเดอร์ล่วงหน้า
+ยิ่งค่าสูงGPUจะมีเวลาเตรียมเฟรมล่วงหน้ามากขึ้นเฟรมมีโอกาสนิ่งขึ้น
+แต่จะมี input lag เพิ่มขึ้น
+ยิ่งค่าต่ำลด input lagทำให้ตอบสนองไวขึ้น
+อาจทำให้FPS dropหากCPUทำงานหนัก
+ค่าDefault2 แนะนำปรับเป็น0ตามคลิปเพราะInput lag ต่ำ ตอบสนองเร็ว
+
+Made by Savenz https://discord.gg/UE8Fy9fQ7a,https://www.tiktok.com/@savenzkub,https://www.youtube.com/@Savenzkub ดิสส่วนตัวkingsavenz

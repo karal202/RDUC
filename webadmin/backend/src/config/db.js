@@ -3,12 +3,25 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+const isProduction = process.env.NODE_ENV === "production";
+const dbHost = process.env.DB_HOST || "localhost";
+const dbPort = Number(process.env.DB_PORT || 3306);
+const dbUser = process.env.DB_USER || "root";
+const dbPassword = process.env.DB_PASSWORD !== undefined ? process.env.DB_PASSWORD : "";
+const dbName = process.env.DB_NAME || "license_system";
+
+if (isProduction && !process.env.DB_PASSWORD && !process.env.DB_URL) {
+  throw new Error(
+    "[SECURITY FATAL] Production environment detected with empty database credentials in db.js pool. Please set DB_PASSWORD or DB_URL.",
+  );
+}
+
 const dbConfig = {
-  host: process.env.DB_HOST || "localhost",
-  port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER || "root",
-  password: process.env.DB_PASSWORD || "",
-  database: process.env.DB_NAME || "license_system",
+  host: dbHost,
+  port: dbPort,
+  user: dbUser,
+  password: dbPassword,
+  database: dbName,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,

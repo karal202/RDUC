@@ -7,91 +7,447 @@ import {
   SlidersHorizontal,
   Wrench,
   Play,
-  CheckCircle2,
-  Trash2
+  Trash2,
+  Cpu,
+  Monitor,
+  RotateCcw,
+  Briefcase,
+  Search,
+  Check,
+  Copy,
+  Terminal,
+  HardDrive,
+  Sparkles,
+  Layers,
+  Layers2
 } from 'lucide-vue-next'
 
-const activeTool = ref('msi')
+const activeCategory = ref('all')
+const searchQuery = ref('')
 const isCleaning = ref(false)
-const isLaunchingTool = ref(false)
+const runningToolKey = ref(null)
 const cleanLog = ref('')
+const copied = ref(false)
 const ramProfile = ref('16')
 const ramProfiles = ['2', '3', '4', '6', '8', '10', '12', '16', '20', '24', '32', '48', '64']
+
+const CATEGORIES = [
+  { key: 'all', label: 'Tất cả' },
+  { key: 'cleanup', label: 'Bảo Trì & RAM', icon: Trash2 },
+  { key: 'nvidia', label: 'NVIDIA GPU', icon: Monitor },
+  { key: 'amd', label: 'AMD GPU', icon: Cpu },
+  { key: 'cpu', label: 'CPU & Tiến Trình', icon: Bolt },
+  { key: 'system', label: 'Hệ Thống & Services', icon: SlidersHorizontal }
+]
 
 const tools = [
   {
     key: 'msi',
-    label: 'MSI UTILITY V3',
+    category: 'cpu',
+    label: 'MSI Utility V3',
     icon: SlidersHorizontal,
-    desc: 'Tối ưu MSI (Message Signaled-Based Interrupts) Mode giảm độ trễ ngắt DPC cho GPU/Audio.',
+    desc: 'Tối ưu MSI (Message Signaled-Based Interrupts) Mode giảm độ trễ ngắt DPC cho GPU và Audio.',
     badge: 'INTERRUPTS',
     action: 'msi-utility',
-    actionLabel: 'Mở MSI Utility V3'
+    actionLabel: 'Mở MSI Utility V3',
+    accent: '#a855f7'
   },
   {
-    key: 'device',
-    label: 'DEVICE CLEANUP',
-    icon: Laptop,
-    desc: 'Dọn dẹp driver các thiết bị ngoại vi cũ/ngắt kết nối tồn đọng trong Windows Device Manager.',
-    badge: 'HARDWARE'
+    key: 'clean-cache',
+    category: 'cleanup',
+    label: 'Clean Cache Script',
+    icon: Trash2,
+    desc: 'Chạy script dọn dẹp các tệp đệm rác hệ thống (Clear.bat).',
+    badge: 'CLEAN',
+    action: 'clean-cache',
+    actionLabel: 'Chạy Dọn Cache',
+    accent: '#06b6d4'
   },
   {
     key: 'memory',
-    label: 'MEMORY CLEANER',
-    icon: Gamepad2,
+    category: 'cleanup',
+    label: 'Memory Standby Cleaner',
+    icon: Bolt,
     desc: 'Xả sạch Standby List và Working Set RAM, chống drop FPS đột ngột khi chơi game nặng.',
     badge: 'RAM CACHE',
     action: 'ram-optimization',
-    actionLabel: 'Áp dụng RAM profile'
+    actionLabel: 'Áp dụng RAM',
+    accent: '#22c55e',
+    isRamTool: true
   },
   {
-    key: 'tweaks',
-    label: 'WIN UTIL TWEAKS',
+    key: 'device',
+    category: 'cleanup',
+    label: 'Device Cleanup',
+    icon: Laptop,
+    desc: 'Dọn dẹp driver các thiết bị ngoại vi cũ/ngắt kết nối tồn đọng trong Windows Device Manager.',
+    badge: 'HARDWARE',
+    action: null,
+    actionLabel: 'Không khả dụng',
+    accent: '#64748b'
+  },
+  // NVIDIA
+  {
+    key: 'nvidia-nvcleanstall',
+    category: 'nvidia',
+    label: 'NVIDIA NvCleanstall',
+    icon: Monitor,
+    desc: 'Công cụ cài đặt driver NVIDIA siêu sạch, loại bỏ Telemetry và bloatware.',
+    badge: 'NVIDIA',
+    action: 'nvidia-nvcleanstall',
+    actionLabel: 'Mở NvCleanstall',
+    accent: '#76b900'
+  },
+  {
+    key: 'nvidia-profile-inspector',
+    category: 'nvidia',
+    label: 'NVIDIA Profile Inspector',
+    icon: Monitor,
+    desc: 'Tinh chỉnh profile GPU NVIDIA chuyên sâu (Frame rate limiter, ReBAR, Resync).',
+    badge: 'NVIDIA',
+    action: 'nvidia-profile-inspector',
+    actionLabel: 'Mở Profile Inspector',
+    accent: '#76b900'
+  },
+  {
+    key: 'nvidia-inspector',
+    category: 'nvidia',
+    label: 'NVIDIA Inspector',
+    icon: Monitor,
+    desc: 'Công cụ giám sát thông số clock, voltage và ép xung nhẹ card đồ họa NVIDIA.',
+    badge: 'NVIDIA',
+    action: 'nvidia-inspector',
+    actionLabel: 'Mở NVIDIA Inspector',
+    accent: '#76b900'
+  },
+  {
+    key: 'nvidia-powermizer',
+    category: 'nvidia',
+    label: 'NVIDIA PowerMizer',
+    icon: Monitor,
+    desc: 'Khóa GPU ở trạng thái P0/P2, ngăn hạ xung khi load cảnh nhẹ trong game.',
+    badge: 'NVIDIA',
+    action: 'nvidia-powermizer',
+    actionLabel: 'Mở PowerMizer',
+    accent: '#76b900'
+  },
+  {
+    key: 'nvidia-desktop-composition',
+    category: 'nvidia',
+    label: 'Desktop Composition',
+    icon: Monitor,
+    desc: 'Áp dụng tinh chỉnh Desktop Composition cho GPU NVIDIA chống trễ DWM.',
+    badge: 'NVIDIA',
+    action: 'nvidia-desktop-composition',
+    actionLabel: 'Áp dụng Composition',
+    accent: '#76b900'
+  },
+  {
+    key: 'nvidia-gamedvr-gamemode',
+    category: 'nvidia',
+    label: 'NVIDIA GameDVR & Game Mode',
+    icon: Monitor,
+    desc: 'Tối ưu liên kết giữa driver đồ họa NVIDIA và Windows Game Mode.',
+    badge: 'NVIDIA',
+    action: 'nvidia-gamedvr-gamemode',
+    actionLabel: 'Áp dụng GameDVR Fix',
+    accent: '#76b900'
+  },
+  {
+    key: 'nvidia-graphics-tweaks',
+    category: 'nvidia',
+    label: 'NVIDIA Graphics Tweaks',
+    icon: Monitor,
+    desc: 'Áp dụng các khóa Registry tối ưu rendering cho driver đồ họa NVIDIA.',
+    badge: 'NVIDIA',
+    action: 'nvidia-graphics-tweaks',
+    actionLabel: 'Áp dụng Tweaks',
+    accent: '#76b900'
+  },
+  {
+    key: 'nvidia-nvidia-tweaks',
+    category: 'nvidia',
+    label: 'NVIDIA Driver Tweaks',
+    icon: Monitor,
+    desc: 'Gói tinh chỉnh tổng hợp NVIDIA Driver latency và power delivery.',
+    badge: 'NVIDIA',
+    action: 'nvidia-nvidia-tweaks',
+    actionLabel: 'Áp dụng Driver Tweaks',
+    accent: '#76b900'
+  },
+  {
+    key: 'nvidia-power-latency',
+    category: 'nvidia',
+    label: 'NVIDIA Power & Latency',
+    icon: Monitor,
+    desc: 'Tối ưu độ trễ cấp nguồn và chuyển đổi trạng thái hiệu năng cho GPU NVIDIA.',
+    badge: 'NVIDIA',
+    action: 'nvidia-power-latency',
+    actionLabel: 'Áp dụng Power Tweaks',
+    accent: '#76b900'
+  },
+  {
+    key: 'nvidia-task-priority',
+    category: 'nvidia',
+    label: 'NVIDIA Task Priority',
+    icon: Monitor,
+    desc: 'Ưu tiên luồng xử lý đồ họa của NVIDIA lên mức High Priority.',
+    badge: 'NVIDIA',
+    action: 'nvidia-task-priority',
+    actionLabel: 'Áp dụng Priority',
+    accent: '#76b900'
+  },
+  // AMD
+  {
+    key: 'amd-radeonmod',
+    category: 'amd',
+    label: 'AMD RadeonMod',
+    icon: Cpu,
+    desc: 'Công cụ tinh chỉnh Registry ngầm chuyên sâu cho GPU AMD Radeon.',
+    badge: 'AMD',
+    action: 'amd-radeonmod',
+    actionLabel: 'Mở RadeonMod',
+    accent: '#ed1c24'
+  },
+  {
+    key: 'amd-morepowertool',
+    category: 'amd',
+    label: 'AMD MorePowerTool',
+    icon: Cpu,
+    desc: 'Công cụ ép xung, can thiệp Power Table và tăng Power Limit GPU AMD.',
+    badge: 'AMD',
+    action: 'amd-morepowertool',
+    actionLabel: 'Mở MorePowerTool',
+    accent: '#ed1c24'
+  },
+  {
+    key: 'amd-radeonsoftwarelimmer',
+    category: 'amd',
+    label: 'AMD RadeonSlimmer',
+    icon: Cpu,
+    desc: 'Công cụ lược bỏ bớt các thành phần không cần thiết trong driver AMD.',
+    badge: 'AMD',
+    action: 'amd-radeonsoftwarelimmer',
+    actionLabel: 'Mở RadeonSlimmer',
+    accent: '#ed1c24'
+  },
+  {
+    key: 'amd-3d-settings',
+    category: 'amd',
+    label: 'AMD 3D Settings',
+    icon: Cpu,
+    desc: 'Áp dụng tinh chỉnh 3D settings hiệu năng cao cho GPU AMD Radeon.',
+    badge: 'AMD',
+    action: 'amd-3d-settings',
+    actionLabel: 'Áp dụng 3D Settings',
+    accent: '#ed1c24'
+  },
+  {
+    key: 'amd-driver-tweaks',
+    category: 'amd',
+    label: 'AMD Driver Tweaks',
+    icon: Cpu,
+    desc: 'Áp dụng tinh chỉnh khóa driver AMD Radeon giảm stuttering.',
+    badge: 'AMD',
+    action: 'amd-driver-tweaks',
+    actionLabel: 'Áp dụng Driver Tweaks',
+    accent: '#ed1c24'
+  },
+  // CPU & PROCESS
+  {
+    key: 'throttlestop',
+    category: 'cpu',
+    label: 'ThrottleStop',
     icon: Bolt,
+    desc: 'Công cụ kiểm soát xung nhịp, undervolt và triệt tiêu CPU Throttling.',
+    badge: 'CPU',
+    action: 'throttlestop',
+    actionLabel: 'Mở ThrottleStop',
+    accent: '#3b82f6'
+  },
+  {
+    key: 'parkcontrol',
+    category: 'cpu',
+    label: 'ParkControl',
+    icon: Bolt,
+    desc: 'Tắt Core Parking thời gian thực mà không cần khởi động lại máy.',
+    badge: 'CPU',
+    action: 'parkcontrol',
+    actionLabel: 'Mở ParkControl',
+    accent: '#06b6d4'
+  },
+  {
+    key: 'processlasso',
+    category: 'cpu',
+    label: 'Process Lasso',
+    icon: Bolt,
+    desc: 'Tự động phân bổ lõi CPU Affinity, ProBalance chống tràn CPU 100%.',
+    badge: 'CPU',
+    action: 'processlasso',
+    actionLabel: 'Mở Process Lasso',
+    accent: '#f59e0b'
+  },
+  {
+    key: 'quickcpu',
+    category: 'cpu',
+    label: 'QuickCPU',
+    icon: Bolt,
+    desc: 'Công cụ can thiệp CPU Frequency Scaling và quản lý năng lượng vi xử lý.',
+    badge: 'CPU',
+    action: 'quickcpu',
+    actionLabel: 'Mở QuickCPU',
+    accent: '#10b981'
+  },
+  {
+    key: 'ame-beta',
+    category: 'cpu',
+    label: 'AME Beta',
+    icon: Bolt,
+    desc: 'Công cụ tối ưu kiến trúc x86 và loại bỏ các thành phần rườm rà của hệ thống.',
+    badge: 'CPU',
+    action: 'ame-beta',
+    actionLabel: 'Mở AME Beta',
+    accent: '#8b5cf6'
+  },
+  // SYSTEM & SERVICES
+  {
+    key: 'tweaks',
+    category: 'system',
+    label: 'Windows Settings Tweaks',
+    icon: SlidersHorizontal,
     desc: 'Bộ tinh chỉnh hệ điều hành chuyên sâu tối ưu phản hồi và dịch vụ nền Windows.',
     badge: 'SYSTEM',
     action: 'windows-settings-tweaks',
-    actionLabel: 'Áp dụng Windows Tweaks'
+    actionLabel: 'Áp dụng Tweaks',
+    accent: '#3b82f6'
+  },
+  {
+    key: 'classic-menu-win10',
+    category: 'system',
+    label: 'Classic Menu Win 10',
+    icon: Layers,
+    desc: 'Khôi phục Menu chuột phải cổ điển phản hồi tức thời trên Windows 10.',
+    badge: 'MENU',
+    action: 'classic-menu-win10',
+    actionLabel: 'Áp dụng Menu Win10',
+    accent: '#06b6d4'
+  },
+  {
+    key: 'classic-menu-win11',
+    category: 'system',
+    label: 'Classic Menu Win 11',
+    icon: Layers2,
+    desc: 'Bỏ menu chuột phải phân tầng chậm chạp của Windows 11 về dạng truyền thống.',
+    badge: 'MENU',
+    action: 'classic-menu-win11',
+    actionLabel: 'Áp dụng Menu Win11',
+    accent: '#00c2ff'
+  },
+  {
+    key: 'disable-extreme-drivers',
+    category: 'system',
+    label: 'Disable Extreme Drivers',
+    icon: Laptop,
+    desc: 'Vô hiệu hóa các driver không cần thiết trong gói tinh chỉnh Extreme Reg.',
+    badge: 'EXTREME',
+    action: 'disable-extreme-drivers',
+    actionLabel: 'Disable Drivers',
+    accent: '#ec4899'
+  },
+  {
+    key: 'disable-extreme-gamer-services',
+    category: 'system',
+    label: 'Disable Extreme Gamer Services',
+    icon: Gamepad2,
+    desc: 'Tắt sâu các dịch vụ thừa thãi chỉ giữ lại lõi thiết yếu phục vụ game thủ.',
+    badge: 'EXTREME',
+    action: 'disable-extreme-gamer-services',
+    actionLabel: 'Disable Services',
+    accent: '#ef4444'
+  },
+  {
+    key: 'disable-extreme-professional-services',
+    category: 'system',
+    label: 'Disable Professional Services',
+    icon: Briefcase,
+    desc: 'Tắt các dịch vụ doanh nghiệp/văn phòng không dùng tới khi chơi game.',
+    badge: 'EXTREME',
+    action: 'disable-extreme-professional-services',
+    actionLabel: 'Disable Prof Services',
+    accent: '#f59e0b'
+  },
+  {
+    key: 'restore-extreme-gamer-services',
+    category: 'system',
+    label: 'Restore Gamer Services',
+    icon: RotateCcw,
+    desc: 'Khôi phục lại các dịch vụ game thủ Extreme Reg về mặc định.',
+    badge: 'RESTORE',
+    action: 'restore-extreme-gamer-services',
+    actionLabel: 'Restore Gamer Services',
+    accent: '#22c55e'
+  },
+  {
+    key: 'restore-extreme-professional-services',
+    category: 'system',
+    label: 'Restore Professional Services',
+    icon: RotateCcw,
+    desc: 'Khôi phục lại các dịch vụ văn phòng Extreme Reg về mặc định.',
+    badge: 'RESTORE',
+    action: 'restore-extreme-professional-services',
+    actionLabel: 'Restore Prof Services',
+    accent: '#22c55e'
   }
 ]
 
-const selectedTool = computed(() => tools.find((tool) => tool.key === activeTool.value))
+const filteredTools = computed(() => {
+  return tools.filter((tool) => {
+    const matchCat = activeCategory.value === 'all' || tool.category === activeCategory.value
+    const q = searchQuery.value.trim().toLowerCase()
+    const matchSearch =
+      !q ||
+      tool.label.toLowerCase().includes(q) ||
+      tool.desc.toLowerCase().includes(q) ||
+      tool.badge.toLowerCase().includes(q)
+    return matchCat && matchSearch
+  })
+})
 
-const launchSelectedTool = async () => {
-  if (!selectedTool.value?.action || isLaunchingTool.value) return
-  isLaunchingTool.value = true
-  cleanLog.value = `[TOOLS] Đang mở ${selectedTool.value.label}...\n`
+const handleExecuteTool = async (tool) => {
+  if (!tool.action || runningToolKey.value) return
+  runningToolKey.value = tool.key
+  const time = new Date().toLocaleTimeString()
+  cleanLog.value += `[${time}] [TOOLS] Đang thực thi [${tool.label}]...\n`
   try {
-    const options =
-      selectedTool.value.action === 'ram-optimization' ? { profile: ramProfile.value } : {}
-    const res = await window.api.runDawaScript(selectedTool.value.action, options)
-    cleanLog.value += res.success ? `✅ ${res.message}` : `❌ ${res.message}`
+    const options = tool.action === 'ram-optimization' ? { profile: ramProfile.value } : {}
+    const res = await window.api.runDawaScript(tool.action, options)
+    cleanLog.value += res?.success ? `✅ ${res.message}\n` : `❌ ${res?.message || 'Thất bại'}\n`
   } catch (err) {
-    cleanLog.value += `❌ Lỗi mở công cụ: ${err.message || err}`
+    cleanLog.value += `❌ Lỗi: ${err.message || err}\n`
   } finally {
-    isLaunchingTool.value = false
+    runningToolKey.value = null
   }
 }
 
 const handleRunCacheClean = async () => {
+  if (isCleaning.value) return
   isCleaning.value = true
-  cleanLog.value =
-    '[CACHE CLEANER] Đang quét và dọn dẹp các thư mục đệm hệ thống (Temp, Prefetch)...\n'
-
+  const time = new Date().toLocaleTimeString()
+  cleanLog.value += `[${time}] [CACHE CLEANER] Đang quét và dọn dẹp các thư mục đệm hệ thống (Temp, Prefetch)...\n`
   try {
     const res = await window.api.runDawaScript('dawa-cleaner')
-    if (res.success) {
+    if (res?.success) {
       cleanLog.value += `✅ ${res.message}\n`
       if (res.stepResults) {
         res.stepResults.forEach((step, i) => {
           cleanLog.value += `  [Bước ${i + 1}] Xóa thư mục: ${step.args?.[0] || 'Target'}\n`
-          if (step.stdout) cleanLog.value += `    -> ${step.stdout.trim()}\n`
-          if (step.stderr) cleanLog.value += `    -> ${step.stderr.trim()}\n`
+          if (step.stdout) cleanLog.value += `      > ${step.stdout.trim()}\n`
+          if (step.stderr) cleanLog.value += `      ! ${step.stderr.trim()}\n`
         })
       }
-      cleanLog.value += '✨ Đã dọn dẹp bộ nhớ đệm Cache thành công! Hệ thống đã được giải phóng.'
+      cleanLog.value += '✨ Đã dọn dẹp bộ nhớ đệm Cache thành công! Hệ thống đã được giải phóng.\n'
     } else {
-      cleanLog.value += `❌ ${res.message}\n`
+      cleanLog.value += `❌ ${res?.message || 'Thất bại'}\n`
     }
   } catch (err) {
     cleanLog.value += `❌ Lỗi thực thi: ${err.message || err}\n`
@@ -99,228 +455,738 @@ const handleRunCacheClean = async () => {
     isCleaning.value = false
   }
 }
+
+const copyLog = async () => {
+  if (!cleanLog.value) return
+  try {
+    await navigator.clipboard.writeText(cleanLog.value)
+    copied.value = true
+    setTimeout(() => {
+      copied.value = false
+    }, 2000)
+  } catch {
+    // ignore
+  }
+}
+
+const clearLog = () => {
+  cleanLog.value = ''
+}
 </script>
 
 <template>
-  <div style="display: flex; flex-direction: column; gap: 20px">
-    <!-- Main Header Card -->
-    <div class="dashboard-card">
-      <div class="card-header">
-        <div class="card-title">
-          <div
-            class="card-icon"
-            style="background-color: rgba(16, 185, 129, 0.15); color: var(--accent-green)"
+  <div class="tools-page">
+    <!-- Header Telemetry Banner -->
+    <header class="tools-header-card">
+      <div class="tools-header-main">
+        <div class="tools-badge-pill">
+          <Wrench :size="13" class="text-green-400" />
+          <span>TOOLBOX & SYSTEM MAINTENANCE</span>
+        </div>
+        <h1 class="tools-main-title">Kho Tiện Ích & Dọn Dẹp Hệ Thống</h1>
+        <p class="tools-main-desc">
+          Bộ sưu tập 30+ công cụ tinh chỉnh card đồ họa (NVIDIA / AMD), quản lý luồng CPU và giải
+          phóng bộ nhớ RAM.
+        </p>
+      </div>
+      <div class="tools-telemetry-row">
+        <div class="tools-tele-chip">
+          <HardDrive :size="12" class="text-emerald-400" />
+          <span>CACHE: <strong>PURGE READY</strong></span>
+        </div>
+        <div class="tools-tele-chip">
+          <Monitor :size="12" class="text-blue-400" />
+          <span>GPU UTILITIES: <strong>READY</strong></span>
+        </div>
+        <div class="tools-tele-chip">
+          <Bolt :size="12" class="text-amber-400" />
+          <span
+            >TOTAL TOOLS: <strong>{{ tools.length }}</strong></span
           >
-            <Wrench :size="18" :stroke-width="2" />
+        </div>
+      </div>
+    </header>
+
+    <!-- HERO: DEEP CACHE CLEANER SPOTLIGHT -->
+    <section class="tools-hero-cleaner">
+      <div class="tools-hero-inner">
+        <div class="tools-hero-icon-box">
+          <Trash2 :size="28" stroke-width="2.2" />
+        </div>
+        <div class="tools-hero-content">
+          <div class="tools-hero-meta">
+            <span class="tools-hero-tag">INSTANT PURGE</span>
+            <span class="tools-hero-title">Dọn Dẹp Sâu Bộ Nhớ Đệm (Deep Cache Cleaner)</span>
           </div>
-          <div>
-            <div style="font-size: 18px">TOOLS &amp; CACHE SYSTEM</div>
-            <div style="font-size: 12px; font-weight: 400; color: var(--text-muted)">
-              Bộ công cụ dọn dẹp bộ nhớ đệm, tối ưu Driver và tinh chỉnh phản hồi hệ thống
-            </div>
-          </div>
+          <p class="tools-hero-desc">
+            Tự động quét và loại bỏ các file tạm rác trong <code>%TEMP%</code>, Prefetch và tệp đệm
+            log Windows, giải phóng hàng chục Gigabyte SSD và triệt tiêu độ trễ truy xuất đĩa.
+          </p>
         </div>
       </div>
 
-      <!-- Quick Action Cache Cleaner Box -->
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 16px;
-          padding: 18px 20px;
-          border-radius: 10px;
-          background: rgba(0, 240, 255, 0.04);
-          border: 1px solid rgba(0, 240, 255, 0.2);
-          margin-bottom: 20px;
-          flex-wrap: wrap;
-        "
+      <button
+        type="button"
+        class="tools-hero-btn"
+        :disabled="isCleaning"
+        @click="handleRunCacheClean"
       >
-        <div style="display: flex; align-items: center; gap: 14px">
-          <div
-            style="
-              width: 44px;
-              height: 44px;
-              border-radius: 10px;
-              background: rgba(0, 240, 255, 0.12);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: var(--accent-cyan);
-            "
-          >
-            <Trash2 :size="22" :stroke-width="2" />
-          </div>
-          <div>
-            <h4 style="font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 3px">
-              DỌN DẸP SÂU BỘ NHỚ ĐỆM (CACHE CLEANER)
-            </h4>
-            <p style="font-size: 12px; color: var(--text-muted)">
-              Quét sạch các tệp tin rác tạm thời trong %TEMP% và Prefetch để giải phóng dung lượng
-              và chống delay.
-            </p>
-          </div>
-        </div>
-        <button
-          class="btn-primary"
-          style="padding: 11px 20px"
-          :disabled="isCleaning"
-          @click="handleRunCacheClean"
-        >
-          <Play :size="14" :stroke-width="2.2" />
-          <span>{{ isCleaning ? 'Đang dọn dẹp...' : 'Dọn dẹp Cache ngay' }}</span>
-        </button>
-      </div>
+        <Sparkles :size="16" class="fill-current" />
+        <span>{{ isCleaning ? 'Đang dọn dẹp...' : 'Dọn dẹp Cache ngay' }}</span>
+      </button>
+    </section>
 
-      <!-- Tools Grid -->
-      <div style="margin-bottom: 10px">
-        <span class="eyebrow" style="margin-bottom: 8px; display: block"
-          >DANH MỤC CÔNG CỤ TỐI ƯU</span
-        >
-      </div>
-
-      <div class="tool-grid" style="padding: 0; margin-bottom: 20px">
+    <!-- SECTION: FILTER BAR & SEARCH -->
+    <div class="tools-control-bar">
+      <!-- Category Pills -->
+      <div class="tools-pills-row">
         <button
-          v-for="tool in tools"
-          :key="tool.key"
+          v-for="cat in CATEGORIES"
+          :key="cat.key"
           type="button"
-          class="tool-choice"
-          :class="{ selected: activeTool === tool.key }"
-          @click="activeTool = tool.key"
+          class="tools-cat-pill"
+          :class="{ active: activeCategory === cat.key }"
+          @click="activeCategory = cat.key"
         >
-          <component :is="tool.icon" :size="20" :stroke-width="2.2" />
-          <div style="flex: 1; text-align: left">
-            <div style="display: flex; align-items: center; justify-content: space-between">
-              <strong>{{ tool.label }}</strong>
-              <span
-                style="
-                  font-size: 10px;
-                  font-family: var(--font-mono);
-                  padding: 2px 6px;
-                  border-radius: 4px;
-                  background: rgba(255, 255, 255, 0.08);
-                  color: var(--text-muted);
-                "
-              >
-                {{ tool.badge }}
-              </span>
-            </div>
-            <div
-              style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px; line-height: 1.4"
-            >
-              {{ tool.desc }}
-            </div>
-          </div>
+          <component :is="cat.icon" v-if="cat.icon" :size="13" />
+          <span>{{ cat.label }}</span>
         </button>
       </div>
 
-      <div v-if="selectedTool?.action" class="tool-launch-panel">
-        <div>
-          <strong>{{ selectedTool.label }}</strong>
-          <span>{{ selectedTool.desc }}</span>
-        </div>
-        <label v-if="selectedTool.action === 'ram-optimization'" class="ram-profile-select">
-          <span>Dung lượng RAM</span>
-          <select v-model="ramProfile">
-            <option v-for="profile in ramProfiles" :key="profile" :value="profile">
-              {{ profile }} GB
-            </option>
-          </select>
-        </label>
-        <button class="btn-primary" :disabled="isLaunchingTool" @click="launchSelectedTool">
-          <Play :size="14" :stroke-width="2.2" />
-          <span>{{ isLaunchingTool ? 'Đang mở...' : selectedTool.actionLabel }}</span>
-        </button>
-      </div>
-
-      <!-- Console Log Output -->
-      <div
-        style="
-          background: #05080e;
-          border: 1px solid var(--border-color);
-          border-radius: 8px;
-          padding: 14px 16px;
-        "
-      >
-        <div
-          style="
-            font-size: 12px;
-            font-weight: 700;
-            font-family: var(--font-mono);
-            color: var(--accent-green);
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-          "
+      <!-- Real-time Search Box -->
+      <div class="tools-search-box">
+        <Search :size="14" class="text-slate-400" />
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Tìm công cụ (vd: nvidia, ram, msi, cpu...)"
+          class="tools-search-input"
+        />
+        <button
+          v-if="searchQuery"
+          type="button"
+          class="tools-search-clear"
+          @click="searchQuery = ''"
         >
-          <CheckCircle2 :size="13" /> CONSOLE LOG &amp; TRẠNG THÁI TIẾN TRÌNH
-        </div>
-        <pre
-          style="
-            font-family: var(--font-mono);
-            font-size: 12px;
-            color: #6ee7b7;
-            background: #000;
-            padding: 12px;
-            border-radius: 6px;
-            min-height: 90px;
-            max-height: 220px;
-            white-space: pre-wrap;
-            overflow-y: auto;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            margin: 0;
-          "
-          >{{ cleanLog || 'Sẵn sàng chờ lệnh thực thi dọn dẹp bộ nhớ đệm Cache...' }}</pre>
+          ✕
+        </button>
       </div>
     </div>
+
+    <!-- SECTION: TOOLS GRID -->
+    <section class="tools-grid-section">
+      <div v-if="filteredTools.length === 0" class="tools-empty-state">
+        <p>Không tìm thấy công cụ nào phù hợp với từ khóa "{{ searchQuery }}".</p>
+      </div>
+
+      <div v-else class="tools-cards-grid">
+        <div
+          v-for="tool in filteredTools"
+          :key="tool.key"
+          class="tool-card"
+          :style="{ '--c': tool.accent }"
+        >
+          <div class="tool-card-head">
+            <div class="tool-card-icon">
+              <component :is="tool.icon" :size="18" stroke-width="2.2" />
+            </div>
+            <span class="tool-card-badge">{{ tool.badge }}</span>
+          </div>
+
+          <div class="tool-card-content">
+            <h3 class="tool-card-title">{{ tool.label }}</h3>
+            <p class="tool-card-desc">{{ tool.desc }}</p>
+          </div>
+
+          <!-- Special Inline Selector for RAM Cleaner -->
+          <div v-if="tool.isRamTool" class="tool-ram-selector">
+            <label class="tool-ram-label" for="ram-sel">Chọn mức RAM:</label>
+            <select id="ram-sel" v-model="ramProfile" class="tool-ram-select">
+              <option v-for="p in ramProfiles" :key="p" :value="p">{{ p }} GB</option>
+            </select>
+          </div>
+
+          <div class="tool-card-action">
+            <button
+              v-if="tool.action"
+              type="button"
+              class="tool-act-btn"
+              :disabled="runningToolKey === tool.key"
+              @click="handleExecuteTool(tool)"
+            >
+              <Play :size="12" class="fill-current" />
+              <span>{{ runningToolKey === tool.key ? 'Đang mở...' : tool.actionLabel }}</span>
+            </button>
+            <span v-else class="tool-disabled-label">{{ tool.actionLabel }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION: CONSOLE TERMINAL -->
+    <section class="tools-console-card">
+      <div class="tools-console-header">
+        <div class="tools-console-title">
+          <Terminal :size="14" class="text-green-400" />
+          <span>TOOLBOX CONSOLE & EXECUTION AUDIT</span>
+          <div class="tools-live-indicator" :class="{ running: isCleaning || runningToolKey }">
+            <span class="tools-live-dot" />
+            <span>{{ isCleaning || runningToolKey ? 'ĐANG XỬ LÝ...' : 'SẴN SÀNG' }}</span>
+          </div>
+        </div>
+        <div class="tools-console-actions">
+          <button
+            type="button"
+            class="tools-tool-btn"
+            title="Sao chép log"
+            :disabled="!cleanLog"
+            @click="copyLog"
+          >
+            <Check v-if="copied" :size="13" class="text-green-400" />
+            <Copy v-else :size="13" />
+            <span>{{ copied ? 'Đã chép' : 'Sao chép' }}</span>
+          </button>
+          <button
+            type="button"
+            class="tools-tool-btn"
+            title="Xóa console"
+            :disabled="!cleanLog"
+            @click="clearLog"
+          >
+            <Trash2 :size="13" />
+            <span>Xóa log</span>
+          </button>
+        </div>
+      </div>
+      <pre class="tools-terminal-view">{{
+        cleanLog || 'Sẵn sàng chờ thực thi dọn dẹp hoặc khởi chạy công cụ...'
+      }}</pre>
+    </section>
   </div>
 </template>
 
 <style scoped>
-.tool-launch-panel {
+.tools-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 24px;
+  max-width: 1560px;
+  margin: 0 auto;
+}
+
+/* Header Banner */
+.tools-header-card {
+  position: relative;
+  overflow: hidden;
+  padding: 22px 26px;
+  border-radius: 18px;
+  background: linear-gradient(
+    135deg,
+    rgba(34, 197, 94, 0.12) 0%,
+    rgba(14, 20, 36, 0.85) 50%,
+    rgba(6, 182, 212, 0.08) 100%
+  );
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  box-shadow:
+    0 16px 40px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.tools-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #4ade80;
+  font: 700 10.5px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+
+.tools-main-title {
+  font:
+    800 24px/1.15 'Archivo',
+    sans-serif;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  margin: 0 0 6px;
+}
+
+.tools-main-desc {
+  font-size: 13px;
+  color: rgba(226, 232, 240, 0.72);
+  max-width: 720px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.tools-telemetry-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tools-tele-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font: 500 11px var(--font-mono);
+  color: #94a3b8;
+}
+
+.tools-tele-chip strong {
+  color: #f8fafc;
+  font-weight: 700;
+}
+
+/* HERO DEEP CLEANER BOX */
+.tools-hero-cleaner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 26px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.12) 0%, rgba(15, 23, 42, 0.8) 100%);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  box-shadow:
+    0 16px 36px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  flex-wrap: wrap;
+}
+
+.tools-hero-inner {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: 1;
+  min-width: 280px;
+}
+
+.tools-hero-icon-box {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 182, 212, 0.18);
+  color: #00c2ff;
+  border: 1px solid rgba(6, 182, 212, 0.4);
+  box-shadow: 0 6px 20px rgba(6, 182, 212, 0.25);
+  flex-shrink: 0;
+}
+
+.tools-hero-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tools-hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tools-hero-tag {
+  font: 700 9.5px var(--font-mono);
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(6, 182, 212, 0.2);
+  color: #22d3ee;
+  border: 1px solid rgba(6, 182, 212, 0.35);
+}
+
+.tools-hero-title {
+  font:
+    700 16.5px 'Archivo',
+    sans-serif;
+  color: #ffffff;
+}
+
+.tools-hero-desc {
+  font-size: 12.5px;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.tools-hero-desc code {
+  font-family: var(--font-mono);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #cbd5e1;
+}
+
+.tools-hero-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border-radius: 12px;
+  border: 1px solid rgba(6, 182, 212, 0.5);
+  background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%);
+  color: #ffffff;
+  font:
+    700 13px 'Archivo',
+    sans-serif;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(6, 182, 212, 0.35);
+  transition: all 0.25s ease;
+  white-space: nowrap;
+}
+
+.tools-hero-btn:hover:not(:disabled) {
+  filter: brightness(1.15);
+  transform: translateY(-2px);
+}
+
+.tools-hero-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Control Bar: Categories & Search */
+.tools-control-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin: -4px 0 20px;
-  padding: 14px 16px;
-  border: 1px solid rgba(34, 197, 94, 0.28);
-  border-radius: 10px;
-  background: rgba(34, 197, 94, 0.07);
+  flex-wrap: wrap;
 }
-.tool-launch-panel div {
-  display: grid;
-  gap: 3px;
+
+.tools-pills-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
-.tool-launch-panel strong {
-  color: #fff;
-  font-size: 14px;
+
+.tools-cat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: #94a3b8;
+  font:
+    600 12px 'Archivo',
+    sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
-.tool-launch-panel span {
-  color: var(--text-muted);
-  font-size: 12px;
+
+.tools-cat-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
 }
-.ram-profile-select {
-  display: grid;
-  gap: 4px;
-  color: var(--text-muted);
+
+.tools-cat-pill.active {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: #22c55e;
+  color: #4ade80;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.2);
+}
+
+.tools-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  background: #090e1a;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  min-width: 260px;
+}
+
+.tools-search-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f1f5f9;
+  font: 500 12.5px var(--font-sans);
+  width: 100%;
+}
+
+.tools-search-clear {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
   font-size: 11px;
-  font-weight: 700;
 }
-.ram-profile-select select {
-  min-width: 100px;
-  padding: 7px 9px;
-  border: 1px solid var(--border-color);
+
+/* Tools Grid */
+.tools-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.tools-empty-state {
+  padding: 40px;
+  text-align: center;
+  color: #64748b;
+  font-size: 13px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tool-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.25s ease;
+}
+
+.tool-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--c) 40%, transparent);
+  background: color-mix(in srgb, var(--c) 4%, rgba(15, 23, 42, 0.6));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+
+.tool-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tool-card-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+  color: var(--c);
+  border: 1px solid color-mix(in srgb, var(--c) 30%, transparent);
+}
+
+.tool-card-badge {
+  font: 700 9px var(--font-mono);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+}
+
+.tool-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tool-card-title {
+  font:
+    600 14px 'Archivo',
+    sans-serif;
+  color: #f1f5f9;
+  margin: 0;
+}
+
+.tool-card-desc {
+  font-size: 11.5px;
+  color: #94a3b8;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.tool-ram-selector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tool-ram-label {
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: var(--font-mono);
+}
+
+.tool-ram-select {
+  padding: 4px 8px;
+  background: #090e1a;
+  border: 1px solid rgba(34, 197, 94, 0.3);
   border-radius: 6px;
-  background: #0b1220;
-  color: #fff;
+  color: #4ade80;
+  font: 700 11.5px var(--font-mono);
+  outline: none;
+  cursor: pointer;
 }
-@media (max-width: 640px) {
-  .tool-launch-panel {
-    align-items: flex-start;
-    flex-direction: column;
+
+.tool-card-action {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.tool-act-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+  background: color-mix(in srgb, var(--c) 18%, transparent);
+  color: #ffffff;
+  font: 600 11.5px var(--font-sans);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  justify-content: center;
+}
+
+.tool-act-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--c) 30%, transparent);
+  transform: translateY(-1px);
+}
+
+.tool-act-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tool-disabled-label {
+  font-size: 11px;
+  color: #64748b;
+  font-family: var(--font-mono);
+  padding: 6px 0;
+}
+
+/* Console Section */
+.tools-console-card {
+  border-radius: 14px;
+  background: #040711;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5);
+}
+
+.tools-console-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.025);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tools-console-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 700 11px var(--font-mono);
+  color: #cbd5e1;
+  letter-spacing: 0.06em;
+}
+
+.tools-live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.1);
+  font-size: 9.5px;
+  color: #94a3b8;
+}
+
+.tools-live-indicator.running {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.tools-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.tools-live-indicator.running .tools-live-dot {
+  background: #4ade80;
+  animation: pulse 1s infinite alternate;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.4;
+    transform: scale(0.9);
   }
+  100% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.tools-console-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.tools-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  font: 500 11px var(--font-mono);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tools-tool-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.tools-tool-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tools-terminal-view {
+  margin: 0;
+  padding: 14px 16px;
+  font: 500 12px/1.65 var(--font-mono);
+  color: #4ade80;
+  background: #02040a;
+  min-height: 100px;
+  max-height: 220px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 </style>

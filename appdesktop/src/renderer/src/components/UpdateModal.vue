@@ -5,7 +5,7 @@ import { Sparkles, Download, ExternalLink, RotateCcw, AlertTriangle, X } from 'l
 const props = defineProps({
   versionInfo: {
     type: Object,
-    required: true,
+    required: false,
     default: () => ({
       currentVersion: '1.0.0',
       latestVersion: '1.0.1',

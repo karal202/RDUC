@@ -4,6 +4,7 @@ import path from "path";
 import crypto from "crypto";
 import multer from "multer";
 import { authMiddleware } from "../common/middleware/auth.middleware.js";
+import { requireAdmin } from "../common/middleware/role.middleware.js";
 import { desktopLicenseMiddleware } from "../common/middleware/desktopLicense.middleware.js";
 import FeatureFilePolicy from "../models/featureFilePolicy.model.js";
 import ScriptLibraryFile from "../models/scriptLibraryFile.model.js";
@@ -96,7 +97,7 @@ async function buildFeatures({ includeDeleted = false } = {}) {
 }
 
 // GET /features - List all feature files from database
-router.get("/features", authMiddleware, async (req, res) => {
+router.get("/features", authMiddleware, requireAdmin, async (req, res) => {
   try {
     const data = await buildFeatures();
     res.json({ success: true, data });
@@ -106,7 +107,7 @@ router.get("/features", authMiddleware, async (req, res) => {
 });
 
 // POST /features - Create new feature file entry
-router.post("/features", authMiddleware, async (req, res) => {
+router.post("/features", authMiddleware, requireAdmin, async (req, res) => {
   const { key, section, file_path, enabled = true } = req.body;
   
   if (!key || !section || !file_path) {
@@ -153,7 +154,7 @@ router.post("/features", authMiddleware, async (req, res) => {
 });
 
 // PATCH /features/:key - Update feature file entry
-router.patch("/features/:key", authMiddleware, async (req, res) => {
+router.patch("/features/:key", authMiddleware, requireAdmin, async (req, res) => {
   const { key } = req.params;
   const { section, file_path, enabled } = req.body;
   
@@ -179,7 +180,7 @@ router.patch("/features/:key", authMiddleware, async (req, res) => {
 });
 
 // DELETE /features/:key - Delete feature file entry
-router.delete("/features/:key", authMiddleware, async (req, res) => {
+router.delete("/features/:key", authMiddleware, requireAdmin, async (req, res) => {
   const { key } = req.params;
   
   const existing = await FeatureFilePolicy.findOne({ where: { feature_key: key } });
@@ -199,7 +200,7 @@ router.delete("/features/:key", authMiddleware, async (req, res) => {
 });
 
 // GET /scan - Scan scripts directory to show available files
-router.get("/scan", authMiddleware, async (req, res) => {
+router.get("/scan", authMiddleware, requireAdmin, async (req, res) => {
   try {
     const scriptsDir = resolveScriptsDir();
     const files = await scanDirectory(scriptsDir);
@@ -210,7 +211,7 @@ router.get("/scan", authMiddleware, async (req, res) => {
 });
 
 // POST /upload - Store an unassigned file. It is never served to desktop clients.
-router.post("/upload", authMiddleware, uploadScriptFile.single("file"), async (req, res) => {
+router.post("/upload", authMiddleware, requireAdmin, uploadScriptFile.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ success: false, message: "Chỉ chấp nhận file .reg, .bat, .cmd, .ps1 hoặc .pow (tối đa 5 MB)." });
   }
@@ -233,12 +234,12 @@ router.post("/upload", authMiddleware, uploadScriptFile.single("file"), async (r
   }
 });
 
-router.get("/library", authMiddleware, async (_req, res) => {
+router.get("/library", authMiddleware, requireAdmin, async (_req, res) => {
   const data = await ScriptLibraryFile.findAll({ order: [["created_at", "DESC"]] });
   res.json({ success: true, data });
 });
 
-router.delete("/library/:id", authMiddleware, async (req, res) => {
+router.delete("/library/:id", authMiddleware, requireAdmin, async (req, res) => {
   const entry = await ScriptLibraryFile.findByPk(req.params.id);
   if (!entry) return res.status(404).json({ success: false, message: "Không tìm thấy file trong kho chờ gán." });
   const libraryDir = resolveLibraryDir();
@@ -255,9 +256,7 @@ router.delete("/library/:id", authMiddleware, async (req, res) => {
 
 // Legacy route kept below for source compatibility; the secure route above handles requests.
 // POST /upload - Upload file to scripts directory
-router.post("/upload", authMiddleware, (req, res) => {
-  // Note: This would need multer or similar middleware for file uploads
-  // For now, return error until properly implemented
+router.post("/upload-legacy", authMiddleware, requireAdmin, (req, res) => {
   res.status(501).json({ success: false, message: "Upload chưa được implement. Sử dụng file manager trực tiếp." });
 });
 

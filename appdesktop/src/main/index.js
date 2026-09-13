@@ -7,7 +7,7 @@ import icon from '../../resources/icon.png?asset'
 import buildIcon from '../../build/icon.png?asset'
 import path from 'path'
 import os from 'os'
-import { execFile } from 'child_process'
+import { execFile, spawn } from 'child_process'
 import { deflateSync } from 'zlib'
 import si from 'systeminformation'
 import fs from 'fs'
@@ -31,6 +31,41 @@ import {
   verifyLocalLicense
 } from './services/licenseService'
 import { ALLOWED_DAWA_SCRIPTS, runDawaScript } from './services/dawaScripts'
+
+// Function to check if running as admin
+function isAdmin() {
+  try {
+    // On Windows, we can check by trying to access a protected location
+    const testPath = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'config')
+    fs.accessSync(testPath, fs.constants.W_OK)
+    return true
+  } catch {
+    return false
+  }
+}
+
+// Function to restart as admin
+function restartAsAdmin() {
+  const exePath = process.execPath
+  const args = process.argv.slice(1).join(' ')
+
+  spawn(
+    'powershell.exe',
+    [
+      '-NoProfile',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-Command',
+      `Start-Process -FilePath "${exePath}" -ArgumentList "${args}" -Verb RunAs`
+    ],
+    {
+      detached: true,
+      stdio: 'ignore'
+    }
+  ).unref()
+
+  app.exit(0)
+}
 
 const GITHUB_RELEASE_API = 'https://api.github.com/repos/karal202/RDUC/releases/latest'
 const GITHUB_DOWNLOAD_FALLBACK =
@@ -89,6 +124,9 @@ const WINDOWS_SHUTDOWN_PATH = path.join(
 )
 const licenseStore = createLicenseStore(LICENSE_FILE_PATH)
 const activateAttempts = []
+
+// Performance optimization: Cache for system stats to reduce CPU usage
+let systemStatsCache = null
 
 let tray = null
 let trayActiveImage = null
@@ -245,12 +283,12 @@ function buildTrayIcons() {
     trayNormalImage = nativeImage.createFromBuffer(normalPng, { width: 64, height: 64 })
     trayActiveImage = nativeImage.createFromBuffer(activePng, { width: 64, height: 64 })
     taskbarActiveOverlay = nativeImage.createFromBuffer(overlayPng, { width: 16, height: 16 })
-  } catch (e) {
+  } catch {
     const normalBase = nativeImage.createFromPath(buildIcon || icon)
     trayNormalImage = normalBase
     trayActiveImage = normalBase
     taskbarActiveOverlay = normalBase.resize({ width: 16, height: 16 })
-    console.warn('[TRAY] Fallback to base icon tint:', e.message)
+    console.warn('[TRAY] Fallback to base icon tint')
   }
 }
 
@@ -362,7 +400,8 @@ function createTray() {
     tray.setContextMenu(menu)
   }
   rebuildMenu()
-  setInterval(rebuildMenu, 10_000)
+  // Performance optimization: Reduce tray menu rebuild frequency from 10s to 30s
+  setInterval(rebuildMenu, 30_000)
   tray.on('click', () => {
     rebuildMenu()
     toggleMainWindow()
@@ -596,6 +635,30 @@ function createWindow() {
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.dawa.optimizer')
+
+  // Check admin privileges
+  if (!isAdmin()) {
+    console.warn('[SECURITY] Application is not running with Administrator privileges')
+    if (!is.dev) {
+      dialog
+        .showMessageBox({
+          type: 'warning',
+          title: 'DAWA Optimizer - Cảnh báo quyền',
+          message: 'Ứng dụng cần quyền Administrator để hoạt động đầy đủ.',
+          detail:
+            'Một số chức năng như sửa registry, tối ưu hệ thống sẽ không hoạt động nếu không có quyền Admin.',
+          buttons: ['Tiếp tục chạy', 'Khởi động lại với quyền Admin'],
+          defaultId: 0,
+          cancelId: 0
+        })
+        .then(({ response }) => {
+          if (response === 1) {
+            restartAsAdmin()
+          }
+        })
+        .catch(() => {})
+    }
+  }
 
   // Create tray BEFORE main window so tray icon is available when window hides to it
   try {
@@ -930,6 +993,12 @@ app.whenReady().then(() => {
 
   ipcMain.handle('system:get-stats', async () => {
     try {
+      // Performance optimization: Add caching for rapid successive calls
+      const now = Date.now()
+      if (systemStatsCache && now - systemStatsCache.timestamp < 2000) {
+        return systemStatsCache.data
+      }
+
       // Chạy song song: load + mem + cpuTemp + gpuTemp + device type (cached) + battery
       const [currentLoad, mem, cpuTemp, graphics, deviceType, batteryInfo] = await Promise.all([
         si.currentLoad(),
@@ -946,7 +1015,7 @@ app.whenReady().then(() => {
       const gpuController = getDiscreteGpuController(graphics) || graphics.controllers[0] || {}
       const hasDiscreteGpu = isLikelyDiscreteGpu(gpuController)
 
-      return {
+      const result = {
         success: true,
         deviceType: deviceType === 'laptop' ? 'laptop' : 'pc',
         cpu: {
@@ -986,6 +1055,14 @@ app.whenReady().then(() => {
             }
           : { percent: null, charging: false }
       }
+
+      // Cache the result for 2 seconds
+      systemStatsCache = {
+        timestamp: now,
+        data: result
+      }
+
+      return result
     } catch (err) {
       console.error('Failed to gather system stats:', err)
       return { success: false, error: err.message }
@@ -1042,21 +1119,35 @@ app.whenReady().then(() => {
     // The backend only returns status flags; it never provides executable commands.
     const token = licenseStore.getTokens()?.accessToken
     if (!token) {
-      return { success: false, message: 'Không thể xác thực chính sách Admin. Vui lòng đăng nhập lại hoặc kiểm tra kết nối mạng.' }
+      return {
+        success: false,
+        message:
+          'Không thể xác thực chính sách Admin. Vui lòng đăng nhập lại hoặc kiểm tra kết nối mạng.'
+      }
     }
     let policy
     try {
       policy = await getDesktopFeaturePolicy(token)
     } catch (error) {
       console.warn('Feature policy unavailable; blocking execution:', error.message)
-      return { success: false, message: 'Không thể kiểm tra trạng thái chức năng với máy chủ. Vui lòng kiểm tra mạng rồi thử lại.' }
+      return {
+        success: false,
+        message:
+          'Không thể kiểm tra trạng thái chức năng với máy chủ. Vui lòng kiểm tra mạng rồi thử lại.'
+      }
     }
     const feature = policy?.features?.[scriptKey]
     if (feature?.deleted) {
-      return { success: false, message: 'File kích hoạt này đã bị Admin xóa. Vui lòng liên hệ hỗ trợ.' }
+      return {
+        success: false,
+        message: 'File kích hoạt này đã bị Admin xóa. Vui lòng liên hệ hỗ trợ.'
+      }
     }
     if (feature && !feature.exists) {
-      return { success: false, message: 'File kích hoạt hiện không tồn tại hoặc không khả dụng. Vui lòng liên hệ hỗ trợ.' }
+      return {
+        success: false,
+        message: 'File kích hoạt hiện không tồn tại hoặc không khả dụng. Vui lòng liên hệ hỗ trợ.'
+      }
     }
     if (feature && !feature.enabled) {
       return { success: false, message: 'Chức năng này đang được Admin tạm tắt.' }

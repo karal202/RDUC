@@ -44,6 +44,13 @@ const WIN32_PRIORITY_PROFILES = Object.freeze({
   fb000000: 'fb000000 hex.reg',
   fff9887: 'fff9887 hex.reg'
 })
+const POWER_PLAN_PROFILES = Object.freeze({
+  'dawa-ultimate': 'Dawa_Utilmate.pow',
+  atlas: 'Atlas.pow',
+  'bitsum-highest': 'Bitsum-Highest-Performance.pow',
+  'amitv3-idle': 'Amitv3IdleEnabled.pow',
+  'framesync-boost': 'FrameSyncBoost.pow'
+})
 const REGISTRY_FILE_PROFILES = Object.freeze({
   'network-full-tweaks': join(SCRIPT_DIRECTORY, 'Network', 'Network Tweaks.reg'),
   'network-fast-send': join(SCRIPT_DIRECTORY, 'Network', 'FastSendDatagramThreshold.reg'),
@@ -328,11 +335,34 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   },
   'win-disable-hibernate': {
     description: 'Tắt Hibernate',
-    commands: [[WINDOWS_COMMANDS.powercfg, ['/h', 'off']]]
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Disable Hibernation.reg')
+        ]
+      ],
+      [WINDOWS_COMMANDS.powercfg, ['/h', 'off']]
+    ]
   },
   'win-enable-hibernate': {
     description: 'Bật Hibernate',
-    commands: [[WINDOWS_COMMANDS.powercfg, ['/h', 'on']]]
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(
+            SCRIPT_DIRECTORY,
+            'Optimizer',
+            '3. Windows Settings',
+            'Disable Hibernation - Copy.reg'
+          )
+        ]
+      ],
+      [WINDOWS_COMMANDS.powercfg, ['/h', 'on']]
+    ]
   },
   'win-disable-fso-gamebar': {
     description: 'Tắt Game Bar và Game DVR',
@@ -481,6 +511,21 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
       [WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', join(SCRIPT_DIRECTORY, 'Network', 'DNS.cmd')]]
     ]
   },
+  'network-full-tweaks': {
+    description: 'Áp dụng Network Tweaks Full',
+    commands: [
+      [WINDOWS_COMMANDS.reg, ['import', join(SCRIPT_DIRECTORY, 'Network', 'Network Tweaks.reg')]]
+    ]
+  },
+  'network-fast-send': {
+    description: 'Áp dụng Fast Send Datagram Threshold',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        ['import', join(SCRIPT_DIRECTORY, 'Network', 'FastSendDatagramThreshold.reg')]
+      ]
+    ]
+  },
   'mouse-disable-acceleration': {
     description: 'Áp dụng cấu hình chuột gaming',
     commands: [
@@ -501,7 +546,238 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   },
   'msi-utility': {
     description: 'Mở MSI Utility V3',
-    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'MSI Utility', 'MSI Utility V3.exe')
+    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'MSI Utility V3.exe')}"`
+  },
+  'amd-radeonmod': {
+    description: 'Mở RadeonMod cho AMD GPU',
+    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Amd', 'RadeonMod', 'RadeonMod.exe')}"`
+  },
+  'amd-morepowertool': {
+    description: 'Mở MorePowerTool cho AMD GPU',
+    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Amd', 'MorePowerTool', 'MorePowerTool.exe')}"`
+  },
+  'amd-radeonsoftwarelimmer': {
+    description: 'Mở RadeonSoftwareSlimmer cho AMD GPU',
+    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Amd', 'RadeonSoftwareSlimmer', 'RadeonSoftwareSlimmer.exe')}"`
+  },
+  'amd-3d-settings': {
+    description: 'Áp dụng 3D Settings cho AMD GPU',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        ['import', `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Amd', '3D Settings.reg')}"`]
+      ]
+    ]
+  },
+  'amd-driver-tweaks': {
+    description: 'Áp dụng Driver Tweaks cho AMD GPU',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        ['import', `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Amd', 'Driver Tweaks.reg')}"`]
+      ]
+    ]
+  },
+  'nvidia-nvcleanstall': {
+    description: 'Mở NvCleanstall cho NVIDIA GPU',
+    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'NvCleanstall', 'NVCleanstall_1.19.0.exe')}"`
+  },
+  'nvidia-profile-inspector': {
+    description: 'Mở Nvidia Profile Inspector',
+    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Nvidia Profile Inspector', 'nvidiaProfileInspector', 'nvidiaProfileInspector.exe')}"`
+  },
+  'nvidia-inspector': {
+    description: 'Mở nvidiaInspector',
+    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'nvidiaInspector', 'nvidiaInspector.exe')}"`
+  },
+  'nvidia-powermizer': {
+    description: 'Mở Nvidia PowerMizer',
+    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Nvidia PowerMizer', 'Nvidia PowerMizer.exe')}"`
+  },
+  'nvidia-desktop-composition': {
+    description: 'Áp dụng Desktop Composition cho NVIDIA GPU',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Desktop Composition.reg')}"`
+        ]
+      ]
+    ]
+  },
+  'nvidia-gamedvr-gamemode': {
+    description: 'Áp dụng GameDVR và Game Mode cho NVIDIA GPU',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'GameDVR And Game Mode.reg')}"`
+        ]
+      ]
+    ]
+  },
+  'nvidia-graphics-tweaks': {
+    description: 'Áp dụng Graphics Drivers Tweaks cho NVIDIA GPU',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'GraphicsDrivers Tweaks.reg')}"`
+        ]
+      ]
+    ]
+  },
+  'nvidia-nvidia-tweaks': {
+    description: 'Áp dụng NVIDIA Driver Tweaks',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'NVIDIA Driver Tweaks.reg')}"`
+        ]
+      ]
+    ]
+  },
+  'nvidia-power-latency': {
+    description: 'Áp dụng Power And Latency Tweaks cho NVIDIA GPU',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Power And Latency Tweaks.reg')}"`
+        ]
+      ]
+    ]
+  },
+  'nvidia-task-priority': {
+    description: 'Áp dụng Task Priority Tweaks cho NVIDIA GPU',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Task Priority Tweaks.reg')}"`
+        ]
+      ]
+    ]
+  },
+  'classic-menu-win10': {
+    description: 'Áp dụng Classic Right Click Menu Windows 10',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'Classic Right Click Menu', 'Windows 10.reg')}"`
+        ]
+      ]
+    ]
+  },
+  'classic-menu-win11': {
+    description: 'Áp dụng Classic Right Click Menu Windows 11',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'Classic Right Click Menu', 'Windows 11.reg')}"`
+        ]
+      ]
+    ]
+  },
+  'disable-extreme-drivers': {
+    description: 'Disable Extreme Reg Drivers',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Disable Drivers.reg')}"`
+        ]
+      ]
+    ]
+  },
+  'disable-extreme-gamer-services': {
+    description: 'Disable Extreme Reg Services For Gamers',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Disable Services For Gamers.reg')}"`
+        ]
+      ]
+    ]
+  },
+  'disable-extreme-professional-services': {
+    description: 'Disable Extreme Reg Services For Professionals',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Disable Services For Professionals.reg')}"`
+        ]
+      ]
+    ]
+  },
+  'restore-extreme-gamer-services': {
+    description: 'Restore Extreme Reg Services For Gamers',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Restore', 'Disable Services For Gamers Restore.reg')}"`
+        ]
+      ]
+    ]
+  },
+  'restore-extreme-professional-services': {
+    description: 'Restore Extreme Reg Services For Professionals',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Restore', 'Disable Services For Professionals Restore.reg')}"`
+        ]
+      ]
+    ]
+  },
+  'ame-beta': {
+    description: 'Mở AME Beta',
+    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'AME Beta.exe')}"`
+  },
+  throttlestop: {
+    description: 'Mở ThrottleStop',
+    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'ThrottleStop.exe')}"`
+  },
+  parkcontrol: {
+    description: 'Mở ParkControl',
+    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'parkcontrolsetup64.exe')}"`
+  },
+  processlasso: {
+    description: 'Mở Process Lasso',
+    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'processlassosetup64.exe')}"`
+  },
+  quickcpu: {
+    description: 'Mở QuickCPU',
+    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'QuickCpuSetup.msi')}"`
+  },
+  'clean-cache': {
+    description: 'Dọn dẹp cache',
+    commands: [
+      [
+        WINDOWS_COMMANDS.cmd,
+        ['/d', '/c', 'call', `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'Clean', 'Clear.bat')}"`]
+      ]
+    ]
   },
   'ram-optimization': {
     description: 'Áp dụng RAM Optimization',
@@ -511,6 +787,11 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
     description: 'Apply Win32PrioritySeparation',
     profiles: WIN32_PRIORITY_PROFILES,
     profileDirectory: join(SCRIPT_DIRECTORY, 'Optimizer', '8. Win32Priority')
+  },
+  'power-plan': {
+    description: 'Apply Power Plan',
+    profiles: POWER_PLAN_PROFILES,
+    profileDirectory: join(SCRIPT_DIRECTORY, 'Optimizer', '4. PowerPlan')
   },
   'registry-profile': {
     description: 'Apply registry script',
@@ -537,6 +818,37 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   'dawa-cleaner': {
     description: 'Dọn dẹp bộ nhớ tạm & Temp files',
     commands: []
+  },
+  'win-disable-background-apps': {
+    description: 'Tắt Background Apps',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Disable Background Apps.reg')
+        ]
+      ]
+    ]
+  },
+  'win-enable-background-apps': {
+    description: 'Bật Background Apps',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'add',
+          'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications',
+          '/v',
+          'GlobalUserDisabled',
+          '/t',
+          'REG_DWORD',
+          '/d',
+          '0',
+          '/f'
+        ]
+      ]
+    ]
   }
 })
 
@@ -639,19 +951,34 @@ export async function runDawaScript(scriptKey, options = {}) {
   if (script.profiles) {
     const profileFile = script.profiles[options.profile]
     if (!profileFile) {
-      return { success: false, message: 'Cấu hình RAM không hợp lệ.' }
+      return { success: false, message: 'Cấu hình không hợp lệ.' }
     }
     const file = join(
       script.profileDirectory || join(SCRIPT_DIRECTORY, 'Optimizer', 'Ram Optimization'),
       profileFile
     )
+
+    // Special handling for power plans - use powercfg
+    if (scriptKey === 'power-plan') {
+      const result = await runWhitelistedCommand(WINDOWS_COMMANDS.powercfg, ['/import', file])
+      outputs.push({ file: WINDOWS_COMMANDS.powercfg, args: `/import ${file}`, ...result })
+      return {
+        success: result.success,
+        message: result.success
+          ? `Đã áp dụng Power Plan ${options.profile}.`
+          : `Không thể áp dụng Power Plan: ${result.stderr}`,
+        stepResults: outputs
+      }
+    }
+
+    // Default handling for registry files
     const result = await runWhitelistedCommand(WINDOWS_COMMANDS.reg, ['import', file])
     outputs.push({ file: WINDOWS_COMMANDS.reg, args: `import ${file}`, ...result })
     return {
       success: result.success,
       message: result.success
-        ? `Đã áp dụng RAM profile ${options.profile === 'reset' ? 'mặc định' : `${options.profile}GB`}.`
-        : `Không thể áp dụng RAM profile: ${result.stderr}`,
+        ? `Đã áp dụng profile ${options.profile}.`
+        : `Không thể áp dụng profile: ${result.stderr}`,
       stepResults: outputs
     }
   }

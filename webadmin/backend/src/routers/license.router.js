@@ -17,6 +17,14 @@ import {
 } from "../controllers/license.controller.js";
 import { desktopLicenseMiddleware } from "../common/middleware/desktopLicense.middleware.js";
 import { authMiddleware } from "../common/middleware/auth.middleware.js";
+import { requireAdmin, requireSuperAdmin } from "../common/middleware/role.middleware.js";
+import {
+  validateLicenseCreateInput,
+  validateLicenseUpdateInput,
+  validateIdParam,
+  validateClientLicenseInput,
+  validateHardwareBlockInput,
+} from "../common/middleware/validation.middleware.js";
 
 const router = express.Router();
 
@@ -33,20 +41,26 @@ const validateLimiter = rateLimit({
   },
 });
 
+// Public health check
 router.get("/health", getDatabaseHealth);
-router.use(["/dashboard", "/licenses", "/logs"], authMiddleware);
-router.get("/dashboard", getDashboard);
-router.get("/licenses", getLicenses);
-router.get("/devices", authMiddleware, getDevices);
-router.post("/licenses", createLicense);
-router.put("/licenses/:id", updateLicense);
-router.delete("/licenses/:id", deleteLicense);
-router.post("/hardware-blocks", authMiddleware, blockHardware);
-router.delete("/hardware-blocks/:hardwareId", authMiddleware, unblockHardware);
-router.post("/validate", validateLimiter, validateLicense);
-router.post("/licenses/validate", validateLimiter, validateLicense);
+
+// Admin routes - Quản lý License, Devices, Logs
+router.get("/dashboard", authMiddleware, requireAdmin, getDashboard);
+router.get("/licenses", authMiddleware, requireAdmin, getLicenses);
+router.post("/licenses", authMiddleware, requireAdmin, validateLicenseCreateInput, createLicense);
+router.put("/licenses/:id", authMiddleware, requireAdmin, validateLicenseUpdateInput, updateLicense);
+router.delete("/licenses/:id", authMiddleware, requireSuperAdmin, validateIdParam, deleteLicense);
+
+router.get("/devices", authMiddleware, requireAdmin, getDevices);
+router.get("/logs", authMiddleware, requireAdmin, getLogs);
+
+router.post("/hardware-blocks", authMiddleware, requireAdmin, validateHardwareBlockInput, blockHardware);
+router.delete("/hardware-blocks/:hardwareId", authMiddleware, requireAdmin, validateHardwareBlockInput, unblockHardware);
+
+// Client / Desktop routes
+router.post("/validate", validateLimiter, validateClientLicenseInput, validateLicense);
+router.post("/licenses/validate", validateLimiter, validateClientLicenseInput, validateLicense);
 router.post("/desktop/refresh", refreshDesktopToken);
 router.get("/desktop/check", desktopLicenseMiddleware, checkDesktopLicense);
-router.get("/logs", getLogs);
 
 export default router;
