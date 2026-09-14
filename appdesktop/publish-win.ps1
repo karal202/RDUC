@@ -44,7 +44,10 @@ if (-not $localTag) {
   git tag $tag
 }
 Write-Host "[TAG] Ensuring tag $tag is pushed to GitHub..." -ForegroundColor Yellow
+$prevEAP = $ErrorActionPreference
+$ErrorActionPreference = "SilentlyContinue"
 git push origin $tag 2>$null
+$ErrorActionPreference = $prevEAP
 
 Write-Host "[2/2] Building and publishing to GitHub Releases..." -ForegroundColor Cyan
 npm run build:win:publish
