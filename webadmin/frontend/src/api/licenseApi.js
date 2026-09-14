@@ -21,7 +21,14 @@ export async function fetchJson(url, options = {}) {
   }
 
   const serverMessage = String(json?.message || "").toLowerCase();
-  if (res.status === 401 || serverMessage.includes("jwt expired") || serverMessage.includes("token expired")) {
+  if (
+    res.status === 401 ||
+    res.status === 403 ||
+    serverMessage.includes("jwt") ||
+    serverMessage.includes("token") ||
+    serverMessage.includes("hết hạn") ||
+    serverMessage.includes("đăng nhập")
+  ) {
     window.dispatchEvent(new Event("auth-expired"));
   }
 

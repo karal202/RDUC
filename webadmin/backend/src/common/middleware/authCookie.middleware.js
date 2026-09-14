@@ -10,7 +10,16 @@ export const authCookie = async (req, res, next) => {
   }
 
   // kiểm tra token
-  const decode = verifyAccessToken(accessToken);
+  let decode;
+  try {
+    decode = verifyAccessToken(accessToken);
+  } catch (err) {
+    throw new UnauthorizedError(
+      err.name === "TokenExpiredError"
+        ? "Phiên đăng nhập đã hết hạn"
+        : "Token không hợp lệ"
+    );
+  }
 
   // kiểm tra người dùng có trong db hay không
   const userExits = await Admin.findByPk(decode.userId, {

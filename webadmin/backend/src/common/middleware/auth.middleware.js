@@ -16,7 +16,16 @@ export const authMiddleware = async (req, res, next) => {
   const accessToken = authHeader.split(" ")[1];
 
   // xác thực token
-  const decoded = verifyAccessToken(accessToken);
+  let decoded;
+  try {
+    decoded = verifyAccessToken(accessToken);
+  } catch (err) {
+    throw new UnauthorizedError(
+      err.name === "TokenExpiredError"
+        ? "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại"
+        : "Token xác thực không hợp lệ, vui lòng đăng nhập lại"
+    );
+  }
 
   //cách 1:
   // găn payload vừa giải mã vào req.user để các middleware

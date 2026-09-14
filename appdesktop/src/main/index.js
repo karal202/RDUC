@@ -640,25 +640,23 @@ app.whenReady().then(() => {
   // Check admin privileges
   if (!isAdmin()) {
     console.warn('[SECURITY] Application is not running with Administrator privileges')
-    if (!is.dev) {
-      dialog
-        .showMessageBox({
-          type: 'warning',
-          title: 'DAWA Optimizer - Cảnh báo quyền',
-          message: 'Ứng dụng cần quyền Administrator để hoạt động đầy đủ.',
-          detail:
-            'Một số chức năng như sửa registry, tối ưu hệ thống sẽ không hoạt động nếu không có quyền Admin.',
-          buttons: ['Tiếp tục chạy', 'Khởi động lại với quyền Admin'],
-          defaultId: 0,
-          cancelId: 0
-        })
-        .then(({ response }) => {
-          if (response === 1) {
-            restartAsAdmin()
-          }
-        })
-        .catch(() => {})
-    }
+    dialog
+      .showMessageBox({
+        type: 'warning',
+        title: 'DAWA Optimizer - Cảnh báo quyền Admin',
+        message: 'Ứng dụng cần quyền Administrator để áp dụng tối ưu.',
+        detail:
+          'Các tính năng tinh chỉnh Windows Services (Telemetry, SysMain) và Registry hệ thống (Win32Priority HKLM) bắt buộc phải có quyền Administrator.',
+        buttons: ['Tiếp tục chạy', 'Khởi động lại với quyền Admin'],
+        defaultId: 1,
+        cancelId: 0
+      })
+      .then(({ response }) => {
+        if (response === 1) {
+          restartAsAdmin()
+        }
+      })
+      .catch(() => {})
   }
 
   // Create tray BEFORE main window so tray icon is available when window hides to it
@@ -851,9 +849,13 @@ app.whenReady().then(() => {
     }
 
     let tokens = licenseStore.getTokens()
-    
+
     // Auto-refresh token proactively for desktop app (30 minutes before expiry)
-    if (tokens?.accessToken && isTokenExpiringSoon(tokens.accessToken, 30) && tokens?.refreshToken) {
+    if (
+      tokens?.accessToken &&
+      isTokenExpiringSoon(tokens.accessToken, 30) &&
+      tokens?.refreshToken
+    ) {
       console.log('[TOKEN] Access token expiring soon, attempting proactive refresh...')
       const refreshed = await refreshWithBackend(tokens.refreshToken).catch((error) => {
         console.warn('[TOKEN] Proactive refresh failed:', error.message)
@@ -865,7 +867,7 @@ app.whenReady().then(() => {
         console.log('[TOKEN] Proactive refresh successful')
       }
     }
-    
+
     let remoteResult = tokens
       ? await checkWithBackend(tokens.accessToken).catch(() => ({ status: 0, data: {} }))
       : null
@@ -1182,6 +1184,9 @@ app.whenReady().then(() => {
       ])
     )
   })
+
+  ipcMain.handle('system:is-admin', () => isAdmin())
+  ipcMain.handle('system:restart-as-admin', () => restartAsAdmin())
 
   createWindow()
 

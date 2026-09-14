@@ -161,6 +161,15 @@ app.use((err, req, res, next) => {
   if (!isProduction) {
     console.error("Unhandled error:", err);
   }
+  if (err.name === "JsonWebTokenError" || err.name === "TokenExpiredError") {
+    return res.status(401).json({
+      success: false,
+      message:
+        err.name === "TokenExpiredError"
+          ? "Phiên làm việc đã hết hạn. Vui lòng đăng nhập lại."
+          : "Token không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại.",
+    });
+  }
   const statusCode = err?.statusCode || err?.status || 500;
   res.status(statusCode).json({
     success: false,

@@ -465,7 +465,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   'win-disable-telemetry': {
     description: 'Tắt dịch vụ Telemetry',
     commands: [
-      [WINDOWS_COMMANDS.sc, ['stop', 'DiagTrack']],
+      [WINDOWS_COMMANDS.sc, ['stop', 'DiagTrack'], { optional: true }],
       [WINDOWS_COMMANDS.sc, ['config', 'DiagTrack', 'start=', 'disabled']]
     ]
   },
@@ -485,7 +485,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   'win-disable-superfetch': {
     description: 'Tắt dịch vụ SysMain',
     commands: [
-      [WINDOWS_COMMANDS.sc, ['stop', 'SysMain']],
+      [WINDOWS_COMMANDS.sc, ['stop', 'SysMain'], { optional: true }],
       [WINDOWS_COMMANDS.sc, ['config', 'SysMain', 'start=', 'disabled']]
     ]
   },
@@ -608,7 +608,13 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   },
   'amd-radeonsoftwarelimmer': {
     description: 'Mở RadeonSoftwareSlimmer cho AMD GPU',
-    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Amd', 'RadeonSoftwareSlimmer', 'RadeonSoftwareSlimmer.exe')
+    launch: join(
+      SCRIPT_DIRECTORY,
+      'Tool&cache',
+      'For Amd',
+      'RadeonSoftwareSlimmer',
+      'RadeonSoftwareSlimmer.exe'
+    )
   },
   'amd-3d-settings': {
     description: 'Áp dụng 3D Settings cho AMD GPU',
@@ -630,29 +636,51 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   },
   'nvidia-nvcleanstall': {
     description: 'Mở NvCleanstall cho NVIDIA GPU',
-    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'NvCleanstall', 'NVCleanstall_1.19.0.exe')
+    launch: join(
+      SCRIPT_DIRECTORY,
+      'Tool&cache',
+      'For Nvidia',
+      'NvCleanstall',
+      'NVCleanstall_1.19.0.exe'
+    )
   },
   'nvidia-profile-inspector': {
     description: 'Mở Nvidia Profile Inspector',
-    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Nvidia Profile Inspector', 'nvidiaProfileInspector', 'nvidiaProfileInspector.exe')
+    launch: join(
+      SCRIPT_DIRECTORY,
+      'Tool&cache',
+      'For Nvidia',
+      'Nvidia Profile Inspector',
+      'nvidiaProfileInspector',
+      'nvidiaProfileInspector.exe'
+    )
   },
   'nvidia-inspector': {
     description: 'Mở nvidiaInspector',
-    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'nvidiaInspector', 'nvidiaInspector.exe')
+    launch: join(
+      SCRIPT_DIRECTORY,
+      'Tool&cache',
+      'For Nvidia',
+      'nvidiaInspector',
+      'nvidiaInspector.exe'
+    )
   },
   'nvidia-powermizer': {
     description: 'Mở Nvidia PowerMizer',
-    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Nvidia PowerMizer', 'Nvidia PowerMizer.exe')
+    launch: join(
+      SCRIPT_DIRECTORY,
+      'Tool&cache',
+      'For Nvidia',
+      'Nvidia PowerMizer',
+      'Nvidia PowerMizer.exe'
+    )
   },
   'nvidia-desktop-composition': {
     description: 'Áp dụng Desktop Composition cho NVIDIA GPU',
     commands: [
       [
         WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Desktop Composition.reg')
-        ]
+        ['import', join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Desktop Composition.reg')]
       ]
     ]
   },
@@ -661,10 +689,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
     commands: [
       [
         WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'GameDVR And Game Mode.reg')
-        ]
+        ['import', join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'GameDVR And Game Mode.reg')]
       ]
     ]
   },
@@ -673,10 +698,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
     commands: [
       [
         WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'GraphicsDrivers Tweaks.reg')
-        ]
+        ['import', join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'GraphicsDrivers Tweaks.reg')]
       ]
     ]
   },
@@ -685,10 +707,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
     commands: [
       [
         WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'NVIDIA Driver Tweaks.reg')
-        ]
+        ['import', join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'NVIDIA Driver Tweaks.reg')]
       ]
     ]
   },
@@ -709,10 +728,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
     commands: [
       [
         WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Task Priority Tweaks.reg')
-        ]
+        ['import', join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Task Priority Tweaks.reg')]
       ]
     ]
   },
@@ -745,10 +761,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
     commands: [
       [
         WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Disable Drivers.reg')
-        ]
+        ['import', join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Disable Drivers.reg')]
       ]
     ]
   },
@@ -771,7 +784,12 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
         WINDOWS_COMMANDS.reg,
         [
           'import',
-          join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Disable Services For Professionals.reg')
+          join(
+            SCRIPT_DIRECTORY,
+            'Tool&cache',
+            'Extreme Reg',
+            'Disable Services For Professionals.reg'
+          )
         ]
       ]
     ]
@@ -783,7 +801,13 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
         WINDOWS_COMMANDS.reg,
         [
           'import',
-          join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Restore', 'Disable Services For Gamers Restore.reg')
+          join(
+            SCRIPT_DIRECTORY,
+            'Tool&cache',
+            'Extreme Reg',
+            'Restore',
+            'Disable Services For Gamers Restore.reg'
+          )
         ]
       ]
     ]
@@ -795,7 +819,13 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
         WINDOWS_COMMANDS.reg,
         [
           'import',
-          join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Restore', 'Disable Services For Professionals Restore.reg')
+          join(
+            SCRIPT_DIRECTORY,
+            'Tool&cache',
+            'Extreme Reg',
+            'Restore',
+            'Disable Services For Professionals Restore.reg'
+          )
         ]
       ]
     ]
@@ -935,13 +965,16 @@ function runWhitelistedCommand(file, args) {
       file,
       args,
       { windowsHide: true, timeout: 60000 },
-      (error, stdout, stderr) =>
+      (error, stdout, stderr) => {
+        const outStr = stdout?.toString() ?? ''
+        const errStr = stderr?.toString() ?? ''
         resolve({
           success: !error,
           code: error?.code ?? 0,
-          stdout: stdout?.toString() ?? '',
-          stderr: stderr?.toString() ?? ''
+          stdout: outStr,
+          stderr: (errStr || (error ? outStr : '')).trim()
         })
+      }
     )
     child.unref()
   })
@@ -1054,10 +1087,10 @@ export async function runDawaScript(scriptKey, options = {}) {
     }
   }
 
-  for (const [file, args] of script.commands) {
+  for (const [file, args, cmdOptions = {}] of script.commands) {
     const result = await runWhitelistedCommand(file, args)
     outputs.push({ file, args: args.join(' '), ...result })
-    if (!result.success)
+    if (!result.success && !cmdOptions.optional)
       return {
         success: false,
         message: `Lỗi khi thực thi bước ${file} ${args.join(' ')}: ${result.stderr}`,

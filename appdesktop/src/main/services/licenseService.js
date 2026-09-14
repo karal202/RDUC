@@ -161,6 +161,8 @@ export async function validateWithBackend(keyCode, deviceHash) {
       body: JSON.stringify({
         key_code: keyCode,
         device_hash: deviceHash,
+        hardware_id: deviceHash,
+        hwid: deviceHash,
         device_name: os.hostname(),
         os_info: osInfo
       })
@@ -192,15 +194,15 @@ export function isTokenExpiringSoon(accessToken, bufferMinutes = 30) {
     // JWT token có format: header.payload.signature
     const parts = accessToken.split('.')
     if (parts.length !== 3) return false
-    
+
     const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString())
     const exp = payload.exp
-    
+
     if (!exp) return false
-    
+
     const now = Math.floor(Date.now() / 1000)
     const timeUntilExpiry = exp - now
-    
+
     // Refresh nếu còn dưới bufferMinutes (mặc định 30 phút)
     return timeUntilExpiry <= bufferMinutes * 60
   } catch {
