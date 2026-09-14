@@ -28,7 +28,8 @@ import {
   checkWithBackend,
   getDesktopFeaturePolicy,
   validateWithBackend,
-  verifyLocalLicense
+  verifyLocalLicense,
+  isTokenExpiringSoon
 } from './services/licenseService'
 import { ALLOWED_DAWA_SCRIPTS, runDawaScript } from './services/dawaScripts'
 
@@ -850,6 +851,21 @@ app.whenReady().then(() => {
     }
 
     let tokens = licenseStore.getTokens()
+    
+    // Auto-refresh token proactively for desktop app (30 minutes before expiry)
+    if (tokens?.accessToken && isTokenExpiringSoon(tokens.accessToken, 30) && tokens?.refreshToken) {
+      console.log('[TOKEN] Access token expiring soon, attempting proactive refresh...')
+      const refreshed = await refreshWithBackend(tokens.refreshToken).catch((error) => {
+        console.warn('[TOKEN] Proactive refresh failed:', error.message)
+        return null
+      })
+      if (refreshed?.success) {
+        tokens = { ...tokens, accessToken: refreshed.accessToken }
+        licenseStore.saveTokens(tokens)
+        console.log('[TOKEN] Proactive refresh successful')
+      }
+    }
+    
     let remoteResult = tokens
       ? await checkWithBackend(tokens.accessToken).catch(() => ({ status: 0, data: {} }))
       : null

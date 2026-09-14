@@ -187,6 +187,27 @@ export async function refreshWithBackend(refreshToken) {
   return response.json()
 }
 
+export function isTokenExpiringSoon(accessToken, bufferMinutes = 30) {
+  try {
+    // JWT token có format: header.payload.signature
+    const parts = accessToken.split('.')
+    if (parts.length !== 3) return false
+    
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString())
+    const exp = payload.exp
+    
+    if (!exp) return false
+    
+    const now = Math.floor(Date.now() / 1000)
+    const timeUntilExpiry = exp - now
+    
+    // Refresh nếu còn dưới bufferMinutes (mặc định 30 phút)
+    return timeUntilExpiry <= bufferMinutes * 60
+  } catch {
+    return false
+  }
+}
+
 export async function checkWithBackend(accessToken) {
   const response = await fetch(`${BACKEND_ORIGIN}/api/license/desktop/check`, {
     headers: { Authorization: `Bearer ${accessToken}` }

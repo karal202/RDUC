@@ -6,28 +6,23 @@ import { join } from 'path'
 const WINDOWS_SYSTEM_DIRECTORY = process.env.SystemRoot || 'C:\\Windows'
 
 function resolveScriptDirectory() {
+  // Production: try process.resourcesPath first
   if (process.resourcesPath) {
     const packagedPath = join(process.resourcesPath, 'scripts')
-    if (existsSync(packagedPath)) {
-      return packagedPath
-    }
+    if (existsSync(packagedPath)) return packagedPath
+
     const altPackagedPath = join(process.resourcesPath, 'resources', 'scripts')
-    if (existsSync(altPackagedPath)) {
-      return altPackagedPath
-    }
+    if (existsSync(altPackagedPath)) return altPackagedPath
   }
+
+  // Development: fallback to local path
   const devPath = join(__dirname, '..', '..', 'resources', 'scripts')
-  if (existsSync(devPath)) {
-    return devPath
-  }
-  const cwdPath = join(process.cwd(), 'resources', 'scripts')
-  if (existsSync(cwdPath)) {
-    return cwdPath
-  }
-  const appDesktopPath = join(process.cwd(), 'appdesktop', 'resources', 'scripts')
-  if (existsSync(appDesktopPath)) {
-    return appDesktopPath
-  }
+  if (existsSync(devPath)) return devPath
+
+  // Alternative development path
+  const altDevPath = join(process.cwd(), 'resources', 'scripts')
+  if (existsSync(altDevPath)) return altDevPath
+
   return devPath
 }
 
@@ -83,7 +78,6 @@ const REGISTRY_FILE_PROFILES = Object.freeze({
   'network-full-tweaks': join(SCRIPT_DIRECTORY, 'Network', 'Network Tweaks.reg'),
   'network-fast-send': join(SCRIPT_DIRECTORY, 'Network', 'FastSendDatagramThreshold.reg'),
   'mouse-queue-10': join(SCRIPT_DIRECTORY, 'Input Lag', 'Mouse', 'DataQueueSize', '10 Decimal.reg'),
-  'mouse-queue-15': join(SCRIPT_DIRECTORY, 'Input Lag', 'Mouse', 'DataQueueSize', '15 Decimal.reg'),
   'mouse-queue-20': join(SCRIPT_DIRECTORY, 'Input Lag', 'Mouse', 'DataQueueSize', '20 Decimal.reg'),
   'mouse-queue-22': join(SCRIPT_DIRECTORY, 'Input Lag', 'Mouse', 'DataQueueSize', '22 Decimal.reg'),
   'mouse-queue-25': join(SCRIPT_DIRECTORY, 'Input Lag', 'Mouse', 'DataQueueSize', '25 Decimal.reg'),
@@ -304,6 +298,57 @@ const REGISTRY_FILE_PROFILES = Object.freeze({
     SCRIPT_DIRECTORY,
     'Restore',
     'Disable Services For Professionals Restore.reg'
+  ),
+  'network-tcp-ping': join(SCRIPT_DIRECTORY, 'Network', 'TCP Ping.reg'),
+  'network-flush-dns': join(SCRIPT_DIRECTORY, 'Network', 'DNS.cmd'),
+  'network-dns-gaming': join(SCRIPT_DIRECTORY, 'Network', 'DNS.cmd'),
+  'win-disable-transparency': join(
+    SCRIPT_DIRECTORY,
+    'Optimizer',
+    '3. Windows Settings',
+    'Disable Transparency.reg'
+  ),
+  'win-enable-transparency': join(
+    SCRIPT_DIRECTORY,
+    'Optimizer',
+    '3. Windows Settings',
+    'Enable Transparency.reg'
+  ),
+  'win-disable-fso-gamebar': join(
+    SCRIPT_DIRECTORY,
+    'Optimizer',
+    '3. Windows Settings',
+    'Disable FSO Game Bar.reg'
+  ),
+  'win-enable-fso-gamebar': join(
+    SCRIPT_DIRECTORY,
+    'Optimizer',
+    '3. Windows Settings',
+    'Enable FSO Game Bar.reg'
+  ),
+  'win-disable-telemetry': join(
+    SCRIPT_DIRECTORY,
+    'Optimizer',
+    '3. Windows Settings',
+    'Disable Telemetry.reg'
+  ),
+  'win-enable-telemetry': join(
+    SCRIPT_DIRECTORY,
+    'Optimizer',
+    '3. Windows Settings',
+    'Enable Telemetry.reg'
+  ),
+  'win-disable-superfetch': join(
+    SCRIPT_DIRECTORY,
+    'Optimizer',
+    '3. Windows Settings',
+    'Disable Superfetch.reg'
+  ),
+  'win-enable-superfetch': join(
+    SCRIPT_DIRECTORY,
+    'Optimizer',
+    '3. Windows Settings',
+    'Enable Superfetch.reg'
   )
 })
 
@@ -399,29 +444,8 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
       [
         WINDOWS_COMMANDS.reg,
         [
-          'add',
-          'HKCU\\Software\\Microsoft\\GameBar',
-          '/v',
-          'ShowStartupPanel',
-          '/t',
-          'REG_DWORD',
-          '/d',
-          '0',
-          '/f'
-        ]
-      ],
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'add',
-          'HKCU\\System\\GameConfigStore',
-          '/v',
-          'GameDVR_Enabled',
-          '/t',
-          'REG_DWORD',
-          '/d',
-          '0',
-          '/f'
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Disable FSO Game Bar.reg')
         ]
       ]
     ]
@@ -432,29 +456,8 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
       [
         WINDOWS_COMMANDS.reg,
         [
-          'add',
-          'HKCU\\Software\\Microsoft\\GameBar',
-          '/v',
-          'ShowStartupPanel',
-          '/t',
-          'REG_DWORD',
-          '/d',
-          '1',
-          '/f'
-        ]
-      ],
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'add',
-          'HKCU\\System\\GameConfigStore',
-          '/v',
-          'GameDVR_Enabled',
-          '/t',
-          'REG_DWORD',
-          '/d',
-          '1',
-          '/f'
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable FSO Game Bar.reg')
         ]
       ]
     ]
@@ -468,7 +471,16 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   },
   'win-enable-telemetry': {
     description: 'Bật lại dịch vụ Telemetry',
-    commands: [[WINDOWS_COMMANDS.sc, ['config', 'DiagTrack', 'start=', 'auto']]]
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Telemetry.reg')
+        ]
+      ],
+      [WINDOWS_COMMANDS.sc, ['config', 'DiagTrack', 'start=', 'auto']]
+    ]
   },
   'win-disable-superfetch': {
     description: 'Tắt dịch vụ SysMain',
@@ -479,7 +491,16 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   },
   'win-enable-superfetch': {
     description: 'Bật lại dịch vụ SysMain',
-    commands: [[WINDOWS_COMMANDS.sc, ['config', 'SysMain', 'start=', 'auto']]]
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Superfetch.reg')
+        ]
+      ],
+      [WINDOWS_COMMANDS.sc, ['config', 'SysMain', 'start=', 'auto']]
+    ]
   },
   'win-disable-transparency': {
     description: 'Tắt hiệu ứng Transparency',
@@ -575,26 +596,26 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   },
   'msi-utility': {
     description: 'Mở MSI Utility V3',
-    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'MSI Utility V3.exe')}"`
+    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'MSI Utility', 'MSI Utility V3.exe')
   },
   'amd-radeonmod': {
     description: 'Mở RadeonMod cho AMD GPU',
-    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Amd', 'RadeonMod', 'RadeonMod.exe')}"`
+    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Amd', 'RadeonMod', 'RadeonMod.exe')
   },
   'amd-morepowertool': {
     description: 'Mở MorePowerTool cho AMD GPU',
-    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Amd', 'MorePowerTool', 'MorePowerTool.exe')}"`
+    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Amd', 'MorePowerTool', 'MorePowerTool.exe')
   },
   'amd-radeonsoftwarelimmer': {
     description: 'Mở RadeonSoftwareSlimmer cho AMD GPU',
-    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Amd', 'RadeonSoftwareSlimmer', 'RadeonSoftwareSlimmer.exe')}"`
+    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Amd', 'RadeonSoftwareSlimmer', 'RadeonSoftwareSlimmer.exe')
   },
   'amd-3d-settings': {
     description: 'Áp dụng 3D Settings cho AMD GPU',
     commands: [
       [
         WINDOWS_COMMANDS.reg,
-        ['import', `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Amd', '3D Settings.reg')}"`]
+        ['import', join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Amd', '3D Settings.reg')]
       ]
     ]
   },
@@ -603,25 +624,25 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
     commands: [
       [
         WINDOWS_COMMANDS.reg,
-        ['import', `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Amd', 'Driver Tweaks.reg')}"`]
+        ['import', join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Amd', 'Driver Tweaks.reg')]
       ]
     ]
   },
   'nvidia-nvcleanstall': {
     description: 'Mở NvCleanstall cho NVIDIA GPU',
-    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'NvCleanstall', 'NVCleanstall_1.19.0.exe')}"`
+    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'NvCleanstall', 'NVCleanstall_1.19.0.exe')
   },
   'nvidia-profile-inspector': {
     description: 'Mở Nvidia Profile Inspector',
-    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Nvidia Profile Inspector', 'nvidiaProfileInspector', 'nvidiaProfileInspector.exe')}"`
+    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Nvidia Profile Inspector', 'nvidiaProfileInspector', 'nvidiaProfileInspector.exe')
   },
   'nvidia-inspector': {
     description: 'Mở nvidiaInspector',
-    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'nvidiaInspector', 'nvidiaInspector.exe')}"`
+    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'nvidiaInspector', 'nvidiaInspector.exe')
   },
   'nvidia-powermizer': {
     description: 'Mở Nvidia PowerMizer',
-    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Nvidia PowerMizer', 'Nvidia PowerMizer.exe')}"`
+    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Nvidia PowerMizer', 'Nvidia PowerMizer.exe')
   },
   'nvidia-desktop-composition': {
     description: 'Áp dụng Desktop Composition cho NVIDIA GPU',
@@ -630,7 +651,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
         WINDOWS_COMMANDS.reg,
         [
           'import',
-          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Desktop Composition.reg')}"`
+          join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Desktop Composition.reg')
         ]
       ]
     ]
@@ -642,7 +663,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
         WINDOWS_COMMANDS.reg,
         [
           'import',
-          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'GameDVR And Game Mode.reg')}"`
+          join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'GameDVR And Game Mode.reg')
         ]
       ]
     ]
@@ -654,7 +675,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
         WINDOWS_COMMANDS.reg,
         [
           'import',
-          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'GraphicsDrivers Tweaks.reg')}"`
+          join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'GraphicsDrivers Tweaks.reg')
         ]
       ]
     ]
@@ -666,7 +687,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
         WINDOWS_COMMANDS.reg,
         [
           'import',
-          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'NVIDIA Driver Tweaks.reg')}"`
+          join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'NVIDIA Driver Tweaks.reg')
         ]
       ]
     ]
@@ -678,7 +699,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
         WINDOWS_COMMANDS.reg,
         [
           'import',
-          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Power And Latency Tweaks.reg')}"`
+          join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Power And Latency Tweaks.reg')
         ]
       ]
     ]
@@ -690,7 +711,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
         WINDOWS_COMMANDS.reg,
         [
           'import',
-          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Task Priority Tweaks.reg')}"`
+          join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Task Priority Tweaks.reg')
         ]
       ]
     ]
@@ -702,7 +723,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
         WINDOWS_COMMANDS.reg,
         [
           'import',
-          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'Classic Right Click Menu', 'Windows 10.reg')}"`
+          join(SCRIPT_DIRECTORY, 'Tool&cache', 'Classic Right Click Menu', 'Windows 10.reg')
         ]
       ]
     ]
@@ -714,7 +735,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
         WINDOWS_COMMANDS.reg,
         [
           'import',
-          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'Classic Right Click Menu', 'Windows 11.reg')}"`
+          join(SCRIPT_DIRECTORY, 'Tool&cache', 'Classic Right Click Menu', 'Windows 11.reg')
         ]
       ]
     ]
@@ -726,7 +747,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
         WINDOWS_COMMANDS.reg,
         [
           'import',
-          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Disable Drivers.reg')}"`
+          join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Disable Drivers.reg')
         ]
       ]
     ]
@@ -738,7 +759,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
         WINDOWS_COMMANDS.reg,
         [
           'import',
-          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Disable Services For Gamers.reg')}"`
+          join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Disable Services For Gamers.reg')
         ]
       ]
     ]
@@ -750,7 +771,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
         WINDOWS_COMMANDS.reg,
         [
           'import',
-          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Disable Services For Professionals.reg')}"`
+          join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Disable Services For Professionals.reg')
         ]
       ]
     ]
@@ -762,7 +783,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
         WINDOWS_COMMANDS.reg,
         [
           'import',
-          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Restore', 'Disable Services For Gamers Restore.reg')}"`
+          join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Restore', 'Disable Services For Gamers Restore.reg')
         ]
       ]
     ]
@@ -774,37 +795,37 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
         WINDOWS_COMMANDS.reg,
         [
           'import',
-          `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Restore', 'Disable Services For Professionals Restore.reg')}"`
+          join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Restore', 'Disable Services For Professionals Restore.reg')
         ]
       ]
     ]
   },
   'ame-beta': {
     description: 'Mở AME Beta',
-    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'AME Beta.exe')}"`
+    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'AME Beta.exe')
   },
   throttlestop: {
     description: 'Mở ThrottleStop',
-    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'ThrottleStop.exe')}"`
+    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'ThrottleStop.exe')
   },
   parkcontrol: {
     description: 'Mở ParkControl',
-    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'parkcontrolsetup64.exe')}"`
+    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'parkcontrolsetup64.exe')
   },
   processlasso: {
     description: 'Mở Process Lasso',
-    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'processlassosetup64.exe')}"`
+    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'processlassosetup64.exe')
   },
   quickcpu: {
     description: 'Mở QuickCPU',
-    launch: `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'QuickCpuSetup.msi')}"`
+    launch: join(SCRIPT_DIRECTORY, 'Tool&cache', 'QuickCpuSetup.msi')
   },
   'clean-cache': {
     description: 'Dọn dẹp cache',
     commands: [
       [
         WINDOWS_COMMANDS.cmd,
-        ['/d', '/c', 'call', `"${join(SCRIPT_DIRECTORY, 'Tool&cache', 'Clean', 'Clear.bat')}"`]
+        ['/d', '/c', 'call', join(SCRIPT_DIRECTORY, 'Tool&cache', 'Clean', 'Clear.bat')]
       ]
     ]
   },
@@ -910,96 +931,30 @@ async function cleanDirectory(directory) {
 
 function runWhitelistedCommand(file, args) {
   return new Promise((resolve) => {
-    const cleanFile = typeof file === 'string' ? file.replace(/^"|"$/g, '') : file
-    const cleanArgs = args.map((arg) => (typeof arg === 'string' ? arg.replace(/^"|"$/g, '') : arg))
     const child = execFile(
-      cleanFile,
-      cleanArgs,
+      file,
+      args,
       { windowsHide: true, timeout: 60000 },
-      (error, stdout, stderr) => {
-        const errorOutput = stderr?.toString() ?? ''
-        // Check for permission errors
-        if (
-          errorOutput.includes('Access is denied') ||
-          errorOutput.includes('permission') ||
-          errorOutput.includes('ERROR: Error accessing the registry')
-        ) {
-          // Try to run with UAC elevation
-          runElevatedCommand(file, args)
-            .then((result) => {
-              resolve(result)
-            })
-            .catch(() => {
-              resolve({
-                success: false,
-                code: error?.code ?? 0,
-                stdout: stdout?.toString() ?? '',
-                stderr:
-                  'Lỗi quyền truy cập: Vui lòng chạy ứng dụng với quyền Administrator (chuột phải -> Run as Administrator)'
-              })
-            })
-        } else {
-          resolve({
-            success: !error,
-            code: error?.code ?? 0,
-            stdout: stdout?.toString() ?? '',
-            stderr: errorOutput
-          })
-        }
-      }
+      (error, stdout, stderr) =>
+        resolve({
+          success: !error,
+          code: error?.code ?? 0,
+          stdout: stdout?.toString() ?? '',
+          stderr: stderr?.toString() ?? ''
+        })
     )
     child.unref()
-  })
-}
-
-function runElevatedCommand(file, args) {
-  return new Promise((resolve) => {
-    const cleanFile = typeof file === 'string' ? file.replace(/^"|"$/g, '') : file
-    const cleanArgs = args.map((arg) => (typeof arg === 'string' ? arg.replace(/^"|"$/g, '') : arg))
-
-    // Build command string
-    const argsString = cleanArgs.map((arg) => `"${arg}"`).join(' ')
-    const command = `"${cleanFile}" ${argsString}`
-
-    // Use PowerShell to request UAC elevation
-    const psCommand = `Start-Process cmd.exe -ArgumentList '/c ${command}' -Verb RunAs -Wait -WindowStyle Normal`
-
-    spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', psCommand], {
-      windowsHide: true,
-      detached: true
-    })
-      .on('error', (error) => {
-        resolve({
-          success: false,
-          code: -1,
-          stdout: '',
-          stderr: `Lỗi UAC: ${error.message}. Vui lòng đồng ý cấp quyền Admin khi được hỏi.`
-        })
-      })
-      .on('exit', (code) => {
-        resolve({
-          success: code === 0,
-          code: code ?? 0,
-          stdout: 'Đã thực thi lệnh với quyền Admin',
-          stderr: code !== 0 ? `Lỗi khi thực thi lệnh với quyền Admin (mã: ${code})` : ''
-        })
-      })
   })
 }
 
 function launchWhitelistedApp(file) {
   return new Promise((resolve) => {
     try {
-      const cleanFile = typeof file === 'string' ? file.replace(/^"|"$/g, '') : file
-      if (!existsSync(cleanFile)) {
-        resolve({ success: false, stderr: `Tệp thực thi không tồn tại: ${cleanFile}` })
-        return
-      }
-      const child = spawn(cleanFile, [], { detached: true, stdio: 'ignore', windowsHide: false })
+      const child = spawn(file, [], { detached: true, stdio: 'ignore', windowsHide: false })
       child.once('error', (error) => resolve({ success: false, stderr: error.message }))
       child.once('spawn', () => {
         child.unref()
-        resolve({ success: true, stdout: `Đã mở ${cleanFile}` })
+        resolve({ success: true, stdout: `Đã mở ${file}` })
       })
     } catch (error) {
       resolve({ success: false, stderr: error.message })
@@ -1031,18 +986,14 @@ export async function runDawaScript(scriptKey, options = {}) {
   if (script.profileFiles) {
     const file = script.profileFiles[options.profile]
     if (!file) return { success: false, message: 'Invalid registry script profile.' }
-    const cleanFile = typeof file === 'string' ? file.replace(/^"|"$/g, '') : file
-    if (!existsSync(cleanFile)) {
-      return { success: false, message: `Tệp registry không tồn tại: ${cleanFile}` }
-    }
 
-    const result = await runWhitelistedCommand(WINDOWS_COMMANDS.reg, ['import', cleanFile])
-    outputs.push({ file: WINDOWS_COMMANDS.reg, args: `import ${cleanFile}`, ...result })
+    const result = await runWhitelistedCommand(WINDOWS_COMMANDS.reg, ['import', file])
+    outputs.push({ file: WINDOWS_COMMANDS.reg, args: `import ${file}`, ...result })
     return {
       success: result.success,
       message: result.success
         ? `Applied registry script profile ${options.profile}.`
-        : `Could not apply registry script profile: ${result.stderr || result.stdout}`,
+        : `Could not apply registry script profile: ${result.stderr}`,
       stepResults: outputs
     }
   }
@@ -1056,32 +1007,28 @@ export async function runDawaScript(scriptKey, options = {}) {
       script.profileDirectory || join(SCRIPT_DIRECTORY, 'Optimizer', 'Ram Optimization'),
       profileFile
     )
-    const cleanFile = typeof file === 'string' ? file.replace(/^"|"$/g, '') : file
-    if (!existsSync(cleanFile)) {
-      return { success: false, message: `Tệp cấu hình không tồn tại: ${cleanFile}` }
-    }
 
     // Special handling for power plans - use powercfg
     if (scriptKey === 'power-plan') {
-      const result = await runWhitelistedCommand(WINDOWS_COMMANDS.powercfg, ['/import', cleanFile])
-      outputs.push({ file: WINDOWS_COMMANDS.powercfg, args: `/import ${cleanFile}`, ...result })
+      const result = await runWhitelistedCommand(WINDOWS_COMMANDS.powercfg, ['/import', file])
+      outputs.push({ file: WINDOWS_COMMANDS.powercfg, args: `/import ${file}`, ...result })
       return {
         success: result.success,
         message: result.success
           ? `Đã áp dụng Power Plan ${options.profile}.`
-          : `Không thể áp dụng Power Plan: ${result.stderr || result.stdout}`,
+          : `Không thể áp dụng Power Plan: ${result.stderr}`,
         stepResults: outputs
       }
     }
 
     // Default handling for registry files
-    const result = await runWhitelistedCommand(WINDOWS_COMMANDS.reg, ['import', cleanFile])
-    outputs.push({ file: WINDOWS_COMMANDS.reg, args: `import ${cleanFile}`, ...result })
+    const result = await runWhitelistedCommand(WINDOWS_COMMANDS.reg, ['import', file])
+    outputs.push({ file: WINDOWS_COMMANDS.reg, args: `import ${file}`, ...result })
     return {
       success: result.success,
       message: result.success
         ? `Đã áp dụng profile ${options.profile}.`
-        : `Không thể áp dụng profile: ${result.stderr || result.stdout}`,
+        : `Không thể áp dụng profile: ${result.stderr}`,
       stepResults: outputs
     }
   }
@@ -1108,22 +1055,12 @@ export async function runDawaScript(scriptKey, options = {}) {
   }
 
   for (const [file, args] of script.commands) {
-    const cleanFile = typeof file === 'string' ? file.replace(/^"|"$/g, '') : file
-    const cleanArgs = args.map((arg) => (typeof arg === 'string' ? arg.replace(/^"|"$/g, '') : arg))
-    if (cleanArgs[0] === 'import' && cleanArgs[1] && !existsSync(cleanArgs[1])) {
-      return {
-        success: false,
-        message: `Tệp registry không tồn tại: ${cleanArgs[1]}`,
-        stepResults: outputs
-      }
-    }
-
-    const result = await runWhitelistedCommand(cleanFile, cleanArgs)
-    outputs.push({ file: cleanFile, args: cleanArgs.join(' '), ...result })
+    const result = await runWhitelistedCommand(file, args)
+    outputs.push({ file, args: args.join(' '), ...result })
     if (!result.success)
       return {
         success: false,
-        message: `Lỗi khi thực thi bước ${cleanFile} ${cleanArgs.join(' ')}: ${result.stderr || result.stdout}`,
+        message: `Lỗi khi thực thi bước ${file} ${args.join(' ')}: ${result.stderr}`,
         stepResults: outputs
       }
   }
