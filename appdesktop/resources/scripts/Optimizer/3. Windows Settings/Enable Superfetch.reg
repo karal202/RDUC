@@ -1,0 +1,12 @@
+Windows Registry Editor Version 5.00
+
+; Made by Savenz
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters]
+"EnablePrefetcher"=dword:00000003
+"EnableSuperfetch"=dword:00000003
+"EnableBootTrace"=dword:00000001
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management]
+"ClearPageFileAtShutdown"=dword:00000000
+"LargeSystemCache"=dword:00000000
