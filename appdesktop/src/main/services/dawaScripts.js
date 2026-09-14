@@ -987,8 +987,6 @@ function runElevatedCommand(file, args) {
   })
 }
 
-
-
 function launchWhitelistedApp(file) {
   return new Promise((resolve) => {
     try {
@@ -1119,7 +1117,7 @@ export async function runDawaScript(scriptKey, options = {}) {
         stepResults: outputs
       }
     }
-    
+
     const result = await runWhitelistedCommand(cleanFile, cleanArgs)
     outputs.push({ file: cleanFile, args: cleanArgs.join(' '), ...result })
     if (!result.success)
