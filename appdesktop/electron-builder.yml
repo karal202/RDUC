@@ -8,11 +8,14 @@ files:
   - 'out/**/*'
   - 'package.json'
   - 'node_modules/**/*'
-  - 'resources/**/*'
+  - '!resources/scripts/**/*'
   - '!**/*.map'
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
+extraResources:
+  - from: 'resources/scripts'
+    to: 'scripts'
 win:
   icon: build/icon.ico
   target:
