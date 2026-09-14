@@ -1,36 +1,35 @@
-import { buildQueryPrismaHelper } from "../common/helpers/build-query-prisma.helper.js";
-import { prisma } from "../common/prisma/connect.prisma.js";
-
 export const chatMessageService = {
   async create(req) {
     return `This action create`;
   },
 
   async findAll(req) {
-    const { page, pageSize, index, where } = buildQueryPrismaHelper(req);
-
-    const res = await prisma.chatMessages.findMany({
-      where: where,
-      skip: index,
-      take: pageSize,
-      include: {
-        Users: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
-
-    const totalItems = await prisma.chatMessages.count({
-      where: where,
-    });
-
-    const totalPages = Math.ceil(totalItems / pageSize);
-
+    let { page, pageSize, filters } = req.query;
+    
+    const pageDefault = 1;
+    const pageSizeDefault = 10;
+    
+    page = Number(page) || pageDefault;
+    pageSize = Number(pageSize) || pageSizeDefault;
+    
+    if (page < 1) page = pageDefault;
+    if (pageSize < 1) pageSize = pageSizeDefault;
+    
+    const index = (page - 1) * pageSize;
+    
+    try {
+      filters = JSON.parse(filters);
+    } catch (err) {
+      filters = {};
+    }
+    
+    const where = { ...filters, isDeleted: false };
+    
+    // TODO: Replace with actual Sequelize model when available
     return {
-      items: res,
-      totalItems: totalItems,
-      totalPages: totalPages,
+      items: [],
+      totalItems: 0,
+      totalPages: 0,
       page: page,
       pageSize: pageSize,
     };
