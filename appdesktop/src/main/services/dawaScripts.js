@@ -919,20 +919,25 @@ function runWhitelistedCommand(file, args) {
       (error, stdout, stderr) => {
         const errorOutput = stderr?.toString() ?? ''
         // Check for permission errors
-        if (errorOutput.includes('Access is denied') || 
-            errorOutput.includes('permission') || 
-            errorOutput.includes('ERROR: Error accessing the registry')) {
+        if (
+          errorOutput.includes('Access is denied') ||
+          errorOutput.includes('permission') ||
+          errorOutput.includes('ERROR: Error accessing the registry')
+        ) {
           // Try to run with UAC elevation
-          runElevatedCommand(file, args).then(result => {
-            resolve(result)
-          }).catch(() => {
-            resolve({
-              success: false,
-              code: error?.code ?? 0,
-              stdout: stdout?.toString() ?? '',
-              stderr: 'Lỗi quyền truy cập: Vui lòng chạy ứng dụng với quyền Administrator (chuột phải -> Run as Administrator)'
+          runElevatedCommand(file, args)
+            .then((result) => {
+              resolve(result)
             })
-          })
+            .catch(() => {
+              resolve({
+                success: false,
+                code: error?.code ?? 0,
+                stdout: stdout?.toString() ?? '',
+                stderr:
+                  'Lỗi quyền truy cập: Vui lòng chạy ứng dụng với quyền Administrator (chuột phải -> Run as Administrator)'
+              })
+            })
         } else {
           resolve({
             success: !error,
@@ -951,38 +956,34 @@ function runElevatedCommand(file, args) {
   return new Promise((resolve) => {
     const cleanFile = typeof file === 'string' ? file.replace(/^"|"$/g, '') : file
     const cleanArgs = args.map((arg) => (typeof arg === 'string' ? arg.replace(/^"|"$/g, '') : arg))
-    
+
     // Build command string
-    const argsString = cleanArgs.map(arg => `"${arg}"`).join(' ')
+    const argsString = cleanArgs.map((arg) => `"${arg}"`).join(' ')
     const command = `"${cleanFile}" ${argsString}`
-    
+
     // Use PowerShell to request UAC elevation
     const psCommand = `Start-Process cmd.exe -ArgumentList '/c ${command}' -Verb RunAs -Wait -WindowStyle Normal`
-    
-    spawn('powershell.exe', [
-      '-NoProfile', 
-      '-WindowStyle', 
-      'Hidden', 
-      '-Command', 
-      psCommand
-    ], {
+
+    spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', psCommand], {
       windowsHide: true,
       detached: true
-    }).on('error', (error) => {
-      resolve({
-        success: false,
-        code: -1,
-        stdout: '',
-        stderr: `Lỗi UAC: ${error.message}. Vui lòng đồng ý cấp quyền Admin khi được hỏi.`
-      })
-    }).on('exit', (code) => {
-      resolve({
-        success: code === 0,
-        code: code ?? 0,
-        stdout: 'Đã thực thi lệnh với quyền Admin',
-        stderr: code !== 0 ? `Lỗi khi thực thi lệnh với quyền Admin (mã: ${code})` : ''
-      })
     })
+      .on('error', (error) => {
+        resolve({
+          success: false,
+          code: -1,
+          stdout: '',
+          stderr: `Lỗi UAC: ${error.message}. Vui lòng đồng ý cấp quyền Admin khi được hỏi.`
+        })
+      })
+      .on('exit', (code) => {
+        resolve({
+          success: code === 0,
+          code: code ?? 0,
+          stdout: 'Đã thực thi lệnh với quyền Admin',
+          stderr: code !== 0 ? `Lỗi khi thực thi lệnh với quyền Admin (mã: ${code})` : ''
+        })
+      })
   })
 }
 
