@@ -34,8 +34,19 @@ if (-not $env:GH_TOKEN -or $env:GH_TOKEN -eq "") {
   exit 1
 }
 
-Write-Host "[1/2] Building and publishing to GitHub Releases..." -ForegroundColor Cyan
+Write-Host "[1/2] Checking and preparing git tag..." -ForegroundColor Cyan
 Set-Location $ScriptDir
+$pkgVersion = (Get-Content (Join-Path $ScriptDir "package.json") | ConvertFrom-Json).version
+$tag = "v$pkgVersion"
+$localTag = git tag -l $tag
+if (-not $localTag) {
+  Write-Host "[TAG] Creating git tag $tag..." -ForegroundColor Yellow
+  git tag $tag
+}
+Write-Host "[TAG] Ensuring tag $tag is pushed to GitHub..." -ForegroundColor Yellow
+git push origin $tag 2>$null
+
+Write-Host "[2/2] Building and publishing to GitHub Releases..." -ForegroundColor Cyan
 npm run build:win:publish
 
 if ($LASTEXITCODE -ne 0) {
