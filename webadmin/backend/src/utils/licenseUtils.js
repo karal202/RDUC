@@ -1,4 +1,7 @@
 import crypto from "crypto";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 function requireSecret(name) {
   const value = process.env[name];
