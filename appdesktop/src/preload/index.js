@@ -46,7 +46,10 @@ const api = {
 
   traySetState: (state) => ipcRenderer.invoke('tray:set-state', state),
   trayMinimize: () => ipcRenderer.invoke('tray:minimize-to-tray'),
-  trayShowWindow: () => ipcRenderer.invoke('tray:show-window')
+  trayShowWindow: () => ipcRenderer.invoke('tray:show-window'),
+
+  isAdmin: () => ipcRenderer.invoke('system:is-admin'),
+  restartAsAdmin: () => ipcRenderer.invoke('system:restart-as-admin')
 }
 
 if (process.contextIsolated) {

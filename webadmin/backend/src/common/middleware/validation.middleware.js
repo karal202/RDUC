@@ -153,7 +153,7 @@ export const validateIdParam = (req, _res, next) => {
 export const validateClientLicenseInput = (req, _res, next) => {
   const body = req.body || {};
   const key = String(body.key_code || body.key || "").trim();
-  const hardwareId = String(body.hardware_id || body.hwid || "").trim();
+  const hardwareId = String(body.hardware_id || body.device_hash || body.hwid || "").trim();
 
   if (!key) {
     throw new BadRequestError("Mã bản quyền (key) không được để trống");
@@ -177,7 +177,7 @@ export const validateClientLicenseInput = (req, _res, next) => {
  */
 export const validateHardwareBlockInput = (req, _res, next) => {
   const body = req.body || {};
-  const hardwareId = String(body.hardware_id || req.params.hardwareId || "").trim();
+  const hardwareId = String(body.hardware_id || body.device_hash || req.params.hardwareId || "").trim();
 
   if (!hardwareId) {
     throw new BadRequestError("Hardware ID không được để trống");
