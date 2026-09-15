@@ -54,7 +54,13 @@ const api = {
   trayShowWindow: () => ipcRenderer.invoke('tray:show-window'),
 
   isAdmin: () => ipcRenderer.invoke('system:is-admin'),
-  restartAsAdmin: () => ipcRenderer.invoke('system:restart-as-admin')
+  restartAsAdmin: () => ipcRenderer.invoke('system:restart-as-admin'),
+
+  onFeatureProgress: (callback) => {
+    const listener = (_, payload) => callback(payload)
+    ipcRenderer.on('system:feature-progress', listener)
+    return () => ipcRenderer.removeListener('system:feature-progress', listener)
+  }
 }
 
 if (process.contextIsolated) {

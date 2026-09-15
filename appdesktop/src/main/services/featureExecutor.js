@@ -4,7 +4,7 @@ import { join } from 'path'
 import { app } from 'electron'
 import crypto from 'crypto'
 import { isFeatureAllowed } from './licenseManager.js'
-import { decryptScript } from './encryptor.js'
+import { decryptScript, decryptScriptWithMaster } from './encryptor.js'
 
 // Track temp files for cleanup
 const tempFiles = new Set()
@@ -31,19 +31,19 @@ async function secureDeleteFile(filePath) {
   try {
     const stats = await fs.stat(filePath)
     const fileSize = stats.size
-    
+
     // Overwrite with random data (3 passes)
     for (let i = 0; i < 3; i++) {
       const randomData = crypto.randomBytes(fileSize)
       await fs.writeFile(filePath, randomData)
     }
-    
+
     // Delete file
     await fs.unlink(filePath)
-    
+
     // Remove from tracking set
     tempFiles.delete(filePath)
-    
+
     return true
   } catch (error) {
     console.error('Secure delete failed:', error.message)
@@ -68,10 +68,10 @@ async function writeTempFile(content, extension) {
   const tempDir = getTempDirectory()
   const tempId = generateTempId()
   const tempFilePath = join(tempDir, `dawa_${tempId}${extension}`)
-  
+
   await fs.writeFile(tempFilePath, content, { mode: 0o600 })
   tempFiles.add(tempFilePath)
-  
+
   return tempFilePath
 }
 
@@ -83,22 +83,22 @@ async function writeTempFile(content, extension) {
 function executeRegistryFile(filePath) {
   return new Promise((resolve) => {
     const regeditPath = join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'regedit.exe')
-    
+
     const regeditProcess = spawn(regeditPath, ['/s', filePath], {
       windowsHide: true
     })
-    
+
     let output = ''
     let errorOutput = ''
-    
+
     regeditProcess.stdout.on('data', (data) => {
       output += data.toString()
     })
-    
+
     regeditProcess.stderr.on('data', (data) => {
       errorOutput += data.toString()
     })
-    
+
     regeditProcess.on('close', (code) => {
       if (code === 0) {
         resolve({ success: true, message: 'Registry import thành công' })
@@ -109,7 +109,7 @@ function executeRegistryFile(filePath) {
         })
       }
     })
-    
+
     regeditProcess.on('error', (error) => {
       resolve({ success: false, message: `Lỗi thực thi regedit: ${error.message}` })
     })
@@ -124,22 +124,22 @@ function executeRegistryFile(filePath) {
 function executeBatchFile(filePath) {
   return new Promise((resolve) => {
     const cmdPath = join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'cmd.exe')
-    
+
     const cmdProcess = spawn(cmdPath, ['/c', filePath], {
       windowsHide: true
     })
-    
+
     let output = ''
     let errorOutput = ''
-    
+
     cmdProcess.stdout.on('data', (data) => {
       output += data.toString()
     })
-    
+
     cmdProcess.stderr.on('data', (data) => {
       errorOutput += data.toString()
     })
-    
+
     cmdProcess.on('close', (code) => {
       if (code === 0) {
         resolve({ success: true, message: 'Batch script thực thi thành công' })
@@ -150,7 +150,7 @@ function executeBatchFile(filePath) {
         })
       }
     })
-    
+
     cmdProcess.on('error', (error) => {
       resolve({ success: false, message: `Lỗi thực thi cmd: ${error.message}` })
     })
@@ -171,22 +171,22 @@ function executePowerShellFile(filePath) {
       'v1.0',
       'powershell.exe'
     )
-    
+
     const psProcess = spawn(psPath, ['-ExecutionPolicy', 'Bypass', '-File', filePath], {
       windowsHide: true
     })
-    
+
     let output = ''
     let errorOutput = ''
-    
+
     psProcess.stdout.on('data', (data) => {
       output += data.toString()
     })
-    
+
     psProcess.stderr.on('data', (data) => {
       errorOutput += data.toString()
     })
-    
+
     psProcess.on('close', (code) => {
       if (code === 0) {
         resolve({ success: true, message: 'PowerShell script thực thi thành công' })
@@ -197,7 +197,7 @@ function executePowerShellFile(filePath) {
         })
       }
     })
-    
+
     psProcess.on('error', (error) => {
       resolve({ success: false, message: `Lỗi thực thi PowerShell: ${error.message}` })
     })
@@ -215,18 +215,18 @@ function executeExecutable(filePath, args = []) {
     const exeProcess = spawn(filePath, args, {
       windowsHide: true
     })
-    
+
     let output = ''
     let errorOutput = ''
-    
+
     exeProcess.stdout.on('data', (data) => {
       output += data.toString()
     })
-    
+
     exeProcess.stderr.on('data', (data) => {
       errorOutput += data.toString()
     })
-    
+
     exeProcess.on('close', (code) => {
       if (code === 0) {
         resolve({ success: true, message: 'Executable thực thi thành công' })
@@ -237,7 +237,7 @@ function executeExecutable(filePath, args = []) {
         })
       }
     })
-    
+
     exeProcess.on('error', (error) => {
       resolve({ success: false, message: `Lỗi thực thi executable: ${error.message}` })
     })
@@ -253,6 +253,8 @@ function executeExecutable(filePath, args = []) {
  * @param {string} params.scriptPath - Path to encrypted .dat file or plaintext file
  * @param {string} params.scriptType - Type: 'reg', 'bat', 'ps1', 'exe'
  * @param {Array<string>} params.args - Additional arguments for exe
+ * @param {string} params.label - Human-readable feature label (for progress UI)
+ * @param {(stage: {percent: number, message: string, phase: string}) => void} params.onProgress - Optional realtime progress callback
  * @returns {Promise<{success: boolean, message: string, licenseStatus: string}>}
  */
 export async function executeFeature({
@@ -261,49 +263,109 @@ export async function executeFeature({
   featureKey,
   scriptPath,
   scriptType,
-  args = []
+  args = [],
+  label,
+  onProgress
 }) {
   let tempFilePath = null
-  
+
+  const emit = (percent, phase, message) => {
+    if (typeof onProgress === 'function') {
+      try {
+        onProgress({ percent, phase, message, label: label || featureKey, featureKey })
+      } catch {
+        void 0
+      }
+    }
+  }
+
   try {
-    // Step 1: Check license before execution
+    // Stage 1 (0% — 20%): Kiểm tra license và policy
+    emit(5, 'license', 'Đang kiểm tra giấy phép kích hoạt…')
     const licenseCheck = await isFeatureAllowed(licenseStore, tokens, featureKey)
-    
+
     if (!licenseCheck.allowed) {
+      emit(100, 'failed', licenseCheck.reason)
       return {
         success: false,
         message: licenseCheck.reason,
         licenseStatus: licenseCheck.mode
       }
     }
-    
-    // Step 2: Read and decrypt script content
+    emit(20, 'license', 'Giấy phép hợp lệ. Đang chuẩn bị file thực thi…')
+
+    // Step 2: Read and decrypt script content (20% — 45%)
     let scriptContent
-    
+
     if (scriptPath.endsWith('.dat')) {
-      // Encrypted file - decrypt using license token
-      if (!tokens?.accessToken) {
+      emit(25, 'decrypt', 'Đang giải mã file kích hoạt…')
+      const raw = await fs.readFile(scriptPath, 'utf8')
+      let encryptedData
+      try {
+        encryptedData = JSON.parse(raw)
+      } catch (error) {
+        emit(100, 'failed', `File kích hoạt bị hỏng: ${error.message}`)
         return {
           success: false,
-          message: 'Không thể decrypt script: thiếu access token',
+          message: `File kích hoạt bị hỏng (không phải JSON hợp lệ): ${error.message}`,
           licenseStatus: 'error'
         }
       }
-      
-      const encryptedData = JSON.parse(await fs.readFile(scriptPath, 'utf8'))
-      scriptContent = decryptScript(encryptedData, tokens.accessToken)
+
+      if (encryptedData.masterEncrypted === true) {
+        try {
+          scriptContent = decryptScriptWithMaster(encryptedData)
+        } catch {
+          void 0
+          emit(100, 'failed', 'Giải mã thất bại — auth tag không khớp.')
+          return {
+            success: false,
+            message: `Không thể giải mã file kích hoạt (auth tag không khớp). File có thể đã bị sửa đổi.`,
+            licenseStatus: 'error'
+          }
+        }
+        if (!scriptContent) {
+          emit(100, 'failed', 'Dữ liệu giải mã không hợp lệ.')
+          return {
+            success: false,
+            message: 'File kích hoạt không thể giải mã (dữ liệu không hợp lệ).',
+            licenseStatus: 'error'
+          }
+        }
+      } else {
+        if (!tokens?.accessToken) {
+          emit(100, 'failed', 'Thiếu access token để giải mã.')
+          return {
+            success: false,
+            message: 'Không thể decrypt script: thiếu access token',
+            licenseStatus: 'error'
+          }
+        }
+        try {
+          scriptContent = decryptScript(encryptedData, tokens.accessToken)
+        } catch (error) {
+          emit(100, 'failed', `Giải mã token thất bại: ${error.message}`)
+          return {
+            success: false,
+            message: `Không thể giải mã file kích hoạt bằng token hiện tại: ${error.message}`,
+            licenseStatus: 'error'
+          }
+        }
+      }
     } else {
-      // Plaintext file (for backward compatibility)
       scriptContent = await fs.readFile(scriptPath, 'utf8')
     }
-    
-    // Step 3: Write to temp file
+    emit(45, 'decrypt', 'Giải mã thành công. Đang ghi tệp tạm…')
+
+    // Step 3: Write to temp file (45% — 55%)
     const extension = `.${scriptType}`
     tempFilePath = await writeTempFile(scriptContent, extension)
-    
-    // Step 4: Execute based on type
+    emit(55, 'prepare', 'Đã chuẩn bị xong môi trường thực thi.')
+
+    // Step 4: Execute based on type (55% — 90%)
     let executionResult
-    
+
+    emit(58, 'execute', 'Đang thực thi file kích hoạt lên Hệ Điều Hành…')
     switch (scriptType) {
       case 'reg':
         executionResult = await executeRegistryFile(tempFilePath)
@@ -320,24 +382,33 @@ export async function executeFeature({
       default:
         throw new Error(`Unsupported script type: ${scriptType}`)
     }
-    
-    // Step 5: Secure delete temp file
+    emit(
+      90,
+      'execute',
+      executionResult.success
+        ? 'Thực thi thành công — đang dọn dẹp…'
+        : 'Thực thi xong — đang xử lý kết quả…'
+    )
+
+    // Step 5: Secure delete temp file (90% — 100%)
     if (tempFilePath) {
       await secureDeleteFile(tempFilePath)
       tempFilePath = null
     }
-    
+
+    emit(100, executionResult.success ? 'done' : 'failed', executionResult.message)
+
     return {
       success: executionResult.success,
       message: executionResult.message,
       licenseStatus: licenseCheck.mode
     }
   } catch (error) {
-    // Cleanup on error
     if (tempFilePath) {
       await secureDeleteFile(tempFilePath)
     }
-    
+    emit(100, 'failed', `Lỗi: ${error.message}`)
+
     return {
       success: false,
       message: `Lỗi thực thi feature: ${error.message}`,
@@ -353,7 +424,7 @@ export async function cleanupOrphanedTempFiles() {
   try {
     const tempDir = getTempDirectory()
     const files = await fs.readdir(tempDir)
-    
+
     for (const file of files) {
       if (file.startsWith('dawa_')) {
         const filePath = join(tempDir, file)

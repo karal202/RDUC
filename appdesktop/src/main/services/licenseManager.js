@@ -1,7 +1,6 @@
 import {
   getHardwareHash,
   verifyLocalLicense,
-  validateWithBackend,
   refreshWithBackend,
   isTokenExpiringSoon,
   checkWithBackend,
@@ -23,12 +22,12 @@ let isLicenseRevoked = false
 export async function checkLicenseOnline(accessToken) {
   try {
     const result = await checkWithBackend(accessToken)
-    
+
     if (result.status === 401) {
       // Token expired, try refresh
       return { valid: false, expired: true, message: 'Token expired' }
     }
-    
+
     if (result.status === 200) {
       const data = result.data
       if (data.revoked) {
@@ -40,7 +39,7 @@ export async function checkLicenseOnline(accessToken) {
       }
       return { valid: true, revoked: false, expired: false, message: 'License hợp lệ' }
     }
-    
+
     return { valid: false, message: 'Không thể xác thực license online' }
   } catch (error) {
     console.error('License online check failed:', error.message)
@@ -57,16 +56,16 @@ export async function checkLicenseOnline(accessToken) {
 export async function validateLocalToken(licenseData, currentDeviceHash) {
   try {
     const localCheck = verifyLocalLicense(licenseData, currentDeviceHash)
-    
+
     if (!localCheck.valid) {
       return { valid: false, inGracePeriod: false, message: localCheck.message }
     }
-    
+
     // Check if within grace period
     const activatedAt = new Date(licenseData.activatedAt).getTime()
     const now = Date.now()
     const timeSinceActivation = now - activatedAt
-    
+
     if (timeSinceActivation > GRACE_PERIOD_MS) {
       return {
         valid: false,
@@ -74,13 +73,14 @@ export async function validateLocalToken(licenseData, currentDeviceHash) {
         message: 'Grace period đã hết hạn. Cần kết nối internet để xác thực lại.'
       }
     }
-    
+
     return {
       valid: true,
       inGracePeriod: true,
       message: 'License hợp lệ (mode offline, grace period)'
     }
-  } catch (error) {
+  } catch {
+    void 0
     return { valid: false, inGracePeriod: false, message: 'Lỗi validate local token' }
   }
 }
@@ -98,15 +98,15 @@ export async function isFeatureAllowed(licenseStore, tokens, featureKey = null) 
   if (isLicenseRevoked) {
     return { allowed: false, reason: 'License đã bị thu hồi', mode: 'revoked' }
   }
-  
+
   // Step 2: Get local license data
   const licenseData = licenseStore.get()
   const currentDeviceHash = await getHardwareHash()
-  
+
   if (!licenseData) {
     return { allowed: false, reason: 'Không tìm thấy license local', mode: 'no-license' }
   }
-  
+
   // Step 3: Try online check first if we have tokens
   if (tokens?.accessToken) {
     // Check if token is expiring soon, refresh if needed
@@ -122,45 +122,45 @@ export async function isFeatureAllowed(licenseStore, tokens, featureKey = null) 
         console.warn('Token refresh failed:', error.message)
       }
     }
-    
+
     // Check license status online
     const onlineCheck = await checkLicenseOnline(tokens.accessToken)
-    
+
     if (onlineCheck.valid) {
       // Online valid, check feature policy if featureKey provided
       if (featureKey) {
         try {
           const featurePolicy = await getDesktopFeaturePolicy(tokens.accessToken)
           const feature = featurePolicy.find((f) => f.feature_key === featureKey)
-          
+
           if (!feature) {
             return { allowed: false, reason: 'Feature không tồn tại trong policy', mode: 'online' }
           }
-          
+
           if (feature.is_deleted) {
             return { allowed: false, reason: 'Feature đã bị xóa', mode: 'online' }
           }
-          
+
           if (!feature.is_enabled) {
             return { allowed: false, reason: 'Feature đã bị vô hiệu hóa', mode: 'online' }
           }
-          
+
           return { allowed: true, reason: 'Feature được phép thực thi', mode: 'online' }
         } catch (error) {
           console.error('Feature policy check failed:', error.message)
           // Fallback to local check if feature policy fails
         }
       }
-      
+
       return { allowed: true, reason: 'License hợp lệ (online)', mode: 'online' }
     }
-    
+
     if (onlineCheck.revoked) {
       // Revoke detected, cleanup
       await handleLicenseRevoked(licenseStore)
       return { allowed: false, reason: onlineCheck.message, mode: 'revoked' }
     }
-    
+
     if (onlineCheck.expired) {
       // Token expired, try offline with grace period
       const localCheck = await validateLocalToken(licenseData, currentDeviceHash)
@@ -170,7 +170,7 @@ export async function isFeatureAllowed(licenseStore, tokens, featureKey = null) 
         mode: localCheck.inGracePeriod ? 'offline-grace' : 'offline-expired'
       }
     }
-    
+
     // Offline or other error, try local check
     const localCheck = await validateLocalToken(licenseData, currentDeviceHash)
     return {
@@ -179,7 +179,7 @@ export async function isFeatureAllowed(licenseStore, tokens, featureKey = null) 
       mode: localCheck.inGracePeriod ? 'offline-grace' : 'offline-expired'
     }
   }
-  
+
   // No tokens, only local check
   const localCheck = await validateLocalToken(licenseData, currentDeviceHash)
   return {
@@ -194,13 +194,13 @@ export async function isFeatureAllowed(licenseStore, tokens, featureKey = null) 
  */
 async function handleLicenseRevoked(licenseStore) {
   isLicenseRevoked = true
-  
+
   // Stop polling
   stopLicensePolling()
-  
+
   // Clear local license
   licenseStore.clear()
-  
+
   // Notify renderer via event
   const { BrowserWindow } = require('electron')
   const windows = BrowserWindow.getAllWindows()
@@ -216,13 +216,13 @@ export function startLicensePolling(licenseStore, tokens) {
   if (licenseCheckInterval) {
     clearInterval(licenseCheckInterval)
   }
-  
+
   licenseCheckInterval = setInterval(async () => {
     if (isLicenseRevoked) {
       stopLicensePolling()
       return
     }
-    
+
     const check = await isFeatureAllowed(licenseStore, tokens)
     if (!check.allowed && check.mode === 'revoked') {
       await handleLicenseRevoked(licenseStore)

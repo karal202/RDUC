@@ -57,6 +57,7 @@ src/main/services/
 - `cleanupOrphanedTempFiles()` - Cleanup orphaned temp files on startup
 
 **Execution Methods**:
+
 - `.reg` files → `regedit.exe /s <tempFile>`
 - `.bat` files → `cmd.exe /c <tempFile>`
 - `.ps1` files → `powershell.exe -ExecutionPolicy Bypass -File <tempFile>`
@@ -67,19 +68,18 @@ src/main/services/
 **Changes Made**:
 
 1. Import new modules:
+
 ```javascript
 import {
   startLicensePolling,
   stopLicensePolling,
   isFeatureAllowed
 } from './services/licenseManager.js'
-import {
-  executeFeature,
-  cleanupOrphanedTempFiles
-} from './services/featureExecutor.js'
+import { executeFeature, cleanupOrphanedTempFiles } from './services/featureExecutor.js'
 ```
 
 2. On startup:
+
 ```javascript
 // Cleanup orphaned temp files from previous sessions
 await cleanupOrphanedTempFiles()
@@ -92,6 +92,7 @@ if (tokens) {
 ```
 
 3. New IPC handler for secure feature execution:
+
 ```javascript
 ipcMain.handle('system:execute-feature', async (_, { scriptKey, options = {} }) => {
   const tokens = licenseStore.getTokens()
@@ -142,29 +143,34 @@ ipcMain.handle('system:execute-feature', async (_, { scriptKey, options = {} }) 
 ## Security Features
 
 ### 1. Context Isolation
+
 - `contextIsolation: true` in BrowserWindow configuration
 - `nodeIntegration: false` in BrowserWindow configuration
 - All Node.js APIs exposed via preload script with `contextBridge`
 
 ### 2. License Verification
+
 - Online check prioritized when network available
 - Fallback to local token with 48-hour grace period
 - Real-time revoke detection via 5-minute polling
 - Automatic cleanup on revoke detection
 
 ### 3. Secure Temp File Handling
+
 - Random UUID filenames (e.g., `dawa_550e8400-e29b-41d4-a716-446655440000.reg`)
 - Written to OS temp directory (`app.getPath('temp')`)
 - File permissions set to 0o600 (owner read/write only)
 - Secure deletion: overwrite with random bytes 3x before unlink
 
 ### 4. Execution Control
+
 - Only whitelisted scripts can execute
 - License checked before each execution
 - Feature policy checked before each execution
 - Backend validates against server-side policy
 
 ### 5. Logging Protection
+
 - No logging of decrypted script content
 - No logging of license keys or tokens
 - Error messages sanitized for sensitive information
@@ -213,6 +219,7 @@ Return result to Vue
 ### Phase 1: Script Encryption (Future)
 
 1. Create encryption utility:
+
 ```javascript
 // encryptor.js
 import crypto from 'crypto'
@@ -242,6 +249,7 @@ export function decryptScript(encryptedData, key) {
 ```
 
 2. Derive key from license token:
+
 ```javascript
 function deriveDecryptionKey(accessToken) {
   // Use HMAC-SHA256 with token as key and salt
@@ -255,6 +263,7 @@ function deriveDecryptionKey(accessToken) {
 ### Phase 2: Vue Component Update (Future)
 
 Update Vue components to use new handler:
+
 ```javascript
 // Before
 const result = await window.api.runDawaScript(scriptKey, options)
