@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Run BEFORE electron-builder to ship ONLY AES-256-GCM encrypted .dat blobs
  * inside the installer instead of raw .reg/.bat/.ps1 files.
