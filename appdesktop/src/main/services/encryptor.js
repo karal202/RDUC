@@ -167,7 +167,6 @@ export async function encryptDirectoryWithMaster(
       if (removeSource) {
         await fs.unlink(inputPath).catch(() => {})
       }
-      // eslint-disable-next-line no-console
       console.log(`  ✓ ${file.name}  →  ${file.name}.dat  (${encrypted.content.length} hex bytes)`)
     } else {
       // Non-script support files (e.g. readme.txt, images) copy untouched
@@ -205,7 +204,6 @@ export async function encryptDirectory(
     } else if (extensions.some((ext) => file.name.endsWith(ext))) {
       const datPath = outputPath + '.dat'
       await encryptFile(inputPath, datPath, accessToken)
-      // eslint-disable-next-line no-console
       console.log(`Encrypted: ${file.name} → ${file.name}.dat`)
     } else {
       await fs.copyFile(inputPath, outputPath).catch(() => {})
