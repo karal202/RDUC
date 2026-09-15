@@ -21,7 +21,7 @@ const handleRestartBIOS = async () => {
   biosStatus.value = 'Đang gửi lệnh khởi động lại vào BIOS...'
 
   try {
-    const res = await window.api.runDawaScript('bios-bat')
+    const res = await window.api.executeFeature('bios-bat')
     if (res.success) {
       biosStatus.value = '✅ ' + res.message
     } else {
@@ -40,7 +40,7 @@ const handleRunNTFS = async () => {
   ntfsStatus.value = 'Đang kích hoạt script NTFS...'
 
   try {
-    const res = await window.api.runDawaScript('ntfs-bat')
+    const res = await window.api.executeFeature('ntfs-bat')
     ntfsStatus.value = res.success ? '✅ ' + res.message : '❌ ' + res.message
   } catch (err) {
     ntfsStatus.value = '❌ Lỗi: ' + (err.message || 'Không thể thực thi file NTFS.bat')

@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useSocket } from './composables/useSocket'
-import ActivationModal from './components/ActivationModal.vue'
+import LicenseWindow from './components/LicenseWindow.vue'
 import UpdateModal from './components/UpdateModal.vue'
 import RocketLaunch from './components/RocketLaunch.vue'
 import BannerCarousel from './components/BannerCarousel.vue'
@@ -281,7 +281,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <ActivationModal v-if="bootGate === 'activate'" @activated="handleActivated" />
+  <LicenseWindow v-if="bootGate === 'activate'" />
   <RocketLaunch
     v-else-if="bootGate === 'rocket'"
     :launching="isLaunching"

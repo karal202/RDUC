@@ -28,10 +28,20 @@ import {
   checkWithBackend,
   getDesktopFeaturePolicy,
   validateWithBackend,
-  verifyLocalLicense,
-  isTokenExpiringSoon
-} from './services/licenseService'
-import { ALLOWED_DAWA_SCRIPTS, runDawaScript } from './services/dawaScripts'
+  isTokenExpiringSoon,
+  verifyLocalLicense
+} from './services/licenseService.js'
+import {
+  startLicensePolling,
+  stopLicensePolling,
+  isFeatureAllowed
+} from './services/licenseManager.js'
+import {
+  executeFeature,
+  cleanupOrphanedTempFiles
+} from './services/featureExecutor.js'
+import { ALLOWED_DAWA_SCRIPTS } from './services/dawaScripts'
+import { runDawaScript } from './services/dawaScripts.js'
 
 // Function to check if running as admin
 function isAdmin() {
@@ -1266,15 +1276,142 @@ app.whenReady().then(() => {
     return { isActivated: localCheck.valid }
   })
 
+  ipcMain.on('license:close-window', () => {
+    if (licenseWindow) {
+      licenseWindow.close()
+      licenseWindow = null
+    }
+  })
+
+  // Secure feature execution with license check, temp file handling, and cleanup
+  ipcMain.handle('system:execute-feature', async (_, { scriptKey, options = {} }) => {
+    const tokens = licenseStore.getTokens()
+    
+    // Check license and feature policy first
+    const licenseCheck = await isFeatureAllowed(licenseStore, tokens, scriptKey)
+    if (!licenseCheck.allowed) {
+      return {
+        success: false,
+        message: licenseCheck.reason,
+        licenseStatus: licenseCheck.mode
+      }
+    }
+    
+    // Get script mapping
+    const script = ALLOWED_DAWA_SCRIPTS[scriptKey]
+    if (!script) {
+      return {
+        success: false,
+        message: `Script [${scriptKey}] không nằm trong danh sách được phép thực thi.`
+      }
+    }
+    
+    // Determine script path and type
+    let scriptPath = null
+    let scriptType = 'reg'
+    
+    if (script.launch) {
+      // Launch executable directly (no encryption needed for apps)
+      return await runDawaScript(scriptKey, options)
+    }
+    
+    if (script.profileFiles) {
+      const file = script.profileFiles[options.profile]
+      if (!file) return { success: false, message: 'Invalid registry script profile.' }
+      
+      scriptPath = file
+      scriptType = file.toLowerCase().endsWith('.cmd') || file.toLowerCase().endsWith('.bat') ? 'bat' : 'reg'
+    } else if (script.profiles) {
+      const profileFile = script.profiles[options.profile]
+      if (!profileFile) {
+        return { success: false, message: 'Cấu hình không hợp lệ.' }
+      }
+      
+      const file = join(
+        script.profileDirectory || join(__dirname, '../../resources/scripts/Optimizer/Ram Optimization'),
+        profileFile
+      )
+      
+      scriptPath = file
+      scriptType = 'reg'
+    } else {
+      // Fallback to existing execution
+      return await runDawaScript(scriptKey, options)
+    }
+    
+    // Check if encrypted file exists (.dat)
+    const encryptedPath = scriptPath + '.dat'
+    const useEncrypted = fs.existsSync(encryptedPath)
+    
+    const finalScriptPath = useEncrypted ? encryptedPath : scriptPath
+    
+    // Execute with secure feature executor
+    const result = await executeFeature({
+      licenseStore,
+      tokens,
+      featureKey: scriptKey,
+      scriptPath: finalScriptPath,
+      scriptType,
+      args: []
+    })
+    
+    return result
+  })
+
   // Check license on startup and show appropriate window
   const checkLicenseOnStartup = async () => {
+    // Cleanup orphaned temp files from previous sessions
+    await cleanupOrphanedTempFiles()
+    
     const currentDeviceHash = await getHardwareHash()
     const stored = licenseStore.get()
     const localCheck = stored ? verifyLocalLicense(stored, currentDeviceHash) : { valid: false }
 
+    // Check if license key was set by installer
     if (!localCheck.valid) {
+      try {
+        // Read license key from Windows registry (set by NSIS installer)
+        const { execSync } = require('child_process')
+        const regQuery = execSync(
+          'reg query "HKCU\\Software\\DAWA Optimizer" /v LicenseKey',
+          { encoding: 'utf8' }
+        )
+        
+        if (regQuery) {
+          const match = regQuery.match(/LicenseKey\s+REG_SZ\s+(.+)/)
+          if (match && match[1]) {
+            const licenseKeyFromInstaller = match[1].trim()
+            // Try to activate with the key from installer
+            const activation = await validateWithBackend(licenseKeyFromInstaller, currentDeviceHash)
+            if (activation.success && activation.valid) {
+              licenseStore.save({
+                keyCode: licenseKeyFromInstaller,
+                deviceHash: currentDeviceHash,
+                activatedAt: Date.now()
+              })
+              licenseStore.saveTokens({
+                accessToken: activation.accessToken,
+                refreshToken: activation.refreshToken
+              })
+              // Start license polling for real-time revoke detection
+              const tokens = licenseStore.getTokens()
+              startLicensePolling(licenseStore, tokens)
+              createWindow()
+              return
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to read license from installer registry:', err)
+      }
+      
       createLicenseWindow()
     } else {
+      // Start license polling for real-time revoke detection
+      const tokens = licenseStore.getTokens()
+      if (tokens) {
+        startLicensePolling(licenseStore, tokens)
+      }
       createWindow()
     }
   }

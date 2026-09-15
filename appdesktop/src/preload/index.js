@@ -6,6 +6,7 @@ const api = {
   activateLicense: (keyCode) => ipcRenderer.invoke('license:activate', keyCode),
   activateFromWindow: (keyCode) => ipcRenderer.invoke('license:activate-from-window', keyCode),
   checkActivation: () => ipcRenderer.invoke('license:check-activation'),
+  closeLicenseWindow: () => ipcRenderer.send('license:close-window'),
   deactivateLicense: () => ipcRenderer.invoke('license:deactivate'),
   checkAppVersion: () => ipcRenderer.invoke('app:check-version'),
   openDownloadUrl: (url) => ipcRenderer.invoke('app:open-download-url', url),
@@ -42,6 +43,8 @@ const api = {
   restartToBios: () => ipcRenderer.invoke('system:restart-to-bios'),
   runDawaScript: (scriptKey, options = {}) =>
     ipcRenderer.invoke('system:run-dawa-script', { scriptKey, options }),
+  executeFeature: (scriptKey, options = {}) =>
+    ipcRenderer.invoke('system:execute-feature', { scriptKey, options }),
   executeCmdScript: ({ action }) =>
     ipcRenderer.invoke('system:run-dawa-script', { scriptKey: action }),
   listAllowedScripts: () => ipcRenderer.invoke('security:list-allowed-scripts'),
