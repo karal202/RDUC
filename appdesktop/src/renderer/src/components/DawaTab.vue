@@ -171,6 +171,15 @@ const TWEAK_SWITCHES = Object.freeze([
     offAction: 'win-enable-background-apps'
   },
   {
+    id: 'maintenance',
+    label: 'Tắt Automatic Maintenance',
+    hint: 'Ngăn Windows tự động chạy maintenance ngầm khi nhàn rỗi',
+    icon: Cpu,
+    accent: '#8b5cf6',
+    onAction: 'win-disable-maintenance',
+    offAction: 'win-enable-maintenance'
+  },
+  {
     id: 'defender',
     label: 'Windows Defender',
     hint: 'Quản lý trực tiếp trong Windows Security để đảm bảo an toàn tệp',
@@ -180,7 +189,115 @@ const TWEAK_SWITCHES = Object.freeze([
   }
 ])
 
-const switchStates = reactive(Object.fromEntries(TWEAK_SWITCHES.map((s) => [s.id, false])))
+const ADVANCED_TWEAKS = Object.freeze([
+  {
+    id: 'cpu-throttling',
+    label: 'CPU Power Throttling',
+    hint: 'Kiểm soát giảm xung nhịp CPU để tiết kiệm điện',
+    icon: Flame,
+    accent: '#f97316',
+    onAction: 'win-disable-cpu-throttling',
+    offAction: 'win-enable-cpu-throttling'
+  },
+  {
+    id: 'timer-coalescing',
+    label: 'Timer Coalescing',
+    hint: 'Gộp timer để giảm tiêu thụ năng lượng',
+    icon: Activity,
+    accent: '#eab308',
+    onAction: 'win-disable-timer-coalescing',
+    offAction: 'win-enable-timer-coalescing'
+  },
+  {
+    id: 'driver-updates',
+    label: 'Driver Updates',
+    hint: 'Tự động tải và cài đặt driver từ Windows Update',
+    icon: Terminal,
+    accent: '#14b8a6',
+    onAction: 'win-disable-driver-updates',
+    offAction: 'win-enable-driver-updates'
+  },
+  {
+    id: 'extra-services',
+    label: 'Extra Unnecessary Services',
+    hint: 'Tắt các dịch vụ Xbox, Game Pass, telemetry services',
+    icon: ShieldOff,
+    accent: '#6366f1',
+    onAction: 'win-disable-extra-services',
+    offAction: 'win-enable-extra-services'
+  }
+])
+
+const SYSTEM_TWEAKS = Object.freeze([
+  {
+    id: 'memory-mirroring',
+    label: 'Memory Mirroring',
+    hint: 'Cơ chế phản chiếu bộ nhớ cho nhiều NUMA nodes',
+    icon: Cpu,
+    accent: '#06b6d4',
+    onAction: 'win-disable-memory-mirroring',
+    offAction: 'win-enable-memory-mirroring'
+  },
+  {
+    id: 'network-throttling',
+    label: 'Network Throttling',
+    hint: 'Giới hạn băng thông mạng cho hệ thống',
+    icon: Activity,
+    accent: '#0ea5e9',
+    onAction: 'win-disable-network-throttling',
+    offAction: 'win-enable-network-throttling'
+  },
+  {
+    id: 'runtime-broker',
+    label: 'Runtime Broker',
+    hint: 'Quản lý quyền truy cập ứng dụng Universal Windows',
+    icon: Terminal,
+    accent: '#8b5cf6',
+    onAction: 'win-disable-runtime-broker',
+    offAction: 'win-enable-runtime-broker'
+  },
+  {
+    id: 'spectre-meltdown',
+    label: 'Spectre & Meltdown',
+    hint: 'Bảo mitigations cho lỗ hổng CPU',
+    icon: Shield,
+    accent: '#ef4444',
+    onAction: 'win-disable-spectre-meltdown',
+    offAction: 'win-enable-spectre-meltdown'
+  }
+])
+
+const PRIVACY_TWEAKS = Object.freeze([
+  {
+    id: 'sync',
+    label: 'Windows Sync',
+    hint: 'Đồng bộ cài đặt, mật khẩu, favorites qua Microsoft account',
+    icon: Activity,
+    accent: '#3b82f6',
+    onAction: 'win-disable-sync',
+    offAction: 'win-enable-sync'
+  },
+  {
+    id: 'windows-apps',
+    label: 'Windows Apps',
+    hint: 'Cài đặt tự động các ứng dụng từ Microsoft Store',
+    icon: Gamepad2,
+    accent: '#10b981',
+    onAction: 'win-disable-windows-apps',
+    offAction: 'win-enable-windows-apps'
+  }
+])
+
+const switchStates = reactive(
+  Object.fromEntries(
+    [
+      ...TWEAK_SWITCHES,
+      ...ADVANCED_TWEAKS,
+      ...SYSTEM_TWEAKS,
+      ...PRIVACY_TWEAKS
+    ].map((s) => [s.id, false])
+  )
+)
 
 const runDawaScript = async (scriptKey, description, options = {}) => {
   if (isRunning.value) return
@@ -386,6 +503,171 @@ const clearLog = () => {
             <span v-if="tw.unavailable" class="opt-unavail-note">Windows Security</span>
             <button
               v-else
+              type="button"
+              class="cyber-switch"
+              :class="{ on: switchStates[tw.id] }"
+              :disabled="isRunning"
+              :aria-label="tw.label"
+              @click="toggleWinSwitch(tw)"
+            >
+              <span class="cyber-switch-thumb" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2.5: ADVANCED CPU TWEAKS -->
+    <section class="opt-card">
+      <div class="opt-card-head">
+        <div class="opt-section-tag" style="--c: #f97316">
+          <Flame :size="13" />
+          <span>ADVANCED CPU</span>
+        </div>
+        <div class="opt-title-with-count">
+          <h2 class="opt-card-title">Tinh Chỉnh CPU Nâng Cao</h2>
+          <span class="opt-count-pill">{{ ADVANCED_TWEAKS.length }} Toggles</span>
+        </div>
+        <p class="opt-card-sub">
+          Kiểm soát xung nhịp, timer coalescing và driver updates
+        </p>
+      </div>
+
+      <div class="opt-switch-grid">
+        <div
+          v-for="tw in ADVANCED_TWEAKS"
+          :key="tw.id"
+          class="opt-switch-card"
+          :class="{ active: switchStates[tw.id] }"
+          :style="{ '--c': tw.accent }"
+        >
+          <div class="opt-switch-head">
+            <div class="opt-switch-icon-wrap">
+              <component :is="tw.icon" :size="18" />
+            </div>
+            <div class="opt-switch-status">
+              <span v-if="switchStates[tw.id]" class="opt-badge-active">Đã tối ưu</span>
+              <span v-else class="opt-badge-idle">Mặc định</span>
+            </div>
+          </div>
+
+          <div class="opt-switch-body">
+            <strong class="opt-switch-title">{{ tw.label }}</strong>
+            <p class="opt-switch-hint">{{ tw.hint }}</p>
+          </div>
+
+          <div class="opt-switch-action">
+            <button
+              type="button"
+              class="cyber-switch"
+              :class="{ on: switchStates[tw.id] }"
+              :disabled="isRunning"
+              :aria-label="tw.label"
+              @click="toggleWinSwitch(tw)"
+            >
+              <span class="cyber-switch-thumb" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2.6: SYSTEM TWEAKS -->
+    <section class="opt-card">
+      <div class="opt-card-head">
+        <div class="opt-section-tag" style="--c: #06b6d4">
+          <Cpu :size="13" />
+          <span>SYSTEM</span>
+        </div>
+        <div class="opt-title-with-count">
+          <h2 class="opt-card-title">Tinh Chỉnh Hệ Thống</h2>
+          <span class="opt-count-pill">{{ SYSTEM_TWEAKS.length }} Toggles</span>
+        </div>
+        <p class="opt-card-sub">
+          Memory, network, runtime broker và security mitigations
+        </p>
+      </div>
+
+      <div class="opt-switch-grid">
+        <div
+          v-for="tw in SYSTEM_TWEAKS"
+          :key="tw.id"
+          class="opt-switch-card"
+          :class="{ active: switchStates[tw.id] }"
+          :style="{ '--c': tw.accent }"
+        >
+          <div class="opt-switch-head">
+            <div class="opt-switch-icon-wrap">
+              <component :is="tw.icon" :size="18" />
+            </div>
+            <div class="opt-switch-status">
+              <span v-if="switchStates[tw.id]" class="opt-badge-active">Đã tối ưu</span>
+              <span v-else class="opt-badge-idle">Mặc định</span>
+            </div>
+          </div>
+
+          <div class="opt-switch-body">
+            <strong class="opt-switch-title">{{ tw.label }}</strong>
+            <p class="opt-switch-hint">{{ tw.hint }}</p>
+          </div>
+
+          <div class="opt-switch-action">
+            <button
+              type="button"
+              class="cyber-switch"
+              :class="{ on: switchStates[tw.id] }"
+              :disabled="isRunning"
+              :aria-label="tw.label"
+              @click="toggleWinSwitch(tw)"
+            >
+              <span class="cyber-switch-thumb" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2.7: PRIVACY TWEAKS -->
+    <section class="opt-card">
+      <div class="opt-card-head">
+        <div class="opt-section-tag" style="--c: #3b82f6">
+          <Shield :size="13" />
+          <span>PRIVACY</span>
+        </div>
+        <div class="opt-title-with-count">
+          <h2 class="opt-card-title">Tinh Chỉnh Quyền Riêng Tư</h2>
+          <span class="opt-count-pill">{{ PRIVACY_TWEAKS.length }} Toggles</span>
+        </div>
+        <p class="opt-card-sub">
+          Windows sync và tự động cài đặt applications
+        </p>
+      </div>
+
+      <div class="opt-switch-grid">
+        <div
+          v-for="tw in PRIVACY_TWEAKS"
+          :key="tw.id"
+          class="opt-switch-card"
+          :class="{ active: switchStates[tw.id] }"
+          :style="{ '--c': tw.accent }"
+        >
+          <div class="opt-switch-head">
+            <div class="opt-switch-icon-wrap">
+              <component :is="tw.icon" :size="18" />
+            </div>
+            <div class="opt-switch-status">
+              <span v-if="switchStates[tw.id]" class="opt-badge-active">Đã tối ưu</span>
+              <span v-else class="opt-badge-idle">Mặc định</span>
+            </div>
+          </div>
+
+          <div class="opt-switch-body">
+            <strong class="opt-switch-title">{{ tw.label }}</strong>
+            <p class="opt-switch-hint">{{ tw.hint }}</p>
+          </div>
+
+          <div class="opt-switch-action">
+            <button
               type="button"
               class="cyber-switch"
               :class="{ on: switchStates[tw.id] }"

@@ -299,9 +299,68 @@ const REGISTRY_FILE_PROFILES = Object.freeze({
     'Restore',
     'Disable Services For Professionals Restore.reg'
   ),
-  'network-tcp-ping': join(SCRIPT_DIRECTORY, 'Network', 'TCP Ping.reg'),
+  'network-tcp-ping': join(SCRIPT_DIRECTORY, 'Network', 'AckTicksandAckFrequency.reg'),
+  'network-ack-ticks': join(SCRIPT_DIRECTORY, 'Network', 'AckTicksandAckFrequency.reg'),
+  'network-acks-freq': join(SCRIPT_DIRECTORY, 'Network', 'AckTicksandAckFrequency.reg'),
+  'network-fast-send-reg': join(SCRIPT_DIRECTORY, 'Network', 'FastSendDatagramThreshold.reg'),
+  'network-tweaks-reg': join(SCRIPT_DIRECTORY, 'Network', 'Network Tweaks.reg'),
+  'network-dns': join(SCRIPT_DIRECTORY, 'Network', 'DNS.cmd'),
   'network-flush-dns': join(SCRIPT_DIRECTORY, 'Network', 'DNS.cmd'),
   'network-dns-gaming': join(SCRIPT_DIRECTORY, 'Network', 'DNS.cmd'),
+  'win-enable-maintenance': join(
+    SCRIPT_DIRECTORY,
+    'Optimizer',
+    '3. Windows Settings',
+    'Enable Automatic Maintenance.reg'
+  ),
+  'win-enable-timer-coalescing': join(
+    SCRIPT_DIRECTORY,
+    'Optimizer',
+    '3. Windows Settings',
+    'Enable CoalescingTimerInterval.reg'
+  ),
+  'win-enable-hibernation': join(
+    SCRIPT_DIRECTORY,
+    'Optimizer',
+    '3. Windows Settings',
+    'Enable Hibernation.reg'
+  ),
+  'win-enable-memory-mirroring': join(
+    SCRIPT_DIRECTORY,
+    'Optimizer',
+    '3. Windows Settings',
+    'Enable MemoryMirroring.reg'
+  ),
+  'win-enable-network-throttling': join(
+    SCRIPT_DIRECTORY,
+    'Optimizer',
+    '3. Windows Settings',
+    'Enable NetworkThrottling.reg'
+  ),
+  'win-enable-runtime-broker': join(
+    SCRIPT_DIRECTORY,
+    'Optimizer',
+    '3. Windows Settings',
+    'Enable Runtime Broker.reg'
+  ),
+  'win-enable-spectre-meltdown': join(
+    SCRIPT_DIRECTORY,
+    'Optimizer',
+    '3. Windows Settings',
+    'Enable Spectre and Meltdown.reg'
+  ),
+  'win-enable-sync': join(
+    SCRIPT_DIRECTORY,
+    'Optimizer',
+    '3. Windows Settings',
+    'Enable Sync.reg'
+  ),
+  'win-enable-windows-apps': join(
+    SCRIPT_DIRECTORY,
+    'Optimizer',
+    '3. Windows Settings',
+    'Enable Windows Apps.reg'
+  ),
   'win-disable-transparency': join(
     SCRIPT_DIRECTORY,
     'Optimizer',
@@ -1020,8 +1079,15 @@ export async function runDawaScript(scriptKey, options = {}) {
     const file = script.profileFiles[options.profile]
     if (!file) return { success: false, message: 'Invalid registry script profile.' }
 
-    const result = await runWhitelistedCommand(WINDOWS_COMMANDS.reg, ['import', file])
-    outputs.push({ file: WINDOWS_COMMANDS.reg, args: `import ${file}`, ...result })
+    const isBatch = file.toLowerCase().endsWith('.cmd') || file.toLowerCase().endsWith('.bat')
+    const result = isBatch
+      ? await runWhitelistedCommand(WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', file])
+      : await runWhitelistedCommand(WINDOWS_COMMANDS.reg, ['import', file])
+    outputs.push({
+      file: isBatch ? WINDOWS_COMMANDS.cmd : WINDOWS_COMMANDS.reg,
+      args: isBatch ? `/d /c call ${file}` : `import ${file}`,
+      ...result
+    })
     return {
       success: result.success,
       message: result.success

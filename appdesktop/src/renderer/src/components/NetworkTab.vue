@@ -92,11 +92,7 @@ const NETWORK_REG_OPTIONS = [
   { value: 'network-full-tweaks', label: 'Network Tweaks (Full TCP/IP Suite)' },
   { value: 'network-fast-send', label: 'Fast Send Datagram Threshold' },
   { value: 'network-tcp-ping', label: 'ACK Ticks & ACK Frequency' },
-  { value: 'network-ack-ticks', label: 'AckTicksandAckFrequency.reg' },
-  { value: 'network-dns', label: 'DNS.cmd' },
-  { value: 'network-fast-send-reg', label: 'FastSendDatagramThreshold.reg' },
-  { value: 'network-tweaks-reg', label: 'Network Tweaks.reg' },
-  { value: 'network-acks-freq', label: 'AckTicksandAckFrequency (riêng)' }
+  { value: 'network-dns', label: 'Gaming Fast DNS Switcher (DNS.cmd)' }
 ]
 
 const run = async (scriptKey, description, options = {}) => {
