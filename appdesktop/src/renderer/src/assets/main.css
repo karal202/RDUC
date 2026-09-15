@@ -1789,7 +1789,7 @@ body {
     rgba(22, 119, 255, 0) 100%
   );
   filter: blur(0.4px);
-  animation: plume-flicker 0.16s ease-in-out infinite alternate;
+  animation: plume-flicker 0.5s ease-in-out infinite alternate;
 }
 
 .rocket-plume-core {
@@ -1802,7 +1802,7 @@ body {
   border-radius: 50%;
   background: linear-gradient(180deg, #ffffff, #fff7c2 40%, rgba(255, 209, 102, 0));
   filter: blur(0.2px);
-  animation: core-flicker 0.12s ease-in-out infinite alternate;
+  animation: core-flicker 0.4s ease-in-out infinite alternate;
 }
 
 .rocket-launching .rocket-flight {
@@ -1932,7 +1932,7 @@ body {
     linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
   background-size: 42px 42px;
   mask-image: linear-gradient(90deg, #000 0%, transparent 58%);
-  animation: activation-grid 18s linear infinite;
+  animation: activation-grid 30s linear infinite;
 }
 
 .activation-fx::after {
@@ -1962,7 +1962,7 @@ body {
   object-fit: cover;
   filter: saturate(1.12) contrast(1.08);
   transform: scale(1.06);
-  animation: activation-kenburns 14s ease-in-out infinite alternate;
+  animation: activation-kenburns 25s ease-in-out infinite alternate;
 }
 
 .activation-art-scrim {
@@ -2599,6 +2599,7 @@ body {
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
 }
 
@@ -2953,7 +2954,7 @@ body {
   top: -180px;
   left: -140px;
   background: radial-gradient(circle, rgba(22, 119, 255, 0.65) 0%, rgba(22, 119, 255, 0) 65%);
-  animation: orb-float-a 14s ease-in-out infinite;
+  animation: orb-float-a 25s ease-in-out infinite;
 }
 .activation-screen::after {
   width: 620px;
@@ -2961,7 +2962,7 @@ body {
   bottom: -240px;
   right: -180px;
   background: radial-gradient(circle, rgba(0, 194, 255, 0.55) 0%, rgba(0, 194, 255, 0) 62%);
-  animation: orb-float-b 18s ease-in-out infinite;
+  animation: orb-float-b 30s ease-in-out infinite;
 }
 
 /* particle-ish dots */
@@ -3030,7 +3031,11 @@ body {
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
   mask-composite: exclude;
+  -webkit-mask-composite: xor;
   animation: panel-border-travel 6s ease infinite;
   clip-path: polygon(
     12px 0,
