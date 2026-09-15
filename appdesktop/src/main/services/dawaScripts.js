@@ -155,6 +155,12 @@ const REGISTRY_FILE_PROFILES = Object.freeze({
     '3. Windows Settings',
     'Disable Background Apps.reg'
   ),
+  'win-enable-background-apps': join(
+    SCRIPT_DIRECTORY,
+    'Optimizer',
+    '3. Windows Settings',
+    'Enable Background Apps.reg'
+  ),
   'win-disable-timer-coalescing': join(
     SCRIPT_DIRECTORY,
     'Optimizer',
@@ -349,12 +355,7 @@ const REGISTRY_FILE_PROFILES = Object.freeze({
     '3. Windows Settings',
     'Enable Spectre and Meltdown.reg'
   ),
-  'win-enable-sync': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Enable Sync.reg'
-  ),
+  'win-enable-sync': join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Sync.reg'),
   'win-enable-windows-apps': join(
     SCRIPT_DIRECTORY,
     'Optimizer',
@@ -586,15 +587,8 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
       [
         WINDOWS_COMMANDS.reg,
         [
-          'add',
-          'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize',
-          '/v',
-          'EnableTransparency',
-          '/t',
-          'REG_DWORD',
-          '/d',
-          '1',
-          '/f'
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Transparency.reg')
         ]
       ]
     ]
@@ -853,6 +847,27 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
       ]
     ]
   },
+  'enable-extreme-drivers': {
+    description: 'Enable Extreme Reg Drivers',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        ['import', join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Enable Drivers.reg')]
+      ]
+    ]
+  },
+  'enable-extreme-gamer-services': {
+    description: 'Enable Extreme Reg Services For Gamers',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Enable Services For Gamers.reg')
+        ]
+      ]
+    ]
+  },
   'restore-extreme-gamer-services': {
     description: 'Restore Extreme Reg Services For Gamers',
     commands: [
@@ -976,15 +991,8 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
       [
         WINDOWS_COMMANDS.reg,
         [
-          'add',
-          'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\BackgroundAccessApplications',
-          '/v',
-          'GlobalUserDisabled',
-          '/t',
-          'REG_DWORD',
-          '/d',
-          '0',
-          '/f'
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Background Apps.reg')
         ]
       ]
     ]

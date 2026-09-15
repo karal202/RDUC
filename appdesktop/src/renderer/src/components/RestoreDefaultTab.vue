@@ -12,13 +12,19 @@ import {
   Terminal,
   Printer,
   Info,
-  HardDrive
+  HardDrive,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-vue-next'
 
 const logOutput = ref('')
 const isRunning = ref(false)
 const copied = ref(false)
 const selectedRestoreScript = ref('restore-gamer-services')
+
+// Toggle states for Enable/Disable
+const extremeDriversEnabled = ref(false)
+const extremeGamerServicesEnabled = ref(false)
 
 const RESTORE_SCRIPT_OPTIONS = [
   {
@@ -87,6 +93,24 @@ const copyLog = async () => {
 const clearLog = () => {
   logOutput.value = ''
 }
+
+const toggleExtremeDrivers = async () => {
+  const key = extremeDriversEnabled.value ? 'disable-extreme-drivers' : 'enable-extreme-drivers'
+  const desc = extremeDriversEnabled.value ? 'Disable Extreme Drivers' : 'Enable Extreme Drivers'
+  await run(key, desc)
+  if (logOutput.value.includes('✅')) {
+    extremeDriversEnabled.value = !extremeDriversEnabled.value
+  }
+}
+
+const toggleExtremeGamerServices = async () => {
+  const key = extremeGamerServicesEnabled.value ? 'disable-extreme-gamer-services' : 'enable-extreme-gamer-services'
+  const desc = extremeGamerServicesEnabled.value ? 'Disable Extreme Gamer Services' : 'Enable Extreme Gamer Services'
+  await run(key, desc)
+  if (logOutput.value.includes('✅')) {
+    extremeGamerServicesEnabled.value = !extremeGamerServicesEnabled.value
+  }
+}
 </script>
 
 <template>
@@ -131,7 +155,69 @@ const clearLog = () => {
       </div>
     </div>
 
-    <!-- SECTION 1: CORE RESTORE CARDS -->
+    <!-- SECTION 1: EXTREME REG TOGGLES -->
+    <section class="restore-card">
+      <div class="restore-card-head">
+        <div class="restore-section-tag" style="--c: #f59e0b">
+          <ShieldCheck :size="13" />
+          <span>EXTREME REG</span>
+        </div>
+        <h2 class="restore-card-title">Extreme Reg Drivers & Services</h2>
+        <p class="restore-card-sub">Bật/Tắt Extreme Reg Drivers và Services For Gamers</p>
+      </div>
+
+      <div class="restore-grid-2">
+        <!-- Extreme Drivers Toggle -->
+        <div class="restore-toggle-card" style="--c: #f59e0b">
+          <div class="restore-toggle-header">
+            <div class="restore-toggle-icon">
+              <HardDrive :size="22" stroke-width="2.2" />
+            </div>
+            <div class="restore-toggle-info">
+              <h3 class="restore-toggle-title">Extreme Drivers</h3>
+              <p class="restore-toggle-desc">Bật/Tắt Tcpip6, Beep, NdisVirtualBus, NetBIOS drivers</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="restore-toggle-btn"
+            :class="{ active: extremeDriversEnabled }"
+            :disabled="isRunning"
+            @click="toggleExtremeDrivers"
+          >
+            <ToggleLeft v-if="!extremeDriversEnabled" :size="18" />
+            <ToggleRight v-else :size="18" />
+            <span>{{ extremeDriversEnabled ? 'Đã bật' : 'Đã tắt' }}</span>
+          </button>
+        </div>
+
+        <!-- Extreme Gamer Services Toggle -->
+        <div class="restore-toggle-card" style="--c: #a855f7">
+          <div class="restore-toggle-header">
+            <div class="restore-toggle-icon">
+              <Gamepad2 :size="22" stroke-width="2.2" />
+            </div>
+            <div class="restore-toggle-info">
+              <h3 class="restore-toggle-title">Extreme Gamer Services</h3>
+              <p class="restore-toggle-desc">Bật/Tắt 100+ services cho game thủ (Xbox, Defender, Bluetooth...)</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="restore-toggle-btn"
+            :class="{ active: extremeGamerServicesEnabled }"
+            :disabled="isRunning"
+            @click="toggleExtremeGamerServices"
+          >
+            <ToggleLeft v-if="!extremeGamerServicesEnabled" :size="18" />
+            <ToggleRight v-else :size="18" />
+            <span>{{ extremeGamerServicesEnabled ? 'Đã bật' : 'Đã tắt' }}</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: CORE RESTORE CARDS -->
     <section class="restore-card">
       <div class="restore-card-head">
         <div class="restore-section-tag" style="--c: #a855f7">
@@ -555,11 +641,112 @@ const clearLog = () => {
   line-height: 1.45;
 }
 
+/* Restore 2-Col Grid */
+.restore-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
 /* Restore 3-Col Grid */
 .restore-grid-3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
+}
+
+/* Toggle Card */
+.restore-toggle-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.restore-toggle-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--c) 50%, transparent);
+  background: color-mix(in srgb, var(--c) 5%, rgba(15, 23, 42, 0.6));
+}
+
+.restore-toggle-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+}
+
+.restore-toggle-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--c) 16%, transparent);
+  color: var(--c);
+  border: 1px solid color-mix(in srgb, var(--c) 32%, transparent);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--c) 20%, transparent);
+  flex-shrink: 0;
+}
+
+.restore-toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.restore-toggle-title {
+  font:
+    700 14px 'Archivo',
+    sans-serif;
+  color: #ffffff;
+  margin: 0;
+}
+
+.restore-toggle-desc {
+  font-size: 11.5px;
+  color: #94a3b8;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.restore-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(15, 23, 42, 0.6);
+  color: #94a3b8;
+  font:
+    600 12px var(--font-sans);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  flex-shrink: 0;
+}
+
+.restore-toggle-btn:hover:not(:disabled) {
+  border-color: var(--c);
+  color: var(--c);
+  background: color-mix(in srgb, var(--c) 10%, rgba(15, 23, 42, 0.6));
+}
+
+.restore-toggle-btn.active {
+  border-color: var(--c);
+  background: color-mix(in srgb, var(--c) 20%, rgba(15, 23, 42, 0.6));
+  color: var(--c);
+}
+
+.restore-toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .restore-item-card {

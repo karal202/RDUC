@@ -501,6 +501,49 @@ async function getLatestAppVersion() {
 }
 
 let mainWindow = null
+let licenseWindow = null
+
+function createLicenseWindow() {
+  licenseWindow = new BrowserWindow({
+    width: 480,
+    height: 520,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    fullscreenable: false,
+    show: false,
+    autoHideMenuBar: true,
+    titleBarStyle: 'default',
+    backgroundColor: '#08080b',
+    ...(process.platform === 'linux' ? { icon } : {}),
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      nodeIntegrationInWorker: false,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      experimentalFeatures: false,
+      enableBlinkFeatures: '',
+      devTools: is.dev
+    }
+  })
+
+  licenseWindow.on('ready-to-show', () => {
+    licenseWindow.show()
+  })
+
+  licenseWindow.on('closed', () => {
+    licenseWindow = null
+  })
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    licenseWindow.loadURL(process.env['ELECTRON_RENDERER_URL'] + '#/license')
+  } else {
+    licenseWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: '#/license' })
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -1188,7 +1231,55 @@ app.whenReady().then(() => {
   ipcMain.handle('system:is-admin', () => isAdmin())
   ipcMain.handle('system:restart-as-admin', () => restartAsAdmin())
 
-  createWindow()
+  // License window IPC handlers
+  ipcMain.handle('license:activate-from-window', async (event, keyCode) => {
+    const currentDeviceHash = await getHardwareHash()
+    const activation = await validateWithBackend(keyCode, currentDeviceHash)
+    if (activation.success && activation.valid) {
+      licenseStore.save({
+        keyCode,
+        deviceHash: currentDeviceHash,
+        activatedAt: Date.now()
+      })
+      licenseStore.saveTokens({
+        accessToken: activation.accessToken,
+        refreshToken: activation.refreshToken
+      })
+      // Close license window and open main window
+      if (licenseWindow) {
+        licenseWindow.close()
+        licenseWindow = null
+      }
+      createWindow()
+      return { success: true, message: 'Kích hoạt thành công!' }
+    }
+    return { success: false, message: activation.message || 'Kích hoạt thất bại' }
+  })
+
+  ipcMain.handle('license:check-activation', async () => {
+    const stored = licenseStore.get()
+    const currentDeviceHash = await getHardwareHash()
+    if (!stored) {
+      return { isActivated: false }
+    }
+    const localCheck = verifyLocalLicense(stored, currentDeviceHash)
+    return { isActivated: localCheck.valid }
+  })
+
+  // Check license on startup and show appropriate window
+  const checkLicenseOnStartup = async () => {
+    const currentDeviceHash = await getHardwareHash()
+    const stored = licenseStore.get()
+    const localCheck = stored ? verifyLocalLicense(stored, currentDeviceHash) : { valid: false }
+
+    if (!localCheck.valid) {
+      createLicenseWindow()
+    } else {
+      createWindow()
+    }
+  }
+
+  checkLicenseOnStartup()
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
