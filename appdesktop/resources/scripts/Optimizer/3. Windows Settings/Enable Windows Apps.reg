@@ -1,0 +1,15 @@
+Windows Registry Editor Version 5.00
+
+; Made by Savenz
+
+[HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager]
+"ContentDeliveryAllowed"=dword:00000001
+"OemPreInstalledAppsEnabled"=dword:00000001
+"PreInstalledAppsEnabled"=dword:00000001
+"PreInstalledAppsEverEnabled"=dword:00000001
+"SilentInstalledAppsEnabled"=dword:00000001
+"SoftLandingEnabled"=dword:00000001
+"SubscribedContentEnabled"=dword:00000001
+"FeatureManagementEnabled"=dword:00000001
+"SystemPaneSuggestionsEnabled"=dword:00000001
+"RemediationRequired"=dword:00000000

@@ -1,7 +1,6 @@
-Windows Registry Editor Version 5.00 
+Windows Registry Editor Version 5.00
 
 ; Made by Savenz
- 
-[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching]
-"SearchOrderConfig"=dword:00000000
 
+[HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\DriverSearching]
+"SearchOrderConfig"=dword:00000001

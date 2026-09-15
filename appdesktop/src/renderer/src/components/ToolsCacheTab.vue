@@ -32,12 +32,11 @@ const ramProfile = ref('16')
 const ramProfiles = ['2', '3', '4', '6', '8', '10', '12', '16', '20', '24', '32', '48', '64']
 
 const CATEGORIES = [
-  { key: 'all', label: 'Tất cả' },
-  { key: 'cleanup', label: 'Bảo Trì & RAM', icon: Trash2 },
-  { key: 'nvidia', label: 'NVIDIA GPU', icon: Monitor },
-  { key: 'amd', label: 'AMD GPU', icon: Cpu },
-  { key: 'cpu', label: 'CPU & Tiến Trình', icon: Bolt },
-  { key: 'system', label: 'Hệ Thống & Services', icon: SlidersHorizontal }
+  { key: 'cleanup', label: 'Bảo Trì & RAM', icon: Trash2, accent: '#06b6d4' },
+  { key: 'nvidia', label: 'NVIDIA GPU', icon: Monitor, accent: '#76b900' },
+  { key: 'amd', label: 'AMD GPU', icon: Cpu, accent: '#ed1c24' },
+  { key: 'cpu', label: 'CPU & Tiến Trình', icon: Bolt, accent: '#3b82f6' },
+  { key: 'system', label: 'Hệ Thống & Services', icon: SlidersHorizontal, accent: '#f59e0b' }
 ]
 
 const tools = [
@@ -536,92 +535,255 @@ const clearLog = () => {
       </button>
     </section>
 
-    <!-- SECTION: FILTER BAR & SEARCH -->
-    <div class="tools-control-bar">
-      <!-- Category Pills -->
-      <div class="tools-pills-row">
-        <button
-          v-for="cat in CATEGORIES"
-          :key="cat.key"
-          type="button"
-          class="tools-cat-pill"
-          :class="{ active: activeCategory === cat.key }"
-          @click="activeCategory = cat.key"
-        >
-          <component :is="cat.icon" v-if="cat.icon" :size="13" />
-          <span>{{ cat.label }}</span>
-        </button>
-      </div>
-
-      <!-- Real-time Search Box -->
-      <div class="tools-search-box">
-        <Search :size="14" class="text-slate-400" />
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Tìm công cụ (vd: nvidia, ram, msi, cpu...)"
-          class="tools-search-input"
-        />
-        <button
-          v-if="searchQuery"
-          type="button"
-          class="tools-search-clear"
-          @click="searchQuery = ''"
-        >
-          ✕
-        </button>
-      </div>
-    </div>
-
-    <!-- SECTION: TOOLS GRID -->
-    <section class="tools-grid-section">
-      <div v-if="filteredTools.length === 0" class="tools-empty-state">
-        <p>Không tìm thấy công cụ nào phù hợp với từ khóa "{{ searchQuery }}".</p>
-      </div>
-
-      <div v-else class="tools-cards-grid">
-        <div
-          v-for="tool in filteredTools"
-          :key="tool.key"
-          class="tool-card"
-          :style="{ '--c': tool.accent }"
-        >
-          <div class="tool-card-head">
-            <div class="tool-card-icon">
-              <component :is="tool.icon" :size="18" stroke-width="2.2" />
+    <!-- SECTION: CATEGORY SECTIONS -->
+    <div class="tools-category-sections">
+      <!-- CLEANUP & RAM SECTION -->
+      <section class="tools-category-card" style="--c: #06b6d4">
+        <div class="tools-cat-header">
+          <div class="tools-cat-icon-wrap">
+            <Trash2 :size="18" />
+          </div>
+          <div class="tools-cat-info">
+            <h3 class="tools-cat-title">Bảo Trì & RAM</h3>
+            <p class="tools-cat-desc">Dọn dẹp cache, tối ưu bộ nhớ RAM</p>
+          </div>
+          <span class="tools-cat-count">{{ tools.filter(t => t.category === 'cleanup').length }} Tools</span>
+        </div>
+        <div class="tools-cat-grid">
+          <div
+            v-for="tool in tools.filter(t => t.category === 'cleanup')"
+            :key="tool.key"
+            class="tool-card"
+            :style="{ '--c': tool.accent }"
+          >
+            <div class="tool-card-head">
+              <div class="tool-card-icon">
+                <component :is="tool.icon" :size="16" stroke-width="2" />
+              </div>
+              <span class="tool-card-badge">{{ tool.badge }}</span>
             </div>
-            <span class="tool-card-badge">{{ tool.badge }}</span>
-          </div>
 
-          <div class="tool-card-content">
-            <h3 class="tool-card-title">{{ tool.label }}</h3>
-            <p class="tool-card-desc">{{ tool.desc }}</p>
-          </div>
+            <div class="tool-card-content">
+              <h4 class="tool-card-title">{{ tool.label }}</h4>
+              <p class="tool-card-desc">{{ tool.desc }}</p>
+            </div>
 
-          <!-- Special Inline Selector for RAM Cleaner -->
-          <div v-if="tool.isRamTool" class="tool-ram-selector">
-            <label class="tool-ram-label" for="ram-sel">Chọn mức RAM:</label>
-            <select id="ram-sel" v-model="ramProfile" class="tool-ram-select">
-              <option v-for="p in ramProfiles" :key="p" :value="p">{{ p }} GB</option>
-            </select>
-          </div>
+            <div v-if="tool.isRamTool" class="tool-ram-selector">
+              <label class="tool-ram-label" for="ram-sel-{{ tool.key }}">RAM:</label>
+              <select :id="'ram-sel-' + tool.key" v-model="ramProfile" class="tool-ram-select">
+                <option v-for="p in ramProfiles" :key="p" :value="p">{{ p }} GB</option>
+              </select>
+            </div>
 
-          <div class="tool-card-action">
-            <button
-              v-if="tool.action"
-              type="button"
-              class="tool-act-btn"
-              :disabled="runningToolKey === tool.key"
-              @click="handleExecuteTool(tool)"
-            >
-              <Play :size="12" class="fill-current" />
-              <span>{{ runningToolKey === tool.key ? 'Đang mở...' : tool.actionLabel }}</span>
-            </button>
-            <span v-else class="tool-disabled-label">{{ tool.actionLabel }}</span>
+            <div class="tool-card-action">
+              <button
+                v-if="tool.action"
+                type="button"
+                class="tool-act-btn"
+                :disabled="runningToolKey === tool.key"
+                @click="handleExecuteTool(tool)"
+              >
+                <Play :size="11" class="fill-current" />
+                <span>{{ runningToolKey === tool.key ? 'Đang mở...' : tool.actionLabel }}</span>
+              </button>
+              <span v-else class="tool-disabled-label">{{ tool.actionLabel }}</span>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+
+      <!-- NVIDIA GPU SECTION -->
+      <section class="tools-category-card" style="--c: #76b900">
+        <div class="tools-cat-header">
+          <div class="tools-cat-icon-wrap">
+            <Monitor :size="18" />
+          </div>
+          <div class="tools-cat-info">
+            <h3 class="tools-cat-title">NVIDIA GPU</h3>
+            <p class="tools-cat-desc">Tinh chỉnh driver, profile và power</p>
+          </div>
+          <span class="tools-cat-count">{{ tools.filter(t => t.category === 'nvidia').length }} Tools</span>
+        </div>
+        <div class="tools-cat-grid">
+          <div
+            v-for="tool in tools.filter(t => t.category === 'nvidia')"
+            :key="tool.key"
+            class="tool-card"
+            :style="{ '--c': tool.accent }"
+          >
+            <div class="tool-card-head">
+              <div class="tool-card-icon">
+                <component :is="tool.icon" :size="16" stroke-width="2" />
+              </div>
+              <span class="tool-card-badge">{{ tool.badge }}</span>
+            </div>
+
+            <div class="tool-card-content">
+              <h4 class="tool-card-title">{{ tool.label }}</h4>
+              <p class="tool-card-desc">{{ tool.desc }}</p>
+            </div>
+
+            <div class="tool-card-action">
+              <button
+                v-if="tool.action"
+                type="button"
+                class="tool-act-btn"
+                :disabled="runningToolKey === tool.key"
+                @click="handleExecuteTool(tool)"
+              >
+                <Play :size="11" class="fill-current" />
+                <span>{{ runningToolKey === tool.key ? 'Đang mở...' : tool.actionLabel }}</span>
+              </button>
+              <span v-else class="tool-disabled-label">{{ tool.actionLabel }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- AMD GPU SECTION -->
+      <section class="tools-category-card" style="--c: #ed1c24">
+        <div class="tools-cat-header">
+          <div class="tools-cat-icon-wrap">
+            <Cpu :size="18" />
+          </div>
+          <div class="tools-cat-info">
+            <h3 class="tools-cat-title">AMD GPU</h3>
+            <p class="tools-cat-desc">Ép xung, tinh chỉnh registry và driver</p>
+          </div>
+          <span class="tools-cat-count">{{ tools.filter(t => t.category === 'amd').length }} Tools</span>
+        </div>
+        <div class="tools-cat-grid">
+          <div
+            v-for="tool in tools.filter(t => t.category === 'amd')"
+            :key="tool.key"
+            class="tool-card"
+            :style="{ '--c': tool.accent }"
+          >
+            <div class="tool-card-head">
+              <div class="tool-card-icon">
+                <component :is="tool.icon" :size="16" stroke-width="2" />
+              </div>
+              <span class="tool-card-badge">{{ tool.badge }}</span>
+            </div>
+
+            <div class="tool-card-content">
+              <h4 class="tool-card-title">{{ tool.label }}</h4>
+              <p class="tool-card-desc">{{ tool.desc }}</p>
+            </div>
+
+            <div class="tool-card-action">
+              <button
+                v-if="tool.action"
+                type="button"
+                class="tool-act-btn"
+                :disabled="runningToolKey === tool.key"
+                @click="handleExecuteTool(tool)"
+              >
+                <Play :size="11" class="fill-current" />
+                <span>{{ runningToolKey === tool.key ? 'Đang mở...' : tool.actionLabel }}</span>
+              </button>
+              <span v-else class="tool-disabled-label">{{ tool.actionLabel }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CPU & PROCESS SECTION -->
+      <section class="tools-category-card" style="--c: #3b82f6">
+        <div class="tools-cat-header">
+          <div class="tools-cat-icon-wrap">
+            <Bolt :size="18" />
+          </div>
+          <div class="tools-cat-info">
+            <h3 class="tools-cat-title">CPU & Tiến Trình</h3>
+            <p class="tools-cat-desc">Quản lý xung nhịp, core parking và process</p>
+          </div>
+          <span class="tools-cat-count">{{ tools.filter(t => t.category === 'cpu').length }} Tools</span>
+        </div>
+        <div class="tools-cat-grid">
+          <div
+            v-for="tool in tools.filter(t => t.category === 'cpu')"
+            :key="tool.key"
+            class="tool-card"
+            :style="{ '--c': tool.accent }"
+          >
+            <div class="tool-card-head">
+              <div class="tool-card-icon">
+                <component :is="tool.icon" :size="16" stroke-width="2" />
+              </div>
+              <span class="tool-card-badge">{{ tool.badge }}</span>
+            </div>
+
+            <div class="tool-card-content">
+              <h4 class="tool-card-title">{{ tool.label }}</h4>
+              <p class="tool-card-desc">{{ tool.desc }}</p>
+            </div>
+
+            <div class="tool-card-action">
+              <button
+                v-if="tool.action"
+                type="button"
+                class="tool-act-btn"
+                :disabled="runningToolKey === tool.key"
+                @click="handleExecuteTool(tool)"
+              >
+                <Play :size="11" class="fill-current" />
+                <span>{{ runningToolKey === tool.key ? 'Đang mở...' : tool.actionLabel }}</span>
+              </button>
+              <span v-else class="tool-disabled-label">{{ tool.actionLabel }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SYSTEM & SERVICES SECTION -->
+      <section class="tools-category-card" style="--c: #f59e0b">
+        <div class="tools-cat-header">
+          <div class="tools-cat-icon-wrap">
+            <SlidersHorizontal :size="18" />
+          </div>
+          <div class="tools-cat-info">
+            <h3 class="tools-cat-title">Hệ Thống & Services</h3>
+            <p class="tools-cat-desc">Tinh chỉnh Windows, menu và extreme services</p>
+          </div>
+          <span class="tools-cat-count">{{ tools.filter(t => t.category === 'system').length }} Tools</span>
+        </div>
+        <div class="tools-cat-grid">
+          <div
+            v-for="tool in tools.filter(t => t.category === 'system')"
+            :key="tool.key"
+            class="tool-card"
+            :style="{ '--c': tool.accent }"
+          >
+            <div class="tool-card-head">
+              <div class="tool-card-icon">
+                <component :is="tool.icon" :size="16" stroke-width="2" />
+              </div>
+              <span class="tool-card-badge">{{ tool.badge }}</span>
+            </div>
+
+            <div class="tool-card-content">
+              <h4 class="tool-card-title">{{ tool.label }}</h4>
+              <p class="tool-card-desc">{{ tool.desc }}</p>
+            </div>
+
+            <div class="tool-card-action">
+              <button
+                v-if="tool.action"
+                type="button"
+                class="tool-act-btn"
+                :disabled="runningToolKey === tool.key"
+                @click="handleExecuteTool(tool)"
+              >
+                <Play :size="11" class="fill-current" />
+                <span>{{ runningToolKey === tool.key ? 'Đang mở...' : tool.actionLabel }}</span>
+              </button>
+              <span v-else class="tool-disabled-label">{{ tool.actionLabel }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
 
     <!-- SECTION: CONSOLE TERMINAL -->
     <section class="tools-console-card">
@@ -862,137 +1024,316 @@ const clearLog = () => {
   cursor: not-allowed;
 }
 
-/* Control Bar: Categories & Search */
-.tools-control-bar {
+/* Category Sections */
+.tools-category-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.tools-category-card {
+  padding: 20px 24px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid var(--c);
+  border-color: rgba(var(--c), 0.3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.tools-cat-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
-  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.tools-pills-row {
+.tools-cat-icon-wrap {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--c);
+  background: rgba(var(--c), 0.15);
+  color: var(--c);
 }
 
-.tools-cat-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
+.tools-cat-info {
+  flex: 1;
+}
+
+.tools-cat-title {
+  font: 700 16px/1.2 'Archivo', sans-serif;
+  color: #ffffff;
+  margin: 0 0 4px;
+}
+
+.tools-cat-desc {
+  font-size: 13px;
+  color: rgba(226, 232, 240, 0.7);
+  margin: 0;
+}
+
+.tools-cat-count {
+  font: 600 12px var(--font-mono);
+  padding: 6px 12px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  color: #94a3b8;
-  font:
-    600 12px 'Archivo',
-    sans-serif;
-  cursor: pointer;
+  background: var(--c);
+  background: rgba(var(--c), 0.2);
+  color: var(--c);
+}
+
+.tools-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+/* Tool Card (smaller version for category sections) */
+.tool-card {
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   transition: all 0.2s ease;
 }
 
-.tools-cat-pill:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
-}
-
-.tools-cat-pill.active {
-  background: rgba(34, 197, 94, 0.15);
-  border-color: #22c55e;
-  color: #4ade80;
-  box-shadow: 0 0 12px rgba(34, 197, 94, 0.2);
-}
-
-.tools-search-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 12px;
-  border-radius: 8px;
-  background: #090e1a;
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  min-width: 260px;
-}
-
-.tools-search-input {
-  background: transparent;
-  border: none;
-  outline: none;
-  color: #f1f5f9;
-  font: 500 12.5px var(--font-sans);
-  width: 100%;
-}
-
-.tools-search-clear {
-  background: transparent;
-  border: none;
-  color: #64748b;
-  cursor: pointer;
-  font-size: 11px;
-}
-
-/* Tools Grid */
-.tools-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 14px;
-}
-
-.tools-empty-state {
-  padding: 40px;
-  text-align: center;
-  color: #64748b;
-  font-size: 13px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.tool-card {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: all 0.25s ease;
-}
-
 .tool-card:hover {
+  background: rgba(15, 23, 42, 0.8);
+  border-color: var(--c);
+  border-color: rgba(var(--c), 0.3);
   transform: translateY(-2px);
-  border-color: color-mix(in srgb, var(--c) 40%, transparent);
-  background: color-mix(in srgb, var(--c) 4%, rgba(15, 23, 42, 0.6));
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
 }
 
 .tool-card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
 }
 
 .tool-card-icon {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: color-mix(in srgb, var(--c) 14%, transparent);
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--c);
+  background: rgba(var(--c), 0.15);
   color: var(--c);
-  border: 1px solid color-mix(in srgb, var(--c) 30%, transparent);
 }
 
 .tool-card-badge {
-  font: 700 9px var(--font-mono);
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #94a3b8;
+  font: 600 10px var(--font-mono);
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--c);
+  background: rgba(var(--c), 0.2);
+  color: var(--c);
+}
+
+.tool-card-content {
+  flex: 1;
+}
+
+.tool-card-title {
+  font: 600 14px/1.3 'Archivo', sans-serif;
+  color: #ffffff;
+  margin: 0 0 4px;
+}
+
+.tool-card-desc {
+  font-size: 12px;
+  color: rgba(226, 232, 240, 0.65);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.tool-ram-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.tool-ram-label {
+  font-size: 11px;
+  color: rgba(226, 232, 240, 0.7);
+  margin: 0;
+}
+
+.tool-ram-select {
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tool-card-action {
+  margin-top: auto;
+}
+
+.tool-act-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--c);
+  background: linear-gradient(135deg, var(--c), rgba(var(--c), 0.7));
+  border: none;
+  color: #ffffff;
+  font: 600 13px/1 var(--font-mono);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tool-act-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.tool-act-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tool-disabled-label {
+  display: block;
+  text-align: center;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(226, 232, 240, 0.5);
+  font: 500 12px var(--font-mono);
+}
+
+/* Console Card */
+.tools-console-card {
+  padding: 18px 22px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tools-console-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tools-console-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 13px var(--font-mono);
+  color: #4ade80;
+}
+
+.tools-live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font: 500 11px var(--font-mono);
+  color: rgba(226, 232, 240, 0.5);
+}
+
+.tools-live-indicator.running {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.4);
+  color: #4ade80;
+}
+
+.tools-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(226, 232, 240, 0.5);
+}
+
+.tools-live-indicator.running .tools-live-dot {
+  background: #4ade80;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.tools-console-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.tools-tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(226, 232, 240, 0.7);
+  font: 500 11px var(--font-mono);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tools-tool-btn:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.9);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.tools-tool-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tools-terminal-view {
+  padding: 14px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #4ade80;
+  font: 12px var(--font-mono);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .tool-card-content {
