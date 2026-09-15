@@ -11,7 +11,7 @@ const handleRunNTFS = async () => {
   statusMessage.value = 'Đang kích hoạt script NTFS...'
 
   try {
-    const res = await window.api.runDawaScript('ntfs-bat')
+    const res = await window.api.executeFeature('ntfs-bat')
     statusMessage.value = res.success ? '✅ ' + res.message : '❌ ' + res.message
   } catch (err) {
     statusMessage.value = '❌ Lỗi: ' + (err.message || 'Không thể thực thi file NTFS.bat')

@@ -419,7 +419,7 @@ const handleExecuteTool = async (tool) => {
   cleanLog.value += `[${time}] [TOOLS] Đang thực thi [${tool.label}]...\n`
   try {
     const options = tool.action === 'ram-optimization' ? { profile: ramProfile.value } : {}
-    const res = await window.api.runDawaScript(tool.action, options)
+    const res = await window.api.executeFeature(tool.action, options)
     cleanLog.value += res?.success ? `✅ ${res.message}\n` : `❌ ${res?.message || 'Thất bại'}\n`
   } catch (err) {
     cleanLog.value += `❌ Lỗi: ${err.message || err}\n`
@@ -434,7 +434,7 @@ const handleRunCacheClean = async () => {
   const time = new Date().toLocaleTimeString()
   cleanLog.value += `[${time}] [CACHE CLEANER] Đang quét và dọn dẹp các thư mục đệm hệ thống (Temp, Prefetch)...\n`
   try {
-    const res = await window.api.runDawaScript('dawa-cleaner')
+    const res = await window.api.executeFeature('dawa-cleaner')
     if (res?.success) {
       cleanLog.value += `✅ ${res.message}\n`
       if (res.stepResults) {
