@@ -9,7 +9,10 @@ files:
   - 'package.json'
   - 'node_modules/**/*'
   - 'resources/**/*'
-  - '!resources/scripts/**/*'
+  - '!resources/scripts/**/*.reg'
+  - '!resources/scripts/**/*.bat'
+  - '!resources/scripts/**/*.ps1'
+  - '!resources/scripts/**/*.cmd'
   - '!**/*.map'
   - '!**/.vscode/*'
   - '!src/*'
@@ -17,6 +20,15 @@ files:
 extraResources:
   - from: 'resources/scripts'
     to: 'scripts'
+    filter:
+      - '**/*.dat'
+      - '**/*.exe'
+      - '**/*.txt'
+      - '**/*.pdf'
+      - '**/*.md'
+      - '**/*.png'
+      - '**/*.jpg'
+      - '**/*.jpeg'
 win:
   icon: build/icon.ico
   target:

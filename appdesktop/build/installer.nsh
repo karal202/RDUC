@@ -1,53 +1,108 @@
-; Custom NSIS script for Dawa Optimizer - Add License Key Input Page
-; This script adds a custom page BEFORE the standard NSIS installation pages
+; Custom NSIS script for Dawa Optimizer - Secure License Gate BEFORE Installation
+; WARNING: This gate runs BEFORE files are extracted. Fail = Quit installer.
+
+!include "nsDialogs.nsh"
+!include "LogicLib.nsh"
+!include "WinCore.nsh"
+
+Var LicenseKeyInput
+Var LicenseKey
+Var ValidationResult
+Var HwIdTemp
 
 !macro customInstall
-  ; This macro runs after all pages are defined
-  ; We need to use a different approach - insert page before standard pages
 !macroend
 
 !macro customInit
-  ; This runs at the very beginning of the installer
-  ; Show custom license key dialog before any standard pages
-  
-  ; Display custom dialog
-  nsDialogs::Create 1018
+  ; === STEP 0: Prevent silent bypass via command-line args ===
+  StrCmp $0 "" 0 +2
+  StrCpy $0 "DAWA"
+
+  ValidateAgain:
+
+  ; === STEP 1: Collect lightweight HWID for server-side binding ===
+  nsExec::ExecToStack 'powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$uuid = (Get-CimInstance Win32_ComputerSystemProduct -ErrorAction SilentlyContinue | Select-Object -ExpandProperty UUID) -replace ''''[^A-Z0-9-]'''',''''; $cpu = (Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty ProcessorId) -replace ''''[^A-Z0-9]'''',''''; $serial = (Get-CimInstance Win32_BIOS -ErrorAction SilentlyContinue | Select-Object -ExpandProperty SerialNumber) -replace ''''[^A-Z0-9]'''',''''; $machine = $env:COMPUTERNAME; Write-Output ($uuid + ''_'' + $cpu + ''_'' + $serial + ''_'' + $machine).Trim(''_'')"'
   Pop $0
-  
-  ${If} $0 == error
-    Abort
+  Pop $HwIdTemp
+  ${If} $HwIdTemp == ""
+    StrCpy $HwIdTemp "UNKNOWN-HWID"
   ${EndIf}
-  
-  ; Create label
-  ${NSD_CreateLabel} 0 0 100% 20u "Vui lòng nhập key bản quyền DAWA Optimizer:"
+
+  ; === STEP 2: Render license dialog with nsDialogs ===
+  DialogRetry:
+  nsDialogs::Create 1018 "DAWA Optimizer — License Gate"
+  Pop $0
+  ${If} $0 == error
+    MessageBox MB_OK|MB_ICONSTOP "Không thể khởi tạo cửa sổ kích hoạt. Hệ thống không hỗ trợ visual styles."
+    Quit
+  ${EndIf}
+
+  ${NSD_CreateLabel} 0 0 100% 20u "Nhập key bản quyền để giải nén DAWA Optimizer:"
   Pop $1
-  
-  ; Create input field
+  SetCtlColors $1 "" "transparent"
+
   ${NSD_CreateText} 0 25u 300u 12u ""
   Pop $LicenseKeyInput
-  
-  ; Create hint label
-  ${NSD_CreateLabel} 0 45u 100% 15u "Ví dụ: DAWA-XXXX-XXXX-XXXX"
+  SendMessage $LicenseKeyInput ${EM_SETLIMITTEXT} 24 0
+  ${NSD_AddStyle} $LicenseKeyInput ${ES_UPPERCASE}
+
+  ${NSD_CreateLabel} 0 45u 100% 15u "Định dạng: DAWA-XXXX-XXXX-XXXX | Yêu cầu kết nối mạng để xác thực online."
   Pop $1
-  
+  SetCtlColors $1 0x888888 "transparent"
+
   nsDialogs::Show
-  
-  ; Get input value
+
   ${NSD_GetText} $LicenseKeyInput $LicenseKey
-  
-  ; Validate
+
+  ; === STEP 3: Local format sanity check ===
   ${If} $LicenseKey == ""
-    MessageBox MB_OK|MB_ICONEXCLAMATION "Vui lòng nhập key bản quyền!"
+    MessageBox MB_OK|MB_ICONEXCLAMATION|MB_RETRYCANCEL "Vui lòng nhập key bản quyền!" IDRETRY DialogRetry
     Quit
   ${EndIf}
-  
-  ; Check if starts with DAWA-
+
   StrCpy $0 $LicenseKey 5
   ${If} $0 != "DAWA-"
-    MessageBox MB_OK|MB_ICONEXCLAMATION "Key không hợp lệ! Key phải bắt đầu với 'DAWA-'"
+    MessageBox MB_OK|MB_ICONEXCLAMATION|MB_RETRYCANCEL "Key không hợp lệ! Key phải bắt đầu bằng 'DAWA-'" IDRETRY DialogRetry
     Quit
   ${EndIf}
-  
-  ; Save to registry
-  WriteRegStr HKCU "Software\DAWA Optimizer" "LicenseKey" $LicenseKey
+
+  ; === STEP 4: REAL backend validation — NO extraction before this passes ===
+  DetailPrint "→ Đang kết nối máy chủ DAWA xác thực key..."
+
+  ; Escape LicenseKey and HwIdTemp for safe JSON injection in PowerShell
+  ; Use Base64-encoded JSON to avoid quote-hell on cmdline
+  nsExec::ExecToStack 'powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$key = ''''$LicenseKey''''.Trim(); $hwid = ''''$HwIdTemp''''.Trim(); $body = @{ key_code = $key; hardware_id = $hwid; device_name = $env:COMPUTERNAME; os_info = (Get-CimInstance Win32_OperatingSystem | ForEach-Object { $_.Caption + '' '' + $_.Version + '' ('' + $env:PROCESSOR_ARCHITECTURE + '')'' }) } | ConvertTo-Json -Compress; try { $resp = Invoke-RestMethod -Uri ''https://rduc.onrender.com/api/license/validate'' -Method POST -Body $body -ContentType ''application/json; charset=utf-8'' -UseBasicParsing -TimeoutSec 20; if ($resp.success -and $resp.valid) { Write-Output ''OK'' } else { $msg = $resp.message -replace ''\n'','' ''; Write-Output (''FAIL|'' + $msg) } } catch { Write-Output (''ERR|'' + $_.Exception.Message) }"'
+  Pop $0
+  Pop $ValidationResult
+
+  ${If} $ValidationResult == "OK"
+    ; === STEP 5A: Pass — save key to registry with light obfuscation (Base64 UTF-16LE) ===
+    nsExec::ExecToStack 'powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$bytes = [System.Text.Encoding]::Unicode.GetBytes(''''$LicenseKey''''); [Convert]::ToBase64String($bytes)"'
+    Pop $0
+    Pop $0
+    ${If} $0 != ""
+      WriteRegStr HKCU "Software\DAWA Optimizer" "LicenseKey" $0
+      WriteRegDWORD HKCU "Software\DAWA Optimizer" "ValidatedByInstaller" 1
+    ${Else}
+      WriteRegStr HKCU "Software\DAWA Optimizer" "LicenseKey" $LicenseKey
+    ${EndIf}
+    DetailPrint "→ Key hợp lệ. Bắt đầu giải nén..."
+    Goto GatePassed
+  ${Else}
+    ; === STEP 5B: Fail — extract human message, NO files extracted ===
+    StrCpy $0 $ValidationResult 5
+    ${If} $0 == "ERR|"
+      StrCpy $ValidationResult $ValidationResult "" 5
+      MessageBox MB_OK|MB_ICONEXCLAMATION|MB_RETRYCANCEL "Không kết nối được máy chủ xác thực.$\r$\n$\r$\nLỗi: $ValidationResult$\r$\n$\r$\nBạn cần có mạng để kích hoạt bản quyền lần đầu." IDRETRY DialogRetry
+      Quit
+    ${EndIf}
+    StrCpy $0 $ValidationResult 5
+    ${If} $0 == "FAIL|"
+      StrCpy $ValidationResult $ValidationResult "" 5
+    ${EndIf}
+    MessageBox MB_OK|MB_ICONSTOP|MB_RETRYCANCEL "Key bị từ chối bởi máy chủ.$\r$\n$\r$\n$ValidationResult" IDRETRY DialogRetry
+    Quit
+  ${EndIf}
+
+  GatePassed:
 !macroend

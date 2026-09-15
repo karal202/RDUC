@@ -31,15 +31,8 @@ import {
   isTokenExpiringSoon,
   verifyLocalLicense
 } from './services/licenseService.js'
-import {
-  startLicensePolling,
-  stopLicensePolling,
-  isFeatureAllowed
-} from './services/licenseManager.js'
-import {
-  executeFeature,
-  cleanupOrphanedTempFiles
-} from './services/featureExecutor.js'
+import { startLicensePolling, isFeatureAllowed } from './services/licenseManager.js'
+import { executeFeature, cleanupOrphanedTempFiles } from './services/featureExecutor.js'
 import { ALLOWED_DAWA_SCRIPTS } from './services/dawaScripts'
 import { runDawaScript } from './services/dawaScripts.js'
 
@@ -1242,26 +1235,30 @@ app.whenReady().then(() => {
   ipcMain.handle('system:restart-as-admin', () => restartAsAdmin())
 
   // License window IPC handlers
-  ipcMain.handle('license:activate-from-window', async (event, keyCode) => {
+  ipcMain.handle('license:activate-from-window', async (event, rawKey) => {
+    if (isActivateRateLimited()) {
+      return { success: false, message: 'Quá nhiều lần thử. Đợi 1 phút rồi thử lại.' }
+    }
+    const keyCode = normalizeLicenseKey(rawKey) || rawKey.trim()
     const currentDeviceHash = await getHardwareHash()
     const activation = await validateWithBackend(keyCode, currentDeviceHash)
     if (activation.success && activation.valid) {
-      licenseStore.save({
-        keyCode,
-        deviceHash: currentDeviceHash,
-        activatedAt: Date.now()
-      })
+      // Correct signature: save(keyCode, deviceHash, expiresAt)
+      licenseStore.save(keyCode, currentDeviceHash, activation.data?.expires_at)
       licenseStore.saveTokens({
         accessToken: activation.accessToken,
         refreshToken: activation.refreshToken
       })
+      // Start polling immediately so revoke events are picked up
+      const tokens = licenseStore.getTokens()
+      if (tokens) startLicensePolling(licenseStore, tokens)
       // Close license window and open main window
       if (licenseWindow) {
         licenseWindow.close()
         licenseWindow = null
       }
       createWindow()
-      return { success: true, message: 'Kích hoạt thành công!' }
+      return { success: true, message: activation.message || 'Kích hoạt thành công!' }
     }
     return { success: false, message: activation.message || 'Kích hoạt thất bại' }
   })
@@ -1284,77 +1281,159 @@ app.whenReady().then(() => {
   })
 
   // Secure feature execution with license check, temp file handling, and cleanup
-  ipcMain.handle('system:execute-feature', async (_, { scriptKey, options = {} }) => {
+  ipcMain.handle('system:execute-feature', async (event, { scriptKey, options = {} }) => {
     const tokens = licenseStore.getTokens()
-    
+    const webContents = event.sender
+    const executionId = `${scriptKey}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+
+    const emitProgress = (stage) => {
+      try {
+        if (webContents && !webContents.isDestroyed()) {
+          webContents.send('system:feature-progress', {
+            executionId,
+            scriptKey,
+            label: options?.label || scriptKey,
+            ...stage
+          })
+        }
+      } catch {
+        void 0
+      }
+    }
+
     // Check license and feature policy first
     const licenseCheck = await isFeatureAllowed(licenseStore, tokens, scriptKey)
     if (!licenseCheck.allowed) {
+      emitProgress({
+        percent: 100,
+        phase: 'failed',
+        message: licenseCheck.reason,
+        featureKey: scriptKey
+      })
       return {
         success: false,
         message: licenseCheck.reason,
         licenseStatus: licenseCheck.mode
       }
     }
-    
+
     // Get script mapping
     const script = ALLOWED_DAWA_SCRIPTS[scriptKey]
     if (!script) {
+      emitProgress({
+        percent: 100,
+        phase: 'failed',
+        message: `Script [${scriptKey}] không nằm trong danh sách được phép thực thi.`,
+        featureKey: scriptKey
+      })
       return {
         success: false,
         message: `Script [${scriptKey}] không nằm trong danh sách được phép thực thi.`
       }
     }
-    
+
+    const scriptLabel = options?.label || script.label || scriptKey
+    emitProgress({
+      percent: 8,
+      phase: 'license',
+      message: 'Giấy phép hợp lệ. Đang phân giải đường dẫn file…',
+      featureKey: scriptKey
+    })
+
     // Determine script path and type
     let scriptPath = null
     let scriptType = 'reg'
-    
+
     if (script.launch) {
-      // Launch executable directly (no encryption needed for apps)
-      return await runDawaScript(scriptKey, options)
+      // Launch executable directly — but still show a 3-stage progress for UX consistency
+      emitProgress({
+        percent: 25,
+        phase: 'launch',
+        message: 'Đang khởi chạy tiến trình con…',
+        featureKey: scriptKey
+      })
+      const result = await runDawaScript(scriptKey, options)
+      emitProgress({
+        percent: 100,
+        phase: result.success ? 'done' : 'failed',
+        message:
+          result?.message || (result.success ? 'Đã khởi chạy xong.' : 'Không thể khởi chạy.'),
+        featureKey: scriptKey
+      })
+      return result
     }
-    
+
     if (script.profileFiles) {
       const file = script.profileFiles[options.profile]
-      if (!file) return { success: false, message: 'Invalid registry script profile.' }
-      
+      if (!file) {
+        emitProgress({
+          percent: 100,
+          phase: 'failed',
+          message: 'Invalid registry script profile.',
+          featureKey: scriptKey
+        })
+        return { success: false, message: 'Invalid registry script profile.' }
+      }
+
       scriptPath = file
-      scriptType = file.toLowerCase().endsWith('.cmd') || file.toLowerCase().endsWith('.bat') ? 'bat' : 'reg'
+      scriptType =
+        file.toLowerCase().endsWith('.cmd') || file.toLowerCase().endsWith('.bat') ? 'bat' : 'reg'
     } else if (script.profiles) {
       const profileFile = script.profiles[options.profile]
       if (!profileFile) {
+        emitProgress({
+          percent: 100,
+          phase: 'failed',
+          message: 'Cấu hình không hợp lệ.',
+          featureKey: scriptKey
+        })
         return { success: false, message: 'Cấu hình không hợp lệ.' }
       }
-      
+
       const file = join(
-        script.profileDirectory || join(__dirname, '../../resources/scripts/Optimizer/Ram Optimization'),
+        script.profileDirectory ||
+          join(__dirname, '../../resources/scripts/Optimizer/Ram Optimization'),
         profileFile
       )
-      
+
       scriptPath = file
       scriptType = 'reg'
     } else {
       // Fallback to existing execution
-      return await runDawaScript(scriptKey, options)
+      emitProgress({
+        percent: 30,
+        phase: 'launch',
+        message: 'Đang phân phối script đến trình thực thi…',
+        featureKey: scriptKey
+      })
+      const result = await runDawaScript(scriptKey, options)
+      emitProgress({
+        percent: 100,
+        phase: result.success ? 'done' : 'failed',
+        message: result?.message || (result.success ? 'Thực thi xong.' : 'Thất bại'),
+        featureKey: scriptKey
+      })
+      return result
     }
-    
+
     // Check if encrypted file exists (.dat)
     const encryptedPath = scriptPath + '.dat'
     const useEncrypted = fs.existsSync(encryptedPath)
-    
+
     const finalScriptPath = useEncrypted ? encryptedPath : scriptPath
-    
-    // Execute with secure feature executor
+
+    // Execute with secure feature executor + stream progress
     const result = await executeFeature({
       licenseStore,
       tokens,
       featureKey: scriptKey,
       scriptPath: finalScriptPath,
       scriptType,
-      args: []
+      args: [],
+      label: scriptLabel,
+      onProgress: emitProgress
     })
-    
+
     return result
   })
 
@@ -1362,7 +1441,7 @@ app.whenReady().then(() => {
   const checkLicenseOnStartup = async () => {
     // Cleanup orphaned temp files from previous sessions
     await cleanupOrphanedTempFiles()
-    
+
     const currentDeviceHash = await getHardwareHash()
     const stored = licenseStore.get()
     const localCheck = stored ? verifyLocalLicense(stored, currentDeviceHash) : { valid: false }
@@ -1372,23 +1451,48 @@ app.whenReady().then(() => {
       try {
         // Read license key from Windows registry (set by NSIS installer)
         const { execSync } = require('child_process')
-        const regQuery = execSync(
-          'reg query "HKCU\\Software\\DAWA Optimizer" /v LicenseKey',
-          { encoding: 'utf8' }
-        )
-        
+        const regQuery = execSync('reg query "HKCU\\Software\\DAWA Optimizer" /v LicenseKey', {
+          encoding: 'utf8'
+        })
+
         if (regQuery) {
           const match = regQuery.match(/LicenseKey\s+REG_SZ\s+(.+)/)
           if (match && match[1]) {
-            const licenseKeyFromInstaller = match[1].trim()
+            let licenseKeyFromInstaller = match[1].trim()
+
+            // NSIS installer saves as Base64(UTF-16LE) — detect and decode
+            if (
+              /^[A-Za-z0-9+/=]+$/.test(licenseKeyFromInstaller) &&
+              !licenseKeyFromInstaller.startsWith('DAWA')
+            ) {
+              try {
+                const decoded = Buffer.from(licenseKeyFromInstaller, 'base64').toString('utf16le')
+                if (decoded && decoded.startsWith('DAWA')) {
+                  licenseKeyFromInstaller = decoded.replace(/\0/g, '').trim()
+                }
+              } catch {
+                void 0
+              }
+            }
+
+            // Wipe installer-written registry key after one-time read so revoked
+            // users cannot simply re-import a reg snapshot to bypass the gate.
+            try {
+              execSync('reg delete "HKCU\\Software\\DAWA Optimizer" /v LicenseKey /f 2>NUL', {
+                stdio: 'ignore'
+              })
+            } catch {
+              void 0
+            }
+
             // Try to activate with the key from installer
             const activation = await validateWithBackend(licenseKeyFromInstaller, currentDeviceHash)
             if (activation.success && activation.valid) {
-              licenseStore.save({
-                keyCode: licenseKeyFromInstaller,
-                deviceHash: currentDeviceHash,
-                activatedAt: Date.now()
-              })
+              licenseStore.save(
+                normalizeLicenseKey(licenseKeyFromInstaller) || licenseKeyFromInstaller,
+                currentDeviceHash,
+                activation.data?.expires_at
+              )
               licenseStore.saveTokens({
                 accessToken: activation.accessToken,
                 refreshToken: activation.refreshToken
@@ -1404,7 +1508,7 @@ app.whenReady().then(() => {
       } catch (err) {
         console.warn('Failed to read license from installer registry:', err)
       }
-      
+
       createLicenseWindow()
     } else {
       // Start license polling for real-time revoke detection
