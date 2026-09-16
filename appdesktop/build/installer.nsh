@@ -66,18 +66,10 @@ Var LogBootWritten
   !insertmacro LogInstaller "Creating $PLUGINSDIR\_run-gate.bat wrapper (quote-safe exec)..."
   StrCpy $LogTmp1 "$APPDATA\dawa-optimizer\logs\dawa-installer.log"
   CreateDirectory "$APPDATA\dawa-optimizer\logs"
-  FileOpen $1 "$PLUGINSDIR\_run-gate.bat" w
-  FileWrite $1 "@echo off$\r$\n"
-  FileWrite $1 "set LOGPATH=$LogTmp1$\r$\n"
-  FileWrite $1 "set PS1PATH=$PLUGINSDIR\license-gate.ps1$\r$\n"
-  FileWrite $1 "echo [BAT] wrapper run-gate launched at %DATE% %TIME% >> %LOGPATH% 2>&1$\r$\n"
-  FileWrite $1 "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Sta -WindowStyle Hidden -File \"%PS1PATH%\" -LogFile \"%LOGPATH%\" >> \"%LOGPATH%\" 2>&1$\r$\n"
-  FileWrite $1 "echo [BAT] powershell exitcode=%ERRORLEVEL% >> %LOGPATH% 2>&1$\r$\n"
-  FileWrite $1 "exit /b %ERRORLEVEL%$\r$\n"
-  FileClose $1
+  File /oname=$PLUGINSDIR\_run-gate.bat "${BUILD_RESOURCES_DIR}\_run-gate.bat"
 
   !insertmacro LogInstaller "Launching license-gate.ps1 via _run-gate.bat (blocks until user closes form)..."
-  ExecWait '"$PLUGINSDIR\_run-gate.bat"' $0
+  ExecWait '"$PLUGINSDIR\_run-gate.bat" "$LogTmp1" "$PLUGINSDIR\license-gate.ps1"' $0
   !insertmacro LogInstaller "license-gate.ps1 exited with code=$0 (via wrapper bat)"
 
   StrCpy $LicenseGateOutput ""
