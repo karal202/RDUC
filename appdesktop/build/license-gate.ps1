@@ -1,10 +1,37 @@
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
-[System.Windows.Forms.Application]::EnableVisualStyles()
-
 param(
   [string]$LogFile = ""
 )
+
+# Force UTF-8 output for logging (NSIS ExecWait runs in UTF-8 safe mode now)
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
+
+# Early boot: write a tiny "heartbeat" to APPDATA crash log
+# BEFORE Add-Type (in case Add-Type itself fails — e.g., .NET Framework 4.6 missing).
+$AppLogDir = Join-Path $env:APPDATA "dawa-optimizer\logs"
+New-Item -ItemType Directory -Force -Path $AppLogDir -ErrorAction SilentlyContinue | Out-Null
+$MainLogPath = if (-not [string]::IsNullOrWhiteSpace($LogFile)) { $LogFile } else { Join-Path $AppLogDir "dawa-installer.log" }
+$HeartbeatPath = Join-Path $AppLogDir "dawa-installer.log"
+"============================================================" | Add-Content -Path $HeartbeatPath -Encoding UTF8 -ErrorAction SilentlyContinue
+"[BOOT] license-gate.ps1 pid=$PID user=$env:USERNAME PSVersion=$($PSVersionTable.PSVersion) (before Add-Type)" | Add-Content -Path $HeartbeatPath -Encoding UTF8 -ErrorAction SilentlyContinue
+
+# Hardened start-transcript (catch *every* stdout/stderr of PS1 to log)
+try {
+  $TranscriptPath = Join-Path $AppLogDir "dawa-installer.log"
+  Start-Transcript -Append -Path $TranscriptPath -ErrorAction SilentlyContinue | Out-Null
+} catch {}
+
+# Enable visual styles first, then load WinForms assemblies (traced by transcript)
+try {
+  Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
+  Add-Type -AssemblyName System.Drawing -ErrorAction Stop
+  [System.Windows.Forms.Application]::EnableVisualStyles()
+  "[LICENSE-GATE] [INFO] Assemblies loaded OK" | Add-Content -Path $MainLogPath -Encoding UTF8 -ErrorAction SilentlyContinue
+} catch {
+  "[LICENSE-GATE] [FATAL] Add-Type FAIL: $($_.Exception.Message)" | Add-Content -Path $MainLogPath -Encoding UTF8 -ErrorAction SilentlyContinue
+  try { Stop-Transcript -ErrorAction SilentlyContinue } catch {}
+  exit 1
+}
 
 # ============================================================
 # Gate Logger — append timestamped lines to shared installer log

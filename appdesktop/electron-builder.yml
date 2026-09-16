@@ -45,7 +45,7 @@ nsis:
   allowElevation: true
   perMachine: false
   unicode: true
-  differentialPackage: false
+  differentialPackage: true
   installerIcon: build/icon.ico
   uninstallerIcon: build/icon.ico
   # Enable native NSIS /LOG flag → installer also writes its native log to INSTDIR next to exe (failsafe even if custom log fails)
