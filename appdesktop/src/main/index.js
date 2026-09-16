@@ -57,19 +57,39 @@ function launchLog(level, tag, msg) {
 }
 function bootBanner() {
   const p = _getLaunchLogPath()
+  const logDir = pathLaunch.dirname(p)
+  const installerLog = pathLaunch.join(logDir, 'dawa-installer.log')
+  const uninstallerLog = pathLaunch.join(logDir, 'dawa-uninstaller.log')
   try {
     fsLaunch.writeFileSync(
       p,
       `\n========== DAWA OPTIMIZER STARTUP ${new Date().toISOString()} ==========\n` +
         `PID=${process.pid}  ARGV=${JSON.stringify(process.argv)}\n` +
         `CWD=${process.cwd()}  EXE=${process.execPath}\n` +
-        `PLATFORM=${process.platform}  ARCH=${process.arch}  NODE=${process.versions.node}  ELECTRON=${process.versions.electron}\n`,
+        `PLATFORM=${process.platform}  ARCH=${process.arch}  NODE=${process.versions.node}  ELECTRON=${process.versions.electron}\n` +
+        `LOG DIR=${logDir}\n` +
+        `  - App launch   log → ${p}\n` +
+        `  - NSIS install log → ${installerLog}\n` +
+        `  - NSIS remove  log → ${uninstallerLog}\n`,
       'utf8'
     )
   } catch {
     void 0
   }
   launchLog('info', 'BOOT', `Launch log file: ${p}`)
+  launchLog('info', 'BOOT', `Installer (NSIS) log → ${installerLog} (created by Setup.exe)`)
+  try {
+    if (fsLaunch.existsSync(installerLog)) {
+      const stat = fsLaunch.statSync(installerLog)
+      launchLog(
+        'info',
+        'BOOT',
+        `Installer log PRESENT, size=${stat.size} bytes (use this to debug Setup.exe issues)`
+      )
+    }
+  } catch {
+    void 0
+  }
 }
 bootBanner()
 
