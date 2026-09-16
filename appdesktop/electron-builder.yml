@@ -1,6 +1,8 @@
 appId: com.dawa.optimizer
 productName: Dawa Optimizer
 asar: true
+generateUpdatesFilesForAllChannels: true
+artifactName: ${productName}-Setup-${version}-${arch}.${ext}
 directories:
   buildResources: build
   output: release
@@ -20,7 +22,9 @@ extraResources:
 win:
   icon: build/icon.ico
   target:
-    - nsis
+    - target: nsis
+      arch:
+        - x64
   executableName: Dawa-Optimizer
   requestedExecutionLevel: requireAdministrator
 nsis:
@@ -28,6 +32,13 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: always
   createStartMenuShortcut: true
+  perMachine: true
+  differentialPackage: true
+  include: build/installer.nsh
+  script: build/installer.nsh
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+  warningsAsErrors: false
 publish:
   - provider: github
     owner: karal202

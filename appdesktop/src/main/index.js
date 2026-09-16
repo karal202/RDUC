@@ -118,6 +118,18 @@ try {
 }
 
 const LICENSE_FILE_PATH = path.join(app.getPath('userData'), 'dawa_license_vault.dat')
+const INSTALLER_LICENSE_CANDIDATES = [
+  path.join(app.getPath('appData'), 'Dawa Optimizer', 'installer-license.dat'),
+  path.join(
+    process.env.ProgramData || 'C:\\ProgramData',
+    'Dawa Optimizer',
+    'installer-license.dat'
+  ),
+  process.resourcesPath ? path.join(process.resourcesPath, 'installer-license.dat') : null,
+  process.execPath
+    ? path.join(path.dirname(process.execPath), 'resources', 'installer-license.dat')
+    : null
+].filter(Boolean)
 const WINDOWS_SHUTDOWN_PATH = path.join(
   process.env.SystemRoot || 'C:\\Windows',
   'System32',
@@ -712,6 +724,61 @@ app.whenReady().then(() => {
   // Warm-up static cache ngay khi app khởi động
   // → khi user vào Dashboard, CPU/GPU info đã sẵn, không cần fetch lại
   getStaticInfo().catch(() => {})
+
+  // ---------------------------------------------------------
+  // [INSTALLER LICENSE MIGRATION]
+  // If user entered key during NSIS setup, installer-license.dat written by
+  // license-check.ps1 exists. Migrate to canonical vault here so app boots
+  // pre-activated and ActivationModal is skipped.
+  // ---------------------------------------------------------
+  ;(async () => {
+    try {
+      const alreadyStored = licenseStore.get()
+      if (alreadyStored?.keyCode) return
+
+      for (const candidate of INSTALLER_LICENSE_CANDIDATES) {
+        if (!fs.existsSync(candidate)) continue
+        try {
+          const raw = fs.readFileSync(candidate, 'utf-8')
+          if (!raw || raw.trim().length < 10) continue
+          const parsed = JSON.parse(raw)
+          if (!parsed || !parsed.valid || !parsed.keyCode) continue
+          const hwid = await getHardwareHash()
+          if (parsed.deviceHash && parsed.deviceHash !== hwid) {
+            console.warn('[LICENSE-MIGRATE] Installer marker HWID mismatch — skip.')
+            continue
+          }
+          const saved = licenseStore.save(
+            parsed.keyCode,
+            parsed.deviceHash || hwid,
+            parsed.expiresAt || null
+          )
+          if (parsed.accessToken || parsed.refreshToken) {
+            licenseStore.saveTokens({
+              accessToken: parsed.accessToken,
+              refreshToken: parsed.refreshToken
+            })
+          }
+          console.log(
+            '[LICENSE-MIGRATE] OK — migrated key',
+            maskLicenseKey(saved.keyCode),
+            'from installer marker'
+          )
+          // Cleanup installer markers after migration to avoid re-migrate
+          try {
+            fs.unlinkSync(candidate)
+          } catch {
+            // ignore locked file
+          }
+          break
+        } catch (innerErr) {
+          console.warn('[LICENSE-MIGRATE] candidate failed:', candidate, innerErr.message)
+        }
+      }
+    } catch (err) {
+      console.warn('[LICENSE-MIGRATE] outer failure:', err.message)
+    }
+  })()
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
