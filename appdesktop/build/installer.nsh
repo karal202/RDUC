@@ -5,12 +5,12 @@
 !include "LogicLib.nsh"
 !include "WinCore.nsh"
 !include "WinVer.nsh"
-!include "System.nsh"
 
 Var LicenseKeyInput
 Var LicenseKey
 Var ValidationResult
 Var HwIdTemp
+Var ComCtlLoadedOk
 
 !macro customInstall
 !macroend
@@ -23,9 +23,17 @@ Var HwIdTemp
   ; === STEP 0.5: Force ComCtl32 v6 manifest activation context for visual styles ===
   ; Fixes "không hỗ trợ visual styles" on elevated tokens / Win11 builds where Themes service
   ; hasn't hooked side-by-side manifest yet for plugin DLLs (nsDialogs requires ComCtl32 v6).
+  ; NOTE: "System" plug-in ships as binary inside NSIS Plugins dir, it has no .nsh header.
+  ;       We call it directly (plug-in syntax) and gracefully skip if plug-in missing on old NSIS.
+  StrCpy $ComCtlLoadedOk "0"
   InitPluginsDir
-  System::Call "kernel32::LoadLibrary(t 'comctl32.dll')"
-  System::Call "uxtheme::SetWindowTheme(i $HWNDPARENT, t 'DarkMode_Explorer', t '')"
+  System::Call "kernel32::LoadLibrary(t 'comctl32.dll') i .s"
+  Pop $0
+  ${If} $0 != 0
+    StrCpy $ComCtlLoadedOk "1"
+    ; Try apply dark-mode visual theme (ignore errors — if uxtheme not hooked, user still gets light themed OK)
+    System::Call "uxtheme::SetWindowTheme(i $HWNDPARENT, t 'DarkMode_Explorer', t '')"
+  ${EndIf}
 
   ValidateAgain:
 
