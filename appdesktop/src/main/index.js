@@ -1751,81 +1751,92 @@ app.whenReady().then(() => {
           'LICENSE',
           'No valid local license — checking installer registry fallback...'
         )
+        let licenseKeyFromInstaller = null
         try {
           const { execSync } = require('child_process')
-          const regQuery = execSync('reg query "HKCU\\Software\\DAWA Optimizer" /v LicenseKey', {
-            encoding: 'utf8'
-          })
-          if (regQuery) {
-            const match = regQuery.match(/LicenseKey\s+REG_SZ\s+(.+)/)
-            if (match && match[1]) {
-              let licenseKeyFromInstaller = match[1].trim()
-              launchLog(
-                'info',
-                'LICENSE',
-                `Installer registry key read: length=${licenseKeyFromInstaller.length}`
+          const hives = ['HKCU', 'HKLM']
+          for (const hive of hives) {
+            try {
+              const regQuery = execSync(
+                `reg query "${hive}\\Software\\DAWA Optimizer" /v LicenseKey`,
+                { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
               )
-              if (
-                /^[A-Za-z0-9+/=]{16,}$/.test(licenseKeyFromInstaller) &&
-                !licenseKeyFromInstaller.includes('-')
-              ) {
-                try {
-                  const decoded = Buffer.from(licenseKeyFromInstaller, 'base64').toString('utf16le')
-                  const clean = decoded.replace(/\0/g, '').trim()
-                  if (clean && clean.length >= 8) {
-                    licenseKeyFromInstaller = clean
-                    launchLog('info', 'LICENSE', 'Installer key: Base64-UTF16LE decoded OK')
+              if (regQuery) {
+                const match = regQuery.match(/LicenseKey\s+REG_SZ\s+(.+)/)
+                if (match && match[1]) {
+                  let rawKey = match[1].trim()
+                  launchLog(
+                    'info',
+                    'LICENSE',
+                    `Installer registry key read from ${hive}: length=${rawKey.length}`
+                  )
+                  if (/^[A-Za-z0-9+/=]{16,}$/.test(rawKey) && !rawKey.includes('-')) {
+                    try {
+                      const decoded = Buffer.from(rawKey, 'base64').toString('utf16le')
+                      const clean = decoded.replace(/\0/g, '').trim()
+                      if (clean && clean.length >= 8) {
+                        rawKey = clean
+                        launchLog('info', 'LICENSE', 'Installer key: Base64-UTF16LE decoded OK')
+                      }
+                    } catch (e) {
+                      launchLog('warn', 'LICENSE', `Installer key B64 decode failed: ${e.message}`)
+                    }
                   }
-                } catch (e) {
-                  launchLog('warn', 'LICENSE', `Installer key B64 decode failed: ${e.message}`)
+                  try {
+                    execSync(
+                      `reg delete "${hive}\\Software\\DAWA Optimizer" /v LicenseKey /f 2>NUL`,
+                      { stdio: 'ignore' }
+                    )
+                    launchLog(
+                      'info',
+                      'LICENSE',
+                      `Installer registry key wiped (${hive}, one-time read)`
+                    )
+                  } catch {
+                    launchLog('warn', 'LICENSE', `Could not wipe installer registry key (${hive})`)
+                  }
+                  licenseKeyFromInstaller = rawKey
+                  break
                 }
               }
-              try {
-                execSync('reg delete "HKCU\\Software\\DAWA Optimizer" /v LicenseKey /f 2>NUL', {
-                  stdio: 'ignore'
-                })
-                launchLog('info', 'LICENSE', 'Installer registry key wiped (one-time read)')
-              } catch {
-                launchLog('warn', 'LICENSE', 'Could not wipe installer registry key')
-              }
-              launchLog('info', 'LICENSE', 'Validating installer key against backend...')
-              const activation = await validateWithBackend(
-                licenseKeyFromInstaller,
-                currentDeviceHash
-              )
+            } catch (hiveErr) {
               launchLog(
-                'info',
+                'debug',
                 'LICENSE',
-                `Backend activation result: success=${activation.success} valid=${activation.valid}`
+                `Installer registry read skipped for ${hive}: ${hiveErr.message}`
               )
-              if (activation.success && activation.valid) {
-                licenseStore.save(
-                  normalizeLicenseKey(licenseKeyFromInstaller) || licenseKeyFromInstaller,
-                  currentDeviceHash,
-                  activation.data?.expires_at
-                )
-                licenseStore.saveTokens({
-                  accessToken: activation.accessToken,
-                  refreshToken: activation.refreshToken
-                })
-                const tokens = licenseStore.getTokens()
-                if (tokens) startLicensePolling(licenseStore, tokens)
-                launchLog(
-                  'info',
-                  'LICENSE',
-                  'Installer-key activation succeeded — opening MAIN window'
-                )
-                createWindow()
-                return
-              }
-            } else {
-              launchLog('warn', 'LICENSE', 'Registry query returned but no LicenseKey regex match')
             }
-          } else {
-            launchLog('info', 'LICENSE', 'Registry query returned empty')
+          }
+          if (!licenseKeyFromInstaller) {
+            launchLog('warn', 'LICENSE', 'No LicenseKey found in either HKCU or HKLM hives')
           }
         } catch (err) {
           launchLog('warn', 'LICENSE', `Installer registry read failed: ${err.message}`)
+        }
+        if (licenseKeyFromInstaller) {
+          launchLog('info', 'LICENSE', 'Validating installer key against backend...')
+          const activation = await validateWithBackend(licenseKeyFromInstaller, currentDeviceHash)
+          launchLog(
+            'info',
+            'LICENSE',
+            `Backend activation result: success=${activation.success} valid=${activation.valid}`
+          )
+          if (activation.success && activation.valid) {
+            licenseStore.save(
+              normalizeLicenseKey(licenseKeyFromInstaller) || licenseKeyFromInstaller,
+              currentDeviceHash,
+              activation.data?.expires_at
+            )
+            licenseStore.saveTokens({
+              accessToken: activation.accessToken,
+              refreshToken: activation.refreshToken
+            })
+            const tokens = licenseStore.getTokens()
+            if (tokens) startLicensePolling(licenseStore, tokens)
+            launchLog('info', 'LICENSE', 'Installer-key activation succeeded — opening MAIN window')
+            createWindow()
+            return
+          }
         }
         launchLog('info', 'LICENSE', 'Falling back — opening LICENSE window')
         createLicenseWindow()
