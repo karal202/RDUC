@@ -222,5 +222,45 @@ export async function getDesktopFeaturePolicy(accessToken) {
     headers: { Authorization: `Bearer ${accessToken}` }
   })
   if (!response.ok) throw new Error(`Feature policy request failed (${response.status})`)
-  return response.json()
+  const raw = await response.json()
+  let arr = []
+  let map = {}
+  if (Array.isArray(raw)) arr = raw
+  else if (raw && typeof raw === 'object') {
+    if (Array.isArray(raw.data)) arr = raw.data
+    else if (Array.isArray(raw.features)) arr = raw.features
+    else if (raw.features && typeof raw.features === 'object' && !Array.isArray(raw.features)) {
+      map = raw.features
+      arr = Object.keys(raw.features).map((k) => ({ feature_key: k, ...raw.features[k] }))
+    }
+    if (
+      arr.length === 0 &&
+      !raw.features &&
+      raw.data &&
+      typeof raw.data === 'object' &&
+      !Array.isArray(raw.data)
+    ) {
+      map = raw.data
+      arr = Object.keys(raw.data).map((k) => ({ feature_key: k, ...raw.data[k] }))
+    }
+  }
+  if (!map || Object.keys(map).length === 0) {
+    for (const f of arr) {
+      const key = f?.feature_key || f?.key || f?.id
+      if (key) map[key] = f
+    }
+  }
+  return {
+    raw,
+    list: arr,
+    map,
+    find(fn) {
+      if (Array.isArray(arr) && typeof arr.find === 'function') return arr.find(fn)
+      for (const k of Object.keys(map)) if (fn(map[k], k, map)) return map[k]
+      return undefined
+    },
+    get(key) {
+      return map[key] || arr.find((f) => (f?.feature_key || f?.key || f?.id) === key)
+    }
+  }
 }
