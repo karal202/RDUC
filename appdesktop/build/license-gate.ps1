@@ -1,4 +1,4 @@
-﻿Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 [System.Windows.Forms.Application]::EnableVisualStyles()
 
@@ -186,9 +186,12 @@ function Show-LicenseGate {
     })
 
     $null = $form.ShowDialog()
+    $resultFile = Join-Path $PSScriptRoot "gate-result.txt"
     if ($script:finalResult -eq "OK") {
+        try { Set-Content -Path $resultFile -Value ("OK|" + $script:validatedKey) -Encoding ASCII -Force } catch {}
         Write-Output ("OK|" + $script:validatedKey)
     } else {
+        try { Set-Content -Path $resultFile -Value "CANCEL" -Encoding ASCII -Force } catch {}
         Write-Output "CANCEL"
     }
 }
