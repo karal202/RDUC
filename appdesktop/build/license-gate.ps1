@@ -2,6 +2,13 @@ param(
   [string]$LogFile = ""
 )
 
+# --- Self-Unblock (extra defense anti MOTW ZoneId=3 — run BEFORE any other statement)
+try {
+  if ($MyInvocation -and $MyInvocation.MyCommand -and $MyInvocation.MyCommand.Path) {
+    Unblock-File -LiteralPath $MyInvocation.MyCommand.Path -ErrorAction SilentlyContinue
+  }
+} catch {}
+
 # Force UTF-8 output for logging (NSIS ExecWait runs in UTF-8 safe mode now)
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
