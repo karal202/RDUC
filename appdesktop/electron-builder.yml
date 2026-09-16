@@ -44,6 +44,13 @@ nsis:
   warningsAsErrors: false
   allowElevation: true
   perMachine: false
+  unicode: true
+  differentialPackage: false
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  # Enable native NSIS /LOG flag → installer also writes its native log to INSTDIR next to exe (failsafe even if custom log fails)
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
 publish:
   - provider: github
     owner: karal202
