@@ -1,11 +1,10 @@
 ; ---------------------------------------------------------
-; DAWA Optimizer — License Activation NSIS Custom Page
+; DAWA Optimizer - License Activation NSIS Custom Page
 ; Electron-builder 26 uses its own MUI2 script chain; we
 ; MUST NOT insert !insertmacro MUI_PAGE_WELCOME or duplicate
 ; page macros. We only add our custom page + hooks via the
 ; "include" file mechanism (nsis.include in electron-builder.yml).
 ; ---------------------------------------------------------
-
 !include nsDialogs.nsh
 !include LogicLib.nsh
 !include WinCore.nsh
@@ -51,10 +50,9 @@ Function AppendLog
   ${NSD_GetText} $LogText $1
   StrCmp $1 "" +2
     StrCpy $1 "$1$\r$\n"
-  ; Build timestamp without GetTime — use simple counter + marker
+  ; Build timestamp
   System::Call 'kernel32::GetLocalTime(i .R2)'
   System::Call '*$R2(&i2 .R3, &i2 .R4, &i2 .R5, &i2 .R6, &i2 .R7, &i2 .R8, &i2 .R9)'
-  ; Pad numbers to 2 digits
   IntFmt $3 "%02i" $R6
   IntFmt $4 "%02i" $R7
   IntFmt $5 "%02i" $R8
@@ -94,12 +92,12 @@ Function FakeProgress
 FunctionEnd
 
 ; ---------------------------------------------------------
-; Verify button click handler — THE CORE
+; Verify button click handler - THE CORE
 ; ---------------------------------------------------------
 Function OnVerifyClick
   ${NSD_GetText} $LicenseEdit $R0
   ${If} $R0 == ""
-    Push '●  Vui lòng nhập mã bản quyền'
+    Push '*  Vui long nhap ma ban quyen'
     Push 0xFCA5A5
     Call SetPillStatus
     Push '[ERR] Empty license key rejected'
@@ -109,12 +107,10 @@ Function OnVerifyClick
 
   EnableWindow $VerifyBtn 0
   EnableWindow $LicenseEdit 0
-
-  Push '●  Đang xác thực với máy chủ DAWA...'
+  Push '*  Dang xac thuc voi may chu DAWA...'
   Push 0xFBBF24
   Call SetPillStatus
 
-  ; Engineering fake step stream (user profile preference)
   Push '[HWID] Querying Win32_ComputerSystemProduct (UUID)...'
   Call AppendLog
   Push 10
@@ -127,7 +123,7 @@ Function OnVerifyClick
   Call AppendLog
   Push 32
   Call FakeProgress
-  Push '[NET ]  Negotiate TLS 1.2 → ServerHello...'
+  Push '[NET ]  Negotiate TLS 1.2 -> ServerHello...'
   Call AppendLog
   Push 46
   Call FakeProgress
@@ -140,24 +136,25 @@ Function OnVerifyClick
   StrCpy $R4 "$R3.log"
   Delete $R3
 
-  ; Resolve $PLUGINSDIR path (created in .onInit by our copy script)
+  ; Build PowerShell command (safe quoting)
   StrCpy $PowerShellCmd '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe"'
-  StrCpy $PowerShellCmd "$PowerShellCmd -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass"
-  StrCpy $PowerShellCmd "$PowerShellCmd -File `"$PLUGINSDIR\license-check.ps1`""
-  StrCpy $PowerShellCmd "$PowerShellCmd -LicenseKey `"$R0`""
-  StrCpy $PowerShellCmd "$PowerShellCmd -BackendUrl `"$BackendUrlText`""
-  StrCpy $PowerShellCmd "$PowerShellCmd -OutputFile `"$R2`""
-  StrCpy $PowerShellCmd "$PowerShellCmd *> `"$R4`""
+  StrCpy $PowerShellCmd '$PowerShellCmd -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass'
+  StrCpy $PowerShellCmd '$PowerShellCmd -File "$PLUGINSDIR\license-check.ps1"'
+  StrCpy $PowerShellCmd '$PowerShellCmd -LicenseKey "$R0"'
+  StrCpy $PowerShellCmd '$PowerShellCmd -BackendUrl "$BackendUrlText"'
+  StrCpy $PowerShellCmd '$PowerShellCmd -OutputFile "$R2"'
+  StrCpy $PowerShellCmd '$PowerShellCmd *> "$R4"'
 
-  Push '[NET ]  POST /api/license/validate (Content-Length ≈ 1.2 KB)...'
+  Push '[NET ]  POST /api/license/validate (Content-Length ~ 1.2 KB)...'
   Call AppendLog
   Push 58
   Call FakeProgress
 
-  ; Execute PowerShell verifier synchronously (hide window)
+  ; Execute PowerShell verifier
   nsExec::ExecToLog $PowerShellCmd
   Pop $R5
-  Push '[NET ]  Response received — validating JSON...'
+
+  Push '[NET ]  Response received - validating JSON...'
   Call AppendLog
   Push 74
   Call FakeProgress
@@ -170,27 +167,23 @@ Function OnVerifyClick
     FileClose $0
     Goto fileReadDone
 fileMissing:
-    StrCpy $R6 '{"success":false,"valid":false,"message":"Không đọc được file kết quả từ PowerShell verifier.","isOffline":true}'
+    StrCpy $R6 '{"success":false,"valid":false,"message":"Khong doc duoc file ket qua tu PowerShell verifier.","isOffline":true}'
 fileReadDone:
-  Push '[PIPE] JSON payload captured to memory — parsing field map...'
+
+  Push '[PIPE] JSON payload captured to memory - parsing field map...'
   Call AppendLog
   Push 88
   Call FakeProgress
 
-  ; Simple manual JSON extraction for 3 fields (no JSON plugin needed):
-  ;   "valid"   : true/false → assign $IsLicenseValid
-  ;   "success" : true/false → confirm backend 200
-  ;   "message" : "..."      → pill error text
-  ;   "keyCode" from input (PowerShell writes same back)
-  ; Strategy: find quoted key by index search + scan for true|false|str
-  StrCpy $R7 $R6         ; json source
+  ; Simple manual JSON extraction
+  StrCpy $R7 $R6
   StrLen $R8 $R7
-  StrCpy $R9 "0"         ; $IsLicenseValid accumulator
-  StrCpy $R10 "0"        ; success accumulator
-  StrCpy $R11 ""         ; message accumulator
-  StrCpy $R12 0          ; cursor index
+  StrCpy $R9 "0"
+  StrCpy $R10 "0"
+  StrCpy $R11 ""
+  StrCpy $R12 "0"
   StrCpy $R13 $R8
-  IntOp $R13 $R13 - 8    ; min tail length for field scanning
+  IntOp $R13 $R13 - 8
 
 fieldLoop:
   IntCmp $R12 $R13 fieldScanDone
@@ -298,6 +291,7 @@ msgBackslash:
   StrCmp $R15 't' msgWriteT
   StrCmp $R15 '"' msgWriteQ
   StrCmp $R15 '\' msgWriteB
+  ; unknown escape
   StrCpy $R11 "$R11\$R15"
   IntOp $R12 $R12 + 1
   Goto msgReadLoop
@@ -333,19 +327,16 @@ fieldScanDone:
   ${If} $IsLicenseValid == "1"
     StrCpy $HasActivatedOnce "1"
     StrCpy $ValidatedKey $R0
-
-    Push '[ OK ] ✅ Backend returned: valid = true, hwid match ok'
+    Push '[ OK ] Backend returned: valid = true, hwid match ok'
     Call AppendLog
-    Push '[FS]  Write marker → %AppData%\Dawa Optimizer\installer-license.dat'
+    Push '[FS]  Write marker -> %AppData%\Dawa Optimizer\installer-license.dat'
     Call AppendLog
 
-    ; --- Write marker locations ---
     SetShellVarContext current
     CreateDirectory "$APPDATA\Dawa Optimizer"
     FileOpen $0 "$APPDATA\Dawa Optimizer\installer-license.dat" w
     FileWrite $0 $R6
     FileClose $0
-
     SetShellVarContext all
     CreateDirectory "$PROGRAMDATA\Dawa Optimizer"
     FileOpen $0 "$PROGRAMDATA\Dawa Optimizer\installer-license.dat" w
@@ -353,9 +344,8 @@ fieldScanDone:
     FileClose $0
     SetShellVarContext current
 
-    Push '[REG ]  HKCU\\Software\\Dawa Optimizer → InstallerActivated=1 + LicenseKeyInstaller (masked)'
+    Push '[REG ]  HKCU\Software\Dawa Optimizer -> InstallerActivated=1'
     Call AppendLog
-
     WriteRegStr HKCU "Software\Dawa Optimizer" "InstallerActivated" "1"
     WriteRegStr HKLM "Software\Dawa Optimizer" "InstallerActivated" "1"
     ${If} $ValidatedKey != ""
@@ -363,14 +353,14 @@ fieldScanDone:
       WriteRegStr HKLM "Software\Dawa Optimizer" "LicenseKeyInstaller" $ValidatedKey
     ${EndIf}
 
-    Push '●  Đã kích hoạt ✔  Tiếp tục để giải nén ứng dụng...'
+    Push '*  Da kich hoat - Tiep tuc de giai nen ung dung...'
     Push 0x34D399
     Call SetPillStatus
-    Push '[DONE] License gate passed — you may now click Next.'
+    Push '[DONE] License gate passed - you may now click Next.'
     Call AppendLog
   ${Else}
     StrCpy $HasActivatedOnce "0"
-    Push '[FAIL] ❌ validation failed. Backend refused this key.'
+    Push '[FAIL] validation failed. Backend refused this key.'
     Call AppendLog
     StrCmp $R11 "" showMsgDefault
       Push '[MSG ] '
@@ -379,17 +369,16 @@ fieldScanDone:
       Call AppendLog
       Goto showMsgDone
     showMsgDefault:
-      Push '[MSG ] Sai mã / Hết hạn / Quá giới hạn thiết bị. Vui lòng kiểm tra lại.'
+      Push '[MSG ] Sai ma / Het han / Qua gioi han thiet bi. Vui long kiem tra lai.'
       Call AppendLog
     showMsgDone:
-    Push '●  Xác thực thất bại — hãy kiểm tra lại key'
+    Push '*  Xac thuc that bai - hay kiem tra lai key'
     Push 0xFCA5A5
     Call SetPillStatus
   ${EndIf}
 
   EnableWindow $LicenseEdit 1
   EnableWindow $VerifyBtn 1
-
   Delete "$R2"
   Delete "$R4"
 FunctionEnd
@@ -399,57 +388,55 @@ FunctionEnd
 ; ---------------------------------------------------------
 Function CreateActivationPage
   StrCpy $BackendUrlText "${DAWA_BACKEND_URL}"
-
   nsDialogs::Create 1018
   Pop $ActivationDialog
-
   ${If} $ActivationDialog == error
     Abort
   ${EndIf}
 
-  ; ---------- Brand banner ----------
-  ${NSD_CreateLabel} 0 0 100% 18u "🔐  KÍCH HOẠT BẢN QUYỀN — DAWA OPTIMIZER"
+  ; Brand banner
+  ${NSD_CreateLabel} 0 0 100% 18u "[LOCK]  KICH HOAT BAN QUYEN - DAWA OPTIMIZER"
   Pop $0
   CreateFont $R9 "$(^Font)" 10 700
   SendMessage $0 ${WM_SETFONT} $R9 0
   SetCtlColors $0 0xF8FAFC 0x0D1117
 
-  ${NSD_CreateLabel} 0 24u 100% 24u "Để tiếp tục giải nén ứng dụng vào ổ cứng, vui lòng nhập mã bản quyền bạn đã nhận trong đơn hàng. Máy tính sẽ được tự động gắn với key này (HWID binding)."
+  ${NSD_CreateLabel} 0 24u 100% 24u "De tiep tuc giai nen ung dung vao o cung, vui long nhap ma ban quyen ban da nhan trong don hang. May tinh se duoc tu dong gan voi key nay (HWID binding)."
   Pop $0
   SetCtlColors $0 0xA0AEC0 0x0D1117
 
-  ; ---------- Key input ----------
-  ${NSD_CreateLabel} 0 58u 100% 12u "Mã bản quyền:"
+  ; Key input
+  ${NSD_CreateLabel} 0 58u 100% 12u "Ma ban quyen:"
   Pop $0
   SetCtlColors $0 0xF8FAFC 0x0D1117
-  CreateFont $RCode "$(^Font)" 9 700
-  SendMessage $0 ${WM_SETFONT} $RCode 0
+  CreateFont $9 "$(^Font)" 9 700
+  SendMessage $0 ${WM_SETFONT} $9 0
 
   ${NSD_CreateText} 0 72u 100% 20u ""
   Pop $LicenseEdit
-  CreateFont $RMono "Consolas" 10 400
-  SendMessage $LicenseEdit ${WM_SETFONT} $RMono 0
+   CreateFont $8 "Consolas" 10 400
+  SendMessage $LicenseEdit ${WM_SETFONT} $8 0
   SetCtlColors $LicenseEdit 0x000000 0xFFFFFF
 
-  ; ---------- Verify button + status pill ----------
-  ${NSD_CreateButton} 0 100u 130u 20u "🔍  Kiểm tra & Kích hoạt"
+  ; Verify button + status
+  ${NSD_CreateButton} 0 100u 130u 20u "[CHECK]  Kiem tra & Kich hoat"
   Pop $VerifyBtn
   ${NSD_OnClick} $VerifyBtn OnVerifyClick
 
-  ${NSD_CreateLabel} 140u 102u 100% 14u "●  Chưa kích hoạt"
+  ${NSD_CreateLabel} 140u 102u 100% 14u "*  Chua kich hoat"
   Pop $StatusLabel
   SetCtlColors $StatusLabel 0xFCA5A5 0x0D1117
   CreateFont $R7 "$(^Font)" 9 700
   SendMessage $StatusLabel ${WM_SETFONT} $R7 0
 
-  ; ---------- Progress bar ----------
+  ; Progress bar
   ${NSD_CreateProgressBar} 0 128u 100% 8u ""
   Pop $ProgressBar
   SendMessage $ProgressBar ${PBM_SETRANGE32} 0 100
   SendMessage $ProgressBar ${PBM_SETPOS} 0 0
 
-  ; ---------- Tech log console ----------
-  ${NSD_CreateLabel} 0 142u 100% 10u "▸ Console xác thực (real-time):"
+  ; Tech log
+  ${NSD_CreateLabel} 0 142u 100% 10u "> Console xac thuc (real-time):"
   Pop $0
   SetCtlColors $0 0x34D399 0x0D1117
   CreateFont $R6 "Consolas" 8 700
@@ -473,18 +460,17 @@ Function CreateActivationPage
 FunctionEnd
 
 ; ---------------------------------------------------------
-; LEAVE activation page gate (click Next handler)
+; LEAVE activation page gate
 ; ---------------------------------------------------------
 Function LeaveActivationPage
   ${If} $IsLicenseValid == "1"
-    ; Also stash marker into INSTDIR\resources\ for electron to find even if roaming profile is wiped
     CreateDirectory "$INSTDIR\resources"
     SetShellVarContext current
     CopyFiles /SILENT /FILESONLY "$APPDATA\Dawa Optimizer\installer-license.dat" "$INSTDIR\resources\installer-license.dat"
     SetShellVarContext current
     Return
   ${Else}
-    MessageBox MB_ICONSTOP|MB_OKCANCEL|MB_DEFBUTTON2 "Bạn chưa kích hoạt bản quyền.$\n$\nDAWA Optimizer sẽ KHÔNG được giải nén nếu không có mã bản quyền hợp lệ.$\n$\nBấm OK = quay lại để nhập key. Bấm Cancel = Hủy cài đặt." IDCANCEL cancelInstall
+    MessageBox MB_ICONSTOP|MB_OKCANCEL|MB_DEFBUTTON2 "Ban chua kich hoat ban quyen.$\n$\nDAWA Optimizer se KHONG duoc giai nen neu khong co ma ban quyen hop le.$\n$\nBam OK = quay lai de nhap key. Bam Cancel = Huy cai dat." IDCANCEL cancelInstall
       SendMessage $VerifyBtn ${BM_CLICK} 0 0
       Abort
 cancelInstall:
@@ -493,7 +479,7 @@ cancelInstall:
 FunctionEnd
 
 ; ---------------------------------------------------------
-; INIT: Copy PowerShell verifier to $PLUGINSDIR
+; INIT
 ; ---------------------------------------------------------
 Function .onInit
   InitPluginsDir
@@ -504,13 +490,6 @@ Function .onInit
 FunctionEnd
 
 ; ---------------------------------------------------------
-; Register pages. Electron-builder 26's generated MUI2
-; script calls the custom hooks defined here AFTER the
-; Welcome page and BEFORE the Components/Directory page
-; by the include mechanism. Our page order:
-;   1. Welcome  (default, electron-builder)
-;   2. Activation Gate (this one)
-;   3. LicenseAgreement (optional, electron-builder)
-;   4. Directory selection + Components ...
+; Register custom page
 ; ---------------------------------------------------------
-Page custom CreateActivationPage LeaveActivationPage "" "Kích hoạt bản quyền"
+Page custom CreateActivationPage LeaveActivationPage "" "Kich hoat ban quyen"
