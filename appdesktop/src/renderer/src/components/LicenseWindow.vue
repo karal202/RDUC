@@ -700,14 +700,24 @@ const handleActivate = async () => {
 </template>
 
 <style scoped>
+/* ========== Shared activation layout (match ActivationModal) ========== */
 .activation-screen {
   min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: stretch;
   background: #07070a;
   overflow: hidden;
   position: relative;
+}
+
+@media (max-width: 820px) {
+  .activation-screen {
+    grid-template-columns: 1fr;
+  }
+  .activation-art {
+    max-height: 260px;
+  }
 }
 
 .activation-orbs {
@@ -718,20 +728,28 @@ const handleActivate = async () => {
 }
 
 .activation-screen::before {
+  content: '';
+  position: absolute;
   width: 520px;
   height: 520px;
   top: -180px;
   left: -140px;
   background: radial-gradient(circle, rgba(22, 119, 255, 0.65) 0%, rgba(22, 119, 255, 0) 65%);
   animation: orb-float-a 25s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
 }
 .activation-screen::after {
+  content: '';
+  position: absolute;
   width: 620px;
   height: 620px;
   bottom: -240px;
   right: -180px;
   background: radial-gradient(circle, rgba(0, 194, 255, 0.55) 0%, rgba(0, 194, 255, 0) 62%);
   animation: orb-float-b 30s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .activation-fx {
@@ -762,8 +780,6 @@ const handleActivate = async () => {
 
 .activation-art {
   position: relative;
-  grid-column: 1 / -1;
-  grid-row: 1;
   min-width: 0;
   overflow: hidden;
 }
@@ -780,7 +796,12 @@ const handleActivate = async () => {
 .activation-art-scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(15, 23, 42, 0.22) 0%,
+    rgba(2, 6, 23, 0.72) 60%,
+    rgba(0, 0, 0, 0.9) 100%
+  );
 }
 
 .activation-art-copy {
@@ -791,14 +812,14 @@ const handleActivate = async () => {
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 32px;
+  padding: 40px 36px;
   color: #fff;
 }
 
 .activation-logo {
-  width: 80px;
-  height: 80px;
-  margin-bottom: 16px;
+  width: 72px;
+  height: 72px;
+  margin-bottom: 18px;
   filter: drop-shadow(0 8px 24px rgba(22, 119, 255, 0.4));
 }
 
@@ -806,7 +827,7 @@ const handleActivate = async () => {
   font:
     800 32px 'Archivo',
     sans-serif;
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   letter-spacing: -0.02em;
   background: linear-gradient(135deg, #fff 0%, #a5b4fc 100%);
   -webkit-background-clip: text;
@@ -815,24 +836,27 @@ const handleActivate = async () => {
 }
 
 .activation-art-copy p {
-  font-size: 15px;
-  color: rgba(255, 255, 255, 0.75);
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.78);
   margin: 0;
-  line-height: 1.5;
+  line-height: 1.6;
+  max-width: 360px;
 }
 
 .activation-panel {
   position: relative;
-  background: rgba(15, 23, 42, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
-  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.65);
+  border-left: 1px solid rgba(148, 163, 184, 0.14);
+  padding: 44px 40px 40px;
   width: 100%;
-  max-width: 480px;
   z-index: 2;
-  backdrop-filter: blur(20px);
-  box-shadow: 0 32px 64px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px) saturate(1.1);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
   animation: activation-enter 520ms cubic-bezier(0.16, 1, 0.3, 1);
+  overflow-y: auto;
 }
 
 .activation-scanline {
