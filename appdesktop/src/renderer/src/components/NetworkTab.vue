@@ -15,8 +15,12 @@ import {
   Wifi,
   Activity,
   Cpu,
-  Layers
+  Layers,
+  Loader2
 } from 'lucide-vue-next'
+import { useScriptRunner } from '../composables/useScriptRunner'
+
+const { runScript, isActionRunning } = useScriptRunner()
 
 const logOutput = ref('')
 const isRunning = ref(false)
@@ -96,12 +100,12 @@ const NETWORK_REG_OPTIONS = [
 ]
 
 const run = async (scriptKey, description, options = {}) => {
-  if (isRunning.value) return
+  if (isRunning.value || isActionRunning(scriptKey)) return
   isRunning.value = true
   const time = new Date().toLocaleTimeString()
   logOutput.value += `[${time}] [NETWORK] Đang thực thi [${scriptKey}] - ${description}...\n`
   try {
-    const res = await window.api.runDawaScript(scriptKey, options)
+    const res = await runScript(scriptKey, description, options)
     if (res?.success) {
       logOutput.value += `✅ ${res.message}\n`
       if (res.stepResults) {
@@ -211,11 +215,12 @@ const clearLog = () => {
           <button
             type="button"
             class="net-action-btn"
-            :disabled="isRunning"
+            :disabled="isActionRunning(card.key) || isRunning"
             @click="run(card.key, card.title)"
           >
-            <Play :size="14" class="fill-current" />
-            <span>{{ card.btnLabel }}</span>
+            <Loader2 v-if="isActionRunning(card.key)" :size="14" class="spin" />
+            <Play v-else :size="14" class="fill-current" />
+            <span>{{ isActionRunning(card.key) ? 'ĐANG XỬ LÝ...' : card.btnLabel }}</span>
           </button>
         </div>
       </div>
@@ -259,11 +264,12 @@ const clearLog = () => {
           <button
             type="button"
             class="net-reg-btn"
-            :disabled="isRunning"
+            :disabled="isActionRunning('registry-profile') || isRunning"
             @click="applyNetworkReg(reg.value)"
           >
-            <Play :size="12" class="fill-current" />
-            <span>Áp dụng</span>
+            <Loader2 v-if="isActionRunning('registry-profile')" :size="12" class="spin" />
+            <Play v-else :size="12" class="fill-current" />
+            <span>{{ isActionRunning('registry-profile') ? 'ĐANG ÁP DỤNG...' : 'Áp dụng' }}</span>
           </button>
         </div>
       </div>
@@ -283,11 +289,14 @@ const clearLog = () => {
           <button
             type="button"
             class="net-select-btn"
-            :disabled="isRunning"
+            :disabled="isActionRunning('registry-profile') || isRunning"
             @click="applyNetworkReg()"
           >
-            <Play :size="13" class="fill-current" />
-            <span>Áp dụng Registry</span>
+            <Loader2 v-if="isActionRunning('registry-profile')" :size="13" class="spin" />
+            <Play v-else :size="13" class="fill-current" />
+            <span>{{
+              isActionRunning('registry-profile') ? 'ĐANG ÁP DỤNG...' : 'Áp dụng Registry'
+            }}</span>
           </button>
         </div>
       </div>
@@ -865,5 +874,18 @@ const clearLog = () => {
   .net-core-grid {
     grid-template-columns: 1fr;
   }
+}
+
+@keyframes rotate-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: rotate-spin 1s linear infinite;
 }
 </style>

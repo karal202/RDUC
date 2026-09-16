@@ -176,8 +176,7 @@ onMounted(() => {
 }
 
 .input-group label {
-  font:
-    600 13px var(--font-sans);
+  font: 600 13px var(--font-sans);
   color: #cbd5e1;
 }
 
@@ -188,8 +187,7 @@ onMounted(() => {
   border: 1px solid rgba(148, 163, 184, 0.3);
   background: rgba(15, 23, 42, 0.6);
   color: #f1f5f9;
-  font:
-    500 14px var(--font-mono);
+  font: 500 14px var(--font-mono);
   outline: none;
   transition: all 0.25s ease;
 }

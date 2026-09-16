@@ -14,8 +14,12 @@ import {
   Info,
   HardDrive,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Loader2
 } from 'lucide-vue-next'
+import { useScriptRunner } from '../composables/useScriptRunner'
+
+const { runScript, isActionRunning } = useScriptRunner()
 
 const logOutput = ref('')
 const isRunning = ref(false)
@@ -40,12 +44,12 @@ const RESTORE_SCRIPT_OPTIONS = [
 ]
 
 const run = async (scriptKey, description, options = {}) => {
-  if (isRunning.value) return
+  if (isRunning.value || isActionRunning(scriptKey)) return
   isRunning.value = true
   const time = new Date().toLocaleTimeString()
   logOutput.value += `[${time}] [RESTORE] Đang thực thi [${scriptKey}] - ${description}...\n`
   try {
-    const res = await window.api.runDawaScript(scriptKey, options)
+    const res = await runScript(scriptKey, description, options)
     if (res?.success) {
       logOutput.value += `✅ ${res.message}\n`
       if (res.stepResults) {
@@ -104,8 +108,12 @@ const toggleExtremeDrivers = async () => {
 }
 
 const toggleExtremeGamerServices = async () => {
-  const key = extremeGamerServicesEnabled.value ? 'disable-extreme-gamer-services' : 'enable-extreme-gamer-services'
-  const desc = extremeGamerServicesEnabled.value ? 'Disable Extreme Gamer Services' : 'Enable Extreme Gamer Services'
+  const key = extremeGamerServicesEnabled.value
+    ? 'disable-extreme-gamer-services'
+    : 'enable-extreme-gamer-services'
+  const desc = extremeGamerServicesEnabled.value
+    ? 'Disable Extreme Gamer Services'
+    : 'Enable Extreme Gamer Services'
   await run(key, desc)
   if (logOutput.value.includes('✅')) {
     extremeGamerServicesEnabled.value = !extremeGamerServicesEnabled.value
@@ -175,19 +183,42 @@ const toggleExtremeGamerServices = async () => {
             </div>
             <div class="restore-toggle-info">
               <h3 class="restore-toggle-title">Extreme Drivers</h3>
-              <p class="restore-toggle-desc">Bật/Tắt Tcpip6, Beep, NdisVirtualBus, NetBIOS drivers</p>
+              <p class="restore-toggle-desc">
+                Bật/Tắt Tcpip6, Beep, NdisVirtualBus, NetBIOS drivers
+              </p>
             </div>
           </div>
           <button
             type="button"
             class="restore-toggle-btn"
             :class="{ active: extremeDriversEnabled }"
-            :disabled="isRunning"
+            :disabled="
+              isActionRunning('enable-extreme-drivers') ||
+              isActionRunning('disable-extreme-drivers') ||
+              isRunning
+            "
             @click="toggleExtremeDrivers"
           >
-            <ToggleLeft v-if="!extremeDriversEnabled" :size="18" />
-            <ToggleRight v-else :size="18" />
-            <span>{{ extremeDriversEnabled ? 'Đã bật' : 'Đã tắt' }}</span>
+            <Loader2
+              v-if="
+                isActionRunning('enable-extreme-drivers') ||
+                isActionRunning('disable-extreme-drivers')
+              "
+              :size="18"
+              class="spin"
+            />
+            <template v-else>
+              <ToggleLeft v-if="!extremeDriversEnabled" :size="18" />
+              <ToggleRight v-else :size="18" />
+            </template>
+            <span>{{
+              isActionRunning('enable-extreme-drivers') ||
+              isActionRunning('disable-extreme-drivers')
+                ? 'ĐANG XỬ LÝ...'
+                : extremeDriversEnabled
+                  ? 'Đã bật'
+                  : 'Đã tắt'
+            }}</span>
           </button>
         </div>
 
@@ -199,19 +230,42 @@ const toggleExtremeGamerServices = async () => {
             </div>
             <div class="restore-toggle-info">
               <h3 class="restore-toggle-title">Extreme Gamer Services</h3>
-              <p class="restore-toggle-desc">Bật/Tắt 100+ services cho game thủ (Xbox, Defender, Bluetooth...)</p>
+              <p class="restore-toggle-desc">
+                Bật/Tắt 100+ services cho game thủ (Xbox, Defender, Bluetooth...)
+              </p>
             </div>
           </div>
           <button
             type="button"
             class="restore-toggle-btn"
             :class="{ active: extremeGamerServicesEnabled }"
-            :disabled="isRunning"
+            :disabled="
+              isActionRunning('enable-extreme-gamer-services') ||
+              isActionRunning('disable-extreme-gamer-services') ||
+              isRunning
+            "
             @click="toggleExtremeGamerServices"
           >
-            <ToggleLeft v-if="!extremeGamerServicesEnabled" :size="18" />
-            <ToggleRight v-else :size="18" />
-            <span>{{ extremeGamerServicesEnabled ? 'Đã bật' : 'Đã tắt' }}</span>
+            <Loader2
+              v-if="
+                isActionRunning('enable-extreme-gamer-services') ||
+                isActionRunning('disable-extreme-gamer-services')
+              "
+              :size="18"
+              class="spin"
+            />
+            <template v-else>
+              <ToggleLeft v-if="!extremeGamerServicesEnabled" :size="18" />
+              <ToggleRight v-else :size="18" />
+            </template>
+            <span>{{
+              isActionRunning('enable-extreme-gamer-services') ||
+              isActionRunning('disable-extreme-gamer-services')
+                ? 'ĐANG XỬ LÝ...'
+                : extremeGamerServicesEnabled
+                  ? 'Đã bật'
+                  : 'Đã tắt'
+            }}</span>
           </button>
         </div>
       </div>
@@ -256,11 +310,14 @@ const toggleExtremeGamerServices = async () => {
           <button
             type="button"
             class="restore-action-btn"
-            :disabled="isRunning"
+            :disabled="isActionRunning('registry-profile') || isRunning"
             @click="runProfile('restore-gamer-services', 'Khôi phục dịch vụ Game thủ')"
           >
-            <Play :size="14" class="fill-current" />
-            <span>Khôi phục Dịch vụ Game</span>
+            <Loader2 v-if="isActionRunning('registry-profile')" :size="14" class="spin" />
+            <Play v-else :size="14" class="fill-current" />
+            <span>{{
+              isActionRunning('registry-profile') ? 'ĐANG KHÔI PHỤC...' : 'Khôi phục Dịch vụ Game'
+            }}</span>
           </button>
         </div>
 
@@ -291,11 +348,14 @@ const toggleExtremeGamerServices = async () => {
           <button
             type="button"
             class="restore-action-btn"
-            :disabled="isRunning"
+            :disabled="isActionRunning('registry-profile') || isRunning"
             @click="runProfile('restore-professional-services', 'Khôi phục dịch vụ Chuyên nghiệp')"
           >
-            <Play :size="14" class="fill-current" />
-            <span>Khôi phục Dịch vụ Office</span>
+            <Loader2 v-if="isActionRunning('registry-profile')" :size="14" class="spin" />
+            <Play v-else :size="14" class="fill-current" />
+            <span>{{
+              isActionRunning('registry-profile') ? 'ĐANG KHÔI PHỤC...' : 'Khôi phục Dịch vụ Office'
+            }}</span>
           </button>
         </div>
 
@@ -325,11 +385,14 @@ const toggleExtremeGamerServices = async () => {
           <button
             type="button"
             class="restore-action-btn"
-            :disabled="isRunning"
+            :disabled="isActionRunning('ram-optimization') || isRunning"
             @click="resetRamConfig"
           >
-            <Play :size="14" class="fill-current" />
-            <span>Khôi phục Cấu Hình RAM</span>
+            <Loader2 v-if="isActionRunning('ram-optimization')" :size="14" class="spin" />
+            <Play v-else :size="14" class="fill-current" />
+            <span>{{
+              isActionRunning('ram-optimization') ? 'ĐANG KHÔI PHỤC...' : 'Khôi phục Cấu Hình RAM'
+            }}</span>
           </button>
         </div>
       </div>
@@ -353,11 +416,12 @@ const toggleExtremeGamerServices = async () => {
           <button
             type="button"
             class="restore-select-btn"
-            :disabled="isRunning"
+            :disabled="isActionRunning('registry-profile') || isRunning"
             @click="applyRestoreScript"
           >
-            <Play :size="13" class="fill-current" />
-            <span>Chạy Script</span>
+            <Loader2 v-if="isActionRunning('registry-profile')" :size="13" class="spin" />
+            <Play v-else :size="13" class="fill-current" />
+            <span>{{ isActionRunning('registry-profile') ? 'ĐANG CHẠY...' : 'Chạy Script' }}</span>
           </button>
         </div>
       </div>
@@ -725,8 +789,7 @@ const toggleExtremeGamerServices = async () => {
   border: 1px solid rgba(148, 163, 184, 0.3);
   background: rgba(15, 23, 42, 0.6);
   color: #94a3b8;
-  font:
-    600 12px var(--font-sans);
+  font: 600 12px var(--font-sans);
   cursor: pointer;
   transition: all 0.25s ease;
   flex-shrink: 0;
@@ -1100,5 +1163,18 @@ const toggleExtremeGamerServices = async () => {
   .restore-tips-grid {
     grid-template-columns: 1fr;
   }
+}
+
+@keyframes rotate-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: rotate-spin 1s linear infinite;
 }
 </style>

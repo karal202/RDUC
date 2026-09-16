@@ -4,6 +4,7 @@ import { useSocket } from './composables/useSocket'
 import ActivationModal from './components/ActivationModal.vue'
 import UpdateModal from './components/UpdateModal.vue'
 import RocketLaunch from './components/RocketLaunch.vue'
+import ScriptProgressOverlay from './components/ScriptProgressOverlay.vue'
 import BannerCarousel from './components/BannerCarousel.vue'
 import DashboardTab from './components/DashboardTab.vue'
 import DawaTab from './components/DawaTab.vue'
@@ -417,5 +418,8 @@ onUnmounted(() => {
       :version-info="latestVersionInfo"
       @close="showUpdateModal = false"
     />
+
+    <!-- Global Script Progress Overlay -->
+    <ScriptProgressOverlay />
   </template>
 </template>

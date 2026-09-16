@@ -487,12 +487,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
         WINDOWS_COMMANDS.reg,
         [
           'import',
-          join(
-            SCRIPT_DIRECTORY,
-            'Optimizer',
-            '3. Windows Settings',
-            'Disable Hibernation - Copy.reg'
-          )
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Hibernation.reg')
         ]
       ],
       [WINDOWS_COMMANDS.powercfg, ['/h', 'on']]
@@ -899,6 +894,360 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
             'Extreme Reg',
             'Restore',
             'Disable Services For Professionals Restore.reg'
+          )
+        ]
+      ]
+    ]
+  },
+  'enable-extreme-professional-services': {
+    description: 'Enable Extreme Reg Services For Professionals',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(
+            SCRIPT_DIRECTORY,
+            'Tool&cache',
+            'Extreme Reg',
+            'Enable Services For Professionals.reg'
+          )
+        ]
+      ]
+    ]
+  },
+  'win-disable-maintenance': {
+    description: 'Tắt Automatic Maintenance',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(
+            SCRIPT_DIRECTORY,
+            'Optimizer',
+            '3. Windows Settings',
+            'Disable Automatic Maintenance.reg'
+          )
+        ]
+      ]
+    ]
+  },
+  'win-enable-maintenance': {
+    description: 'Bật Automatic Maintenance',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(
+            SCRIPT_DIRECTORY,
+            'Optimizer',
+            '3. Windows Settings',
+            'Enable Automatic Maintenance.reg'
+          )
+        ]
+      ]
+    ]
+  },
+  'win-disable-cpu-throttling': {
+    description: 'Tắt CPU Power Throttling',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Disable CpuPwrThrottling.reg')
+        ]
+      ]
+    ]
+  },
+  'win-enable-cpu-throttling': {
+    description: 'Bật CPU Power Throttling',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable CpuPwrThrottling.reg')
+        ]
+      ]
+    ]
+  },
+  'win-disable-timer-coalescing': {
+    description: 'Tắt Timer Coalescing',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(
+            SCRIPT_DIRECTORY,
+            'Optimizer',
+            '3. Windows Settings',
+            'Disable CoalescingTimerInterval.reg'
+          )
+        ]
+      ]
+    ]
+  },
+  'win-enable-timer-coalescing': {
+    description: 'Bật Timer Coalescing',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(
+            SCRIPT_DIRECTORY,
+            'Optimizer',
+            '3. Windows Settings',
+            'Enable CoalescingTimerInterval.reg'
+          )
+        ]
+      ]
+    ]
+  },
+  'win-disable-driver-updates': {
+    description: 'Tắt Driver Updates',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Disable Drivers Updates.reg')
+        ]
+      ]
+    ]
+  },
+  'win-enable-driver-updates': {
+    description: 'Bật Driver Updates',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Drivers Updates.reg')
+        ]
+      ]
+    ]
+  },
+  'win-disable-extra-services': {
+    description: 'Tắt Extra Unnecessary Services',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(
+            SCRIPT_DIRECTORY,
+            'Optimizer',
+            '3. Windows Settings',
+            'Disable Extra Unnecessary Services.reg'
+          )
+        ]
+      ]
+    ]
+  },
+  'win-enable-extra-services': {
+    description: 'Bật Extra Unnecessary Services',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(
+            SCRIPT_DIRECTORY,
+            'Optimizer',
+            '3. Windows Settings',
+            'Enable Extra Unnecessary Services.reg'
+          )
+        ]
+      ]
+    ]
+  },
+  'win-disable-memory-mirroring': {
+    description: 'Tắt Memory Mirroring',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Disable MemoryMirroring.reg')
+        ]
+      ]
+    ]
+  },
+  'win-enable-memory-mirroring': {
+    description: 'Bật Memory Mirroring',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable MemoryMirroring.reg')
+        ]
+      ]
+    ]
+  },
+  'win-disable-network-throttling': {
+    description: 'Tắt Network Throttling',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(
+            SCRIPT_DIRECTORY,
+            'Optimizer',
+            '3. Windows Settings',
+            'Disable NetworkThrottling.reg'
+          )
+        ]
+      ]
+    ]
+  },
+  'win-enable-network-throttling': {
+    description: 'Bật Network Throttling',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable NetworkThrottling.reg')
+        ]
+      ]
+    ]
+  },
+  'win-disable-runtime-broker': {
+    description: 'Tắt Runtime Broker',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Disable Runtime Broker.reg')
+        ]
+      ]
+    ]
+  },
+  'win-enable-runtime-broker': {
+    description: 'Bật Runtime Broker',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Runtime Broker.reg')
+        ]
+      ]
+    ]
+  },
+  'win-disable-spectre-meltdown': {
+    description: 'Tắt Spectre & Meltdown Mitigations',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(
+            SCRIPT_DIRECTORY,
+            'Optimizer',
+            '3. Windows Settings',
+            'Disable Spectre and Meltdown.reg'
+          )
+        ]
+      ]
+    ]
+  },
+  'win-enable-spectre-meltdown': {
+    description: 'Bật Spectre & Meltdown Mitigations',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(
+            SCRIPT_DIRECTORY,
+            'Optimizer',
+            '3. Windows Settings',
+            'Enable Spectre and Meltdown.reg'
+          )
+        ]
+      ]
+    ]
+  },
+  'win-disable-sync': {
+    description: 'Tắt Windows Sync',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        ['import', join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Disable Sync.reg')]
+      ]
+    ]
+  },
+  'win-enable-sync': {
+    description: 'Bật Windows Sync',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        ['import', join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Sync.reg')]
+      ]
+    ]
+  },
+  'win-disable-windows-apps': {
+    description: 'Tắt Windows Apps Auto-Install',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Disable Windows Apps.reg')
+        ]
+      ]
+    ]
+  },
+  'win-enable-windows-apps': {
+    description: 'Bật Windows Apps Auto-Install',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Windows Apps.reg')
+        ]
+      ]
+    ]
+  },
+  'win-disable-notifications': {
+    description: 'Tắt Notification Center',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(
+            SCRIPT_DIRECTORY,
+            'Optimizer',
+            '3. Windows Settings',
+            'Disable NotificationCenter.reg'
+          )
+        ]
+      ]
+    ]
+  },
+  'win-enable-notifications': {
+    description: 'Bật Notification Center',
+    commands: [
+      [
+        WINDOWS_COMMANDS.reg,
+        [
+          'import',
+          join(
+            SCRIPT_DIRECTORY,
+            'Optimizer',
+            '3. Windows Settings',
+            'Enable NotificationCenter.reg'
           )
         ]
       ]

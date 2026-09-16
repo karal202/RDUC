@@ -145,7 +145,7 @@ const startMonitoring = () => {
   timer = setInterval(fetchStats, 30000)
   // Increase live uptime update from 1s to 5s to reduce CPU usage from frequent re-renders
   liveTimer = setInterval(() => {
-    liveUptime.value += 5  // Add 5 seconds since we update every 5s
+    liveUptime.value += 5 // Add 5 seconds since we update every 5s
   }, 5000)
 }
 

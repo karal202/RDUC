@@ -1,6 +1,9 @@
 <script setup>
 import { ref } from 'vue'
-import { AlertTriangle, HardDrive, Play, ShieldCheck } from 'lucide-vue-next'
+import { AlertTriangle, HardDrive, Play, ShieldCheck, Loader2 } from 'lucide-vue-next'
+import { useScriptRunner } from '../composables/useScriptRunner'
+
+const { runScript, isActionRunning } = useScriptRunner()
 
 const showConfirmModal = ref(false)
 const isExecuting = ref(false)
@@ -11,7 +14,7 @@ const handleRunNTFS = async () => {
   statusMessage.value = 'Đang kích hoạt script NTFS...'
 
   try {
-    const res = await window.api.runDawaScript('ntfs-bat')
+    const res = await runScript('ntfs-bat', 'Kích hoạt script NTFS')
     statusMessage.value = res.success ? '✅ ' + res.message : '❌ ' + res.message
   } catch (err) {
     statusMessage.value = '❌ Lỗi: ' + (err.message || 'Không thể thực thi file NTFS.bat')
@@ -65,12 +68,21 @@ const handleRunNTFS = async () => {
           </p>
           <button
             class="btn-primary"
-            style="margin-top: 16px; padding: 12px 20px"
-            :disabled="isExecuting"
+            style="
+              margin-top: 16px;
+              padding: 12px 20px;
+              display: inline-flex;
+              align-items: center;
+              gap: 8px;
+            "
+            :disabled="isActionRunning('ntfs-bat') || isExecuting"
             @click="showConfirmModal = true"
           >
-            <Play :size="15" :stroke-width="2" />
-            <span>CHẠY SCRIPT NTFS</span>
+            <Loader2 v-if="isActionRunning('ntfs-bat')" :size="15" class="spin" />
+            <Play v-else :size="15" :stroke-width="2" />
+            <span>{{
+              isActionRunning('ntfs-bat') ? 'ĐANG KÍCH HOẠT...' : 'CHẠY SCRIPT NTFS'
+            }}</span>
           </button>
         </div>
       </div>
@@ -114,14 +126,37 @@ const handleRunNTFS = async () => {
           </button>
           <button
             class="btn-primary"
-            style="flex: 1; padding: 12px"
-            :disabled="isExecuting"
+            style="
+              flex: 1;
+              padding: 12px;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              gap: 8px;
+            "
+            :disabled="isActionRunning('ntfs-bat') || isExecuting"
             @click="handleRunNTFS"
           >
-            XÁC NHẬN CHẠY
+            <Loader2 v-if="isActionRunning('ntfs-bat')" :size="14" class="spin" />
+            <span>{{ isActionRunning('ntfs-bat') ? 'ĐANG XỬ LÝ...' : 'XÁC NHẬN CHẠY' }}</span>
           </button>
         </div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+@keyframes rotate-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: rotate-spin 1s linear infinite;
+}
+</style>

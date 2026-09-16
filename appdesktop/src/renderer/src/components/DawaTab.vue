@@ -17,8 +17,12 @@ import {
   Cpu,
   Flame,
   Check,
-  Activity
+  Activity,
+  Loader2
 } from 'lucide-vue-next'
+import { useScriptRunner } from '../composables/useScriptRunner'
+
+const { runScript, isActionRunning, state: runnerState } = useScriptRunner()
 
 const logOutput = ref('')
 const isRunning = ref(false)
@@ -290,22 +294,20 @@ const PRIVACY_TWEAKS = Object.freeze([
 
 const switchStates = reactive(
   Object.fromEntries(
-    [
-      ...TWEAK_SWITCHES,
-      ...ADVANCED_TWEAKS,
-      ...SYSTEM_TWEAKS,
-      ...PRIVACY_TWEAKS
-    ].map((s) => [s.id, false])
+    [...TWEAK_SWITCHES, ...ADVANCED_TWEAKS, ...SYSTEM_TWEAKS, ...PRIVACY_TWEAKS].map((s) => [
+      s.id,
+      false
+    ])
   )
 )
 
 const runDawaScript = async (scriptKey, description, options = {}) => {
-  if (isRunning.value) return
+  if (isRunning.value || runnerState.status === 'running') return
   isRunning.value = true
   const time = new Date().toLocaleTimeString()
   logOutput.value += `[${time}] [DAWA OPTIMIZE] Đang thực thi [${scriptKey}] - ${description}...\n`
   try {
-    const res = await window.api.runDawaScript(scriptKey, options)
+    const res = await runScript(scriptKey, description, options)
     if (res?.success) {
       logOutput.value += `✅ ${res.message}\n`
       if (res.stepResults) {
@@ -318,6 +320,7 @@ const runDawaScript = async (scriptKey, description, options = {}) => {
     } else {
       logOutput.value += `❌ ${res?.message || 'Thực thi thất bại'}\n`
     }
+    return res
   } catch (err) {
     logOutput.value += `❌ Lỗi: ${err.message || err}\n`
   } finally {
@@ -326,7 +329,7 @@ const runDawaScript = async (scriptKey, description, options = {}) => {
 }
 
 const toggleWinSwitch = async (tweak) => {
-  if (tweak.unavailable || isRunning.value) return
+  if (tweak.unavailable || isRunning.value || runnerState.status === 'running') return
   const next = !switchStates[tweak.id]
   const action = next ? tweak.onAction : tweak.offAction
   const verb = next ? 'Bật' : 'Tắt'
@@ -334,7 +337,7 @@ const toggleWinSwitch = async (tweak) => {
   logOutput.value += `[${time}] [WINDOWS TWEAK] ${verb} [${tweak.label}]...\n`
   isRunning.value = true
   try {
-    const res = await window.api.runDawaScript(action)
+    const res = await runScript(action, `${verb} ${tweak.label}`)
     if (res?.success) {
       switchStates[tweak.id] = next
       logOutput.value += `✅ ${verb} [${tweak.label}] thành công.\n`
@@ -362,6 +365,11 @@ const applyPowerPlan = (val) => {
   runDawaScript('power-plan', opt?.label || selectedPowerPlan.value, {
     profile: selectedPowerPlan.value
   })
+}
+
+const isTweakRunning = (tweak) => {
+  if (!tweak?.onAction || !tweak?.offAction) return false
+  return isActionRunning(tweak.onAction) || isActionRunning(tweak.offAction)
 }
 
 const copyLog = async () => {
@@ -446,11 +454,12 @@ const clearLog = () => {
           <button
             type="button"
             class="opt-action-btn"
-            :disabled="isRunning"
+            :disabled="isActionRunning(card.key) || isRunning"
             @click="runDawaScript(card.key, card.title)"
           >
-            <Play :size="14" class="fill-current" />
-            <span>{{ card.btnLabel }}</span>
+            <Loader2 v-if="isActionRunning(card.key)" :size="14" class="spin fill-current" />
+            <Play v-else :size="14" class="fill-current" />
+            <span>{{ isActionRunning(card.key) ? 'Đang xử lý...' : card.btnLabel }}</span>
           </button>
         </div>
       </div>
@@ -505,12 +514,14 @@ const clearLog = () => {
               v-else
               type="button"
               class="cyber-switch"
-              :class="{ on: switchStates[tw.id] }"
-              :disabled="isRunning"
+              :class="{ on: switchStates[tw.id], loading: isTweakRunning(tw) }"
+              :disabled="isTweakRunning(tw) || isRunning"
               :aria-label="tw.label"
               @click="toggleWinSwitch(tw)"
             >
-              <span class="cyber-switch-thumb" />
+              <span class="cyber-switch-thumb">
+                <Loader2 v-if="isTweakRunning(tw)" :size="10" class="spin text-slate-900" />
+              </span>
             </button>
           </div>
         </div>
@@ -528,9 +539,7 @@ const clearLog = () => {
           <h2 class="opt-card-title">Tinh Chỉnh CPU Nâng Cao</h2>
           <span class="opt-count-pill">{{ ADVANCED_TWEAKS.length }} Toggles</span>
         </div>
-        <p class="opt-card-sub">
-          Kiểm soát xung nhịp, timer coalescing và driver updates
-        </p>
+        <p class="opt-card-sub">Kiểm soát xung nhịp, timer coalescing và driver updates</p>
       </div>
 
       <div class="opt-switch-grid">
@@ -560,12 +569,14 @@ const clearLog = () => {
             <button
               type="button"
               class="cyber-switch"
-              :class="{ on: switchStates[tw.id] }"
-              :disabled="isRunning"
+              :class="{ on: switchStates[tw.id], loading: isTweakRunning(tw) }"
+              :disabled="isTweakRunning(tw) || isRunning"
               :aria-label="tw.label"
               @click="toggleWinSwitch(tw)"
             >
-              <span class="cyber-switch-thumb" />
+              <span class="cyber-switch-thumb">
+                <Loader2 v-if="isTweakRunning(tw)" :size="10" class="spin text-slate-900" />
+              </span>
             </button>
           </div>
         </div>
@@ -583,9 +594,7 @@ const clearLog = () => {
           <h2 class="opt-card-title">Tinh Chỉnh Hệ Thống</h2>
           <span class="opt-count-pill">{{ SYSTEM_TWEAKS.length }} Toggles</span>
         </div>
-        <p class="opt-card-sub">
-          Memory, network, runtime broker và security mitigations
-        </p>
+        <p class="opt-card-sub">Memory, network, runtime broker và security mitigations</p>
       </div>
 
       <div class="opt-switch-grid">
@@ -615,12 +624,14 @@ const clearLog = () => {
             <button
               type="button"
               class="cyber-switch"
-              :class="{ on: switchStates[tw.id] }"
-              :disabled="isRunning"
+              :class="{ on: switchStates[tw.id], loading: isTweakRunning(tw) }"
+              :disabled="isTweakRunning(tw) || isRunning"
               :aria-label="tw.label"
               @click="toggleWinSwitch(tw)"
             >
-              <span class="cyber-switch-thumb" />
+              <span class="cyber-switch-thumb">
+                <Loader2 v-if="isTweakRunning(tw)" :size="10" class="spin text-slate-900" />
+              </span>
             </button>
           </div>
         </div>
@@ -638,9 +649,7 @@ const clearLog = () => {
           <h2 class="opt-card-title">Tinh Chỉnh Quyền Riêng Tư</h2>
           <span class="opt-count-pill">{{ PRIVACY_TWEAKS.length }} Toggles</span>
         </div>
-        <p class="opt-card-sub">
-          Windows sync và tự động cài đặt applications
-        </p>
+        <p class="opt-card-sub">Windows sync và tự động cài đặt applications</p>
       </div>
 
       <div class="opt-switch-grid">
@@ -670,12 +679,14 @@ const clearLog = () => {
             <button
               type="button"
               class="cyber-switch"
-              :class="{ on: switchStates[tw.id] }"
-              :disabled="isRunning"
+              :class="{ on: switchStates[tw.id], loading: isTweakRunning(tw) }"
+              :disabled="isTweakRunning(tw) || isRunning"
               :aria-label="tw.label"
               @click="toggleWinSwitch(tw)"
             >
-              <span class="cyber-switch-thumb" />
+              <span class="cyber-switch-thumb">
+                <Loader2 v-if="isTweakRunning(tw)" :size="10" class="spin text-slate-900" />
+              </span>
             </button>
           </div>
         </div>
@@ -750,11 +761,16 @@ const clearLog = () => {
               type="button"
               class="opt-apply-btn"
               style="--c: #a855f7"
-              :disabled="isRunning"
+              :disabled="isActionRunning('win32-priority') || isRunning"
               @click="applyWin32Priority()"
             >
-              <Play :size="13" class="fill-current" />
-              <span>Áp dụng</span>
+              <Loader2
+                v-if="isActionRunning('win32-priority')"
+                :size="13"
+                class="spin fill-current"
+              />
+              <Play v-else :size="13" class="fill-current" />
+              <span>{{ isActionRunning('win32-priority') ? 'Đang áp dụng...' : 'Áp dụng' }}</span>
             </button>
           </div>
         </div>
@@ -812,11 +828,12 @@ const clearLog = () => {
               type="button"
               class="opt-apply-btn"
               style="--c: #00c2ff"
-              :disabled="isRunning"
+              :disabled="isActionRunning('power-plan') || isRunning"
               @click="applyPowerPlan()"
             >
-              <Play :size="13" class="fill-current" />
-              <span>Kích hoạt</span>
+              <Loader2 v-if="isActionRunning('power-plan')" :size="13" class="spin fill-current" />
+              <Play v-else :size="13" class="fill-current" />
+              <span>{{ isActionRunning('power-plan') ? 'Đang kích hoạt...' : 'Kích hoạt' }}</span>
             </button>
           </div>
         </div>
@@ -1550,6 +1567,30 @@ const clearLog = () => {
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+@keyframes rotate-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: rotate-spin 0.9s linear infinite;
+}
+
+.cyber-switch.loading {
+  cursor: progress;
+  opacity: 0.75;
+}
+
+.cyber-switch .cyber-switch-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 @media (max-width: 1024px) {

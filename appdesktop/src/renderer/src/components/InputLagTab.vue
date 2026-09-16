@@ -14,8 +14,12 @@ import {
   Layers,
   Sparkles,
   Activity,
-  Cpu
+  Cpu,
+  Loader2
 } from 'lucide-vue-next'
+import { useScriptRunner } from '../composables/useScriptRunner'
+
+const { runScript, isActionRunning, state: runnerState } = useScriptRunner()
 
 const logOutput = ref('')
 const isRunning = ref(false)
@@ -157,12 +161,12 @@ const INPUT_TWEAK_OPTIONS = [
 ]
 
 const run = async (scriptKey, description, options = {}) => {
-  if (isRunning.value) return
+  if (isRunning.value || runnerState.status === 'running') return
   isRunning.value = true
   const time = new Date().toLocaleTimeString()
   logOutput.value += `[${time}] [INPUT LAG] Đang thực thi [${scriptKey}] - ${description}...\n`
   try {
-    const res = await window.api.runDawaScript(scriptKey, options)
+    const res = await runScript(scriptKey, description, options)
     if (res?.success) {
       logOutput.value += `✅ ${res.message}\n`
     } else {
@@ -275,11 +279,20 @@ const clearLog = () => {
           <button
             type="button"
             class="input-action-btn"
-            :disabled="isRunning"
+            :disabled="isActionRunning('mouse-disable-acceleration') || isRunning"
             @click="run('mouse-disable-acceleration', 'Tắt gia tốc chuột gaming')"
           >
-            <Play :size="13" class="fill-current" />
-            <span>Kích hoạt Mouse Fix</span>
+            <Loader2
+              v-if="isActionRunning('mouse-disable-acceleration')"
+              :size="13"
+              class="spin fill-current"
+            />
+            <Play v-else :size="13" class="fill-current" />
+            <span>{{
+              isActionRunning('mouse-disable-acceleration')
+                ? 'Đang xử lý...'
+                : 'Kích hoạt Mouse Fix'
+            }}</span>
           </button>
         </div>
 
@@ -300,11 +313,18 @@ const clearLog = () => {
           <button
             type="button"
             class="input-action-btn"
-            :disabled="isRunning"
+            :disabled="isActionRunning('keyboard-zero-delay') || isRunning"
             @click="run('keyboard-zero-delay', 'Low Latency Graphics & Phím')"
           >
-            <Play :size="13" class="fill-current" />
-            <span>Áp dụng Zero Delay</span>
+            <Loader2
+              v-if="isActionRunning('keyboard-zero-delay')"
+              :size="13"
+              class="spin fill-current"
+            />
+            <Play v-else :size="13" class="fill-current" />
+            <span>{{
+              isActionRunning('keyboard-zero-delay') ? 'Đang xử lý...' : 'Áp dụng Zero Delay'
+            }}</span>
           </button>
         </div>
 
@@ -325,11 +345,18 @@ const clearLog = () => {
           <button
             type="button"
             class="input-action-btn"
-            :disabled="isRunning"
+            :disabled="isActionRunning('registry-profile') || isRunning"
             @click="runProfile('input-low-latency', 'Low Latency Tweak')"
           >
-            <Play :size="13" class="fill-current" />
-            <span>Áp dụng Low Latency</span>
+            <Loader2
+              v-if="isActionRunning('registry-profile')"
+              :size="13"
+              class="spin fill-current"
+            />
+            <Play v-else :size="13" class="fill-current" />
+            <span>{{
+              isActionRunning('registry-profile') ? 'Đang xử lý...' : 'Áp dụng Low Latency'
+            }}</span>
           </button>
         </div>
       </div>
@@ -375,11 +402,18 @@ const clearLog = () => {
             type="button"
             class="input-apply-btn"
             style="--c: #a78bfa"
-            :disabled="isRunning"
+            :disabled="isActionRunning('registry-profile') || isRunning"
             @click="applyMouseQueue()"
           >
-            <Play :size="13" class="fill-current" />
-            <span>Áp dụng Mouse Queue</span>
+            <Loader2
+              v-if="isActionRunning('registry-profile')"
+              :size="13"
+              class="spin fill-current"
+            />
+            <Play v-else :size="13" class="fill-current" />
+            <span>{{
+              isActionRunning('registry-profile') ? 'Đang áp dụng...' : 'Áp dụng Mouse Queue'
+            }}</span>
           </button>
         </div>
       </section>
@@ -422,11 +456,18 @@ const clearLog = () => {
             type="button"
             class="input-apply-btn"
             style="--c: #60a5fa"
-            :disabled="isRunning"
+            :disabled="isActionRunning('registry-profile') || isRunning"
             @click="applyKeyQueue()"
           >
-            <Play :size="13" class="fill-current" />
-            <span>Áp dụng Key Queue</span>
+            <Loader2
+              v-if="isActionRunning('registry-profile')"
+              :size="13"
+              class="spin fill-current"
+            />
+            <Play v-else :size="13" class="fill-current" />
+            <span>{{
+              isActionRunning('registry-profile') ? 'Đang áp dụng...' : 'Áp dụng Key Queue'
+            }}</span>
           </button>
         </div>
       </section>
@@ -470,11 +511,16 @@ const clearLog = () => {
           <button
             type="button"
             class="input-tweak-btn"
-            :disabled="isRunning"
+            :disabled="isActionRunning('registry-profile') || isRunning"
             @click="applyInputTweak(tw.value)"
           >
-            <Play :size="12" class="fill-current" />
-            <span>Áp dụng</span>
+            <Loader2
+              v-if="isActionRunning('registry-profile')"
+              :size="12"
+              class="spin fill-current"
+            />
+            <Play v-else :size="12" class="fill-current" />
+            <span>{{ isActionRunning('registry-profile') ? 'Đang áp dụng...' : 'Áp dụng' }}</span>
           </button>
         </div>
       </div>
@@ -1048,6 +1094,18 @@ const clearLog = () => {
     opacity: 1;
     transform: scale(1.2);
   }
+}
+
+@keyframes rotate-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin {
+  animation: rotate-spin 0.9s linear infinite;
 }
 
 .input-console-actions {

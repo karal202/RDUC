@@ -12,15 +12,18 @@ import {
   Monitor,
   RotateCcw,
   Briefcase,
-  Search,
   Check,
   Copy,
   Terminal,
   HardDrive,
   Sparkles,
   Layers,
-  Layers2
+  Layers2,
+  Loader2
 } from 'lucide-vue-next'
+import { useScriptRunner } from '../composables/useScriptRunner'
+
+const { runScript, isActionRunning } = useScriptRunner()
 
 const activeCategory = ref('all')
 const searchQuery = ref('')
@@ -31,6 +34,7 @@ const copied = ref(false)
 const ramProfile = ref('16')
 const ramProfiles = ['2', '3', '4', '6', '8', '10', '12', '16', '20', '24', '32', '48', '64']
 
+/* eslint-disable no-unused-vars */
 const CATEGORIES = [
   { key: 'cleanup', label: 'Bảo Trì & RAM', icon: Trash2, accent: '#06b6d4' },
   { key: 'nvidia', label: 'NVIDIA GPU', icon: Monitor, accent: '#76b900' },
@@ -38,6 +42,7 @@ const CATEGORIES = [
   { key: 'cpu', label: 'CPU & Tiến Trình', icon: Bolt, accent: '#3b82f6' },
   { key: 'system', label: 'Hệ Thống & Services', icon: SlidersHorizontal, accent: '#f59e0b' }
 ]
+/* eslint-enable no-unused-vars */
 
 const tools = [
   {
@@ -399,6 +404,7 @@ const tools = [
   }
 ]
 
+/* eslint-disable no-unused-vars */
 const filteredTools = computed(() => {
   return tools.filter((tool) => {
     const matchCat = activeCategory.value === 'all' || tool.category === activeCategory.value
@@ -411,15 +417,16 @@ const filteredTools = computed(() => {
     return matchCat && matchSearch
   })
 })
+/* eslint-enable no-unused-vars */
 
 const handleExecuteTool = async (tool) => {
-  if (!tool.action || runningToolKey.value) return
+  if (!tool.action || runningToolKey.value || isActionRunning(tool.action)) return
   runningToolKey.value = tool.key
   const time = new Date().toLocaleTimeString()
   cleanLog.value += `[${time}] [TOOLS] Đang thực thi [${tool.label}]...\n`
   try {
     const options = tool.action === 'ram-optimization' ? { profile: ramProfile.value } : {}
-    const res = await window.api.runDawaScript(tool.action, options)
+    const res = await runScript(tool.action, tool.label, options)
     cleanLog.value += res?.success ? `✅ ${res.message}\n` : `❌ ${res?.message || 'Thất bại'}\n`
   } catch (err) {
     cleanLog.value += `❌ Lỗi: ${err.message || err}\n`
@@ -429,12 +436,12 @@ const handleExecuteTool = async (tool) => {
 }
 
 const handleRunCacheClean = async () => {
-  if (isCleaning.value) return
+  if (isCleaning.value || isActionRunning('dawa-cleaner')) return
   isCleaning.value = true
   const time = new Date().toLocaleTimeString()
   cleanLog.value += `[${time}] [CACHE CLEANER] Đang quét và dọn dẹp các thư mục đệm hệ thống (Temp, Prefetch)...\n`
   try {
-    const res = await window.api.runDawaScript('dawa-cleaner')
+    const res = await runScript('dawa-cleaner', 'Dọn dẹp Cache hệ thống')
     if (res?.success) {
       cleanLog.value += `✅ ${res.message}\n`
       if (res.stepResults) {
@@ -527,11 +534,14 @@ const clearLog = () => {
       <button
         type="button"
         class="tools-hero-btn"
-        :disabled="isCleaning"
+        :disabled="isCleaning || isActionRunning('dawa-cleaner')"
         @click="handleRunCacheClean"
       >
-        <Sparkles :size="16" class="fill-current" />
-        <span>{{ isCleaning ? 'Đang dọn dẹp...' : 'Dọn dẹp Cache ngay' }}</span>
+        <Loader2 v-if="isCleaning || isActionRunning('dawa-cleaner')" :size="16" class="spin" />
+        <Sparkles v-else :size="16" class="fill-current" />
+        <span>{{
+          isCleaning || isActionRunning('dawa-cleaner') ? 'Đang dọn dẹp...' : 'Dọn dẹp Cache ngay'
+        }}</span>
       </button>
     </section>
 
@@ -547,11 +557,13 @@ const clearLog = () => {
             <h3 class="tools-cat-title">Bảo Trì & RAM</h3>
             <p class="tools-cat-desc">Dọn dẹp cache, tối ưu bộ nhớ RAM</p>
           </div>
-          <span class="tools-cat-count">{{ tools.filter(t => t.category === 'cleanup').length }} Tools</span>
+          <span class="tools-cat-count"
+            >{{ tools.filter((t) => t.category === 'cleanup').length }} Tools</span
+          >
         </div>
         <div class="tools-cat-grid">
           <div
-            v-for="tool in tools.filter(t => t.category === 'cleanup')"
+            v-for="tool in tools.filter((t) => t.category === 'cleanup')"
             :key="tool.key"
             class="tool-card"
             :style="{ '--c': tool.accent }"
@@ -580,11 +592,20 @@ const clearLog = () => {
                 v-if="tool.action"
                 type="button"
                 class="tool-act-btn"
-                :disabled="runningToolKey === tool.key"
+                :disabled="runningToolKey === tool.key || isActionRunning(tool.action)"
                 @click="handleExecuteTool(tool)"
               >
-                <Play :size="11" class="fill-current" />
-                <span>{{ runningToolKey === tool.key ? 'Đang mở...' : tool.actionLabel }}</span>
+                <Loader2
+                  v-if="runningToolKey === tool.key || isActionRunning(tool.action)"
+                  :size="11"
+                  class="spin"
+                />
+                <Play v-else :size="11" class="fill-current" />
+                <span>{{
+                  runningToolKey === tool.key || isActionRunning(tool.action)
+                    ? 'Đang xử lý...'
+                    : tool.actionLabel
+                }}</span>
               </button>
               <span v-else class="tool-disabled-label">{{ tool.actionLabel }}</span>
             </div>
@@ -602,11 +623,13 @@ const clearLog = () => {
             <h3 class="tools-cat-title">NVIDIA GPU</h3>
             <p class="tools-cat-desc">Tinh chỉnh driver, profile và power</p>
           </div>
-          <span class="tools-cat-count">{{ tools.filter(t => t.category === 'nvidia').length }} Tools</span>
+          <span class="tools-cat-count"
+            >{{ tools.filter((t) => t.category === 'nvidia').length }} Tools</span
+          >
         </div>
         <div class="tools-cat-grid">
           <div
-            v-for="tool in tools.filter(t => t.category === 'nvidia')"
+            v-for="tool in tools.filter((t) => t.category === 'nvidia')"
             :key="tool.key"
             class="tool-card"
             :style="{ '--c': tool.accent }"
@@ -628,11 +651,20 @@ const clearLog = () => {
                 v-if="tool.action"
                 type="button"
                 class="tool-act-btn"
-                :disabled="runningToolKey === tool.key"
+                :disabled="runningToolKey === tool.key || isActionRunning(tool.action)"
                 @click="handleExecuteTool(tool)"
               >
-                <Play :size="11" class="fill-current" />
-                <span>{{ runningToolKey === tool.key ? 'Đang mở...' : tool.actionLabel }}</span>
+                <Loader2
+                  v-if="runningToolKey === tool.key || isActionRunning(tool.action)"
+                  :size="11"
+                  class="spin"
+                />
+                <Play v-else :size="11" class="fill-current" />
+                <span>{{
+                  runningToolKey === tool.key || isActionRunning(tool.action)
+                    ? 'Đang xử lý...'
+                    : tool.actionLabel
+                }}</span>
               </button>
               <span v-else class="tool-disabled-label">{{ tool.actionLabel }}</span>
             </div>
@@ -650,11 +682,13 @@ const clearLog = () => {
             <h3 class="tools-cat-title">AMD GPU</h3>
             <p class="tools-cat-desc">Ép xung, tinh chỉnh registry và driver</p>
           </div>
-          <span class="tools-cat-count">{{ tools.filter(t => t.category === 'amd').length }} Tools</span>
+          <span class="tools-cat-count"
+            >{{ tools.filter((t) => t.category === 'amd').length }} Tools</span
+          >
         </div>
         <div class="tools-cat-grid">
           <div
-            v-for="tool in tools.filter(t => t.category === 'amd')"
+            v-for="tool in tools.filter((t) => t.category === 'amd')"
             :key="tool.key"
             class="tool-card"
             :style="{ '--c': tool.accent }"
@@ -676,11 +710,20 @@ const clearLog = () => {
                 v-if="tool.action"
                 type="button"
                 class="tool-act-btn"
-                :disabled="runningToolKey === tool.key"
+                :disabled="runningToolKey === tool.key || isActionRunning(tool.action)"
                 @click="handleExecuteTool(tool)"
               >
-                <Play :size="11" class="fill-current" />
-                <span>{{ runningToolKey === tool.key ? 'Đang mở...' : tool.actionLabel }}</span>
+                <Loader2
+                  v-if="runningToolKey === tool.key || isActionRunning(tool.action)"
+                  :size="11"
+                  class="spin"
+                />
+                <Play v-else :size="11" class="fill-current" />
+                <span>{{
+                  runningToolKey === tool.key || isActionRunning(tool.action)
+                    ? 'Đang xử lý...'
+                    : tool.actionLabel
+                }}</span>
               </button>
               <span v-else class="tool-disabled-label">{{ tool.actionLabel }}</span>
             </div>
@@ -698,11 +741,13 @@ const clearLog = () => {
             <h3 class="tools-cat-title">CPU & Tiến Trình</h3>
             <p class="tools-cat-desc">Quản lý xung nhịp, core parking và process</p>
           </div>
-          <span class="tools-cat-count">{{ tools.filter(t => t.category === 'cpu').length }} Tools</span>
+          <span class="tools-cat-count"
+            >{{ tools.filter((t) => t.category === 'cpu').length }} Tools</span
+          >
         </div>
         <div class="tools-cat-grid">
           <div
-            v-for="tool in tools.filter(t => t.category === 'cpu')"
+            v-for="tool in tools.filter((t) => t.category === 'cpu')"
             :key="tool.key"
             class="tool-card"
             :style="{ '--c': tool.accent }"
@@ -724,11 +769,20 @@ const clearLog = () => {
                 v-if="tool.action"
                 type="button"
                 class="tool-act-btn"
-                :disabled="runningToolKey === tool.key"
+                :disabled="runningToolKey === tool.key || isActionRunning(tool.action)"
                 @click="handleExecuteTool(tool)"
               >
-                <Play :size="11" class="fill-current" />
-                <span>{{ runningToolKey === tool.key ? 'Đang mở...' : tool.actionLabel }}</span>
+                <Loader2
+                  v-if="runningToolKey === tool.key || isActionRunning(tool.action)"
+                  :size="11"
+                  class="spin"
+                />
+                <Play v-else :size="11" class="fill-current" />
+                <span>{{
+                  runningToolKey === tool.key || isActionRunning(tool.action)
+                    ? 'Đang xử lý...'
+                    : tool.actionLabel
+                }}</span>
               </button>
               <span v-else class="tool-disabled-label">{{ tool.actionLabel }}</span>
             </div>
@@ -746,11 +800,13 @@ const clearLog = () => {
             <h3 class="tools-cat-title">Hệ Thống & Services</h3>
             <p class="tools-cat-desc">Tinh chỉnh Windows, menu và extreme services</p>
           </div>
-          <span class="tools-cat-count">{{ tools.filter(t => t.category === 'system').length }} Tools</span>
+          <span class="tools-cat-count"
+            >{{ tools.filter((t) => t.category === 'system').length }} Tools</span
+          >
         </div>
         <div class="tools-cat-grid">
           <div
-            v-for="tool in tools.filter(t => t.category === 'system')"
+            v-for="tool in tools.filter((t) => t.category === 'system')"
             :key="tool.key"
             class="tool-card"
             :style="{ '--c': tool.accent }"
@@ -772,11 +828,20 @@ const clearLog = () => {
                 v-if="tool.action"
                 type="button"
                 class="tool-act-btn"
-                :disabled="runningToolKey === tool.key"
+                :disabled="runningToolKey === tool.key || isActionRunning(tool.action)"
                 @click="handleExecuteTool(tool)"
               >
-                <Play :size="11" class="fill-current" />
-                <span>{{ runningToolKey === tool.key ? 'Đang mở...' : tool.actionLabel }}</span>
+                <Loader2
+                  v-if="runningToolKey === tool.key || isActionRunning(tool.action)"
+                  :size="11"
+                  class="spin"
+                />
+                <Play v-else :size="11" class="fill-current" />
+                <span>{{
+                  runningToolKey === tool.key || isActionRunning(tool.action)
+                    ? 'Đang xử lý...'
+                    : tool.actionLabel
+                }}</span>
               </button>
               <span v-else class="tool-disabled-label">{{ tool.actionLabel }}</span>
             </div>
@@ -1066,7 +1131,9 @@ const clearLog = () => {
 }
 
 .tools-cat-title {
-  font: 700 16px/1.2 'Archivo', sans-serif;
+  font:
+    700 16px/1.2 'Archivo',
+    sans-serif;
   color: #ffffff;
   margin: 0 0 4px;
 }
@@ -1144,7 +1211,9 @@ const clearLog = () => {
 }
 
 .tool-card-title {
-  font: 600 14px/1.3 'Archivo', sans-serif;
+  font:
+    600 14px/1.3 'Archivo',
+    sans-serif;
   color: #ffffff;
   margin: 0 0 4px;
 }
@@ -1529,5 +1598,18 @@ const clearLog = () => {
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+@keyframes rotate-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: rotate-spin 1s linear infinite;
 }
 </style>

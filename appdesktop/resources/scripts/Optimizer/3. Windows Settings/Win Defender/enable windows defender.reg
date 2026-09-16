@@ -1,0 +1,33 @@
+Windows Registry Editor Version 5.00
+
+; Made by Savenz
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender]
+"PUAProtection"=dword:00000001
+"DisableRoutinelyTakingAction"=dword:00000000
+"DisableAntiSpyware"=dword:00000000
+"ServiceKeepAlive"=dword:00000001
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\MpEngine]
+"MpEnablePus"=dword:00000001
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Real-Time Protection]
+"DisableIOAVProtection"=dword:00000000
+"DisableRealtimeMonitoring"=dword:00000000
+"DisableBehaviorMonitoring"=dword:00000000
+"DisableOnAccessProtection "=dword:00000000
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard]
+"EnableExploitProtection"=dword:00000001
+"DisableExploitProtection"=dword:00000000
+"EnableExploitGuard"=dword:00000001
+"DisableExploitGuard"=dword:00000000
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender Security Center\App and Browser protection] 
+"DisallowExploitProtectionOverride"=dword:00000001
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Reporting]
+"DisableEnhancedNotifications"=dword:00000000
+
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows Defender\Windows Defender Exploit Guard\Network Protection]
+"EnableNetworkProtection"=dword:00000001
