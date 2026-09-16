@@ -54,13 +54,10 @@ Function AppendLog
   ; Build timestamp without GetTime — use simple counter + marker
   System::Call 'kernel32::GetLocalTime(i .R2)'
   System::Call '*$R2(&i2 .R3, &i2 .R4, &i2 .R5, &i2 .R6, &i2 .R7, &i2 .R8, &i2 .R9)'
-  ; Pad numbers to 2 digits (0..9 → "0x")
-  StrCpy $3 "0$R6"
-  StrCpy $3 $3 2 -2
-  StrCpy $4 "0$R7"
-  StrCpy $4 $4 2 -2
-  StrCpy $5 "0$R8"
-  StrCpy $5 $5 2 -2
+  ; Pad numbers to 2 digits
+  IntFmt $3 "%02i" $R6
+  IntFmt $4 "%02i" $R7
+  IntFmt $5 "%02i" $R8
   StrCpy $2 "[$3:$4:$5]  "
   StrCpy $1 "$1$2$0"
   ${NSD_SetText} $LogText $1
@@ -321,7 +318,7 @@ msgWriteQ:
   IntOp $R12 $R12 + 1
   Goto msgReadLoop
 msgWriteB:
-  StrCpy $R11 `$R11\`
+  StrCpy $R11 "$R11\\"
   IntOp $R12 $R12 + 1
   Goto msgReadLoop
 msgDone:
