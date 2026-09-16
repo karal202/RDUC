@@ -1460,15 +1460,16 @@ app.whenReady().then(() => {
           if (match && match[1]) {
             let licenseKeyFromInstaller = match[1].trim()
 
-            // NSIS installer saves as Base64(UTF-16LE) — detect and decode
+            // NSIS installer saves plain key or Base64(UTF-16LE) — detect and decode
             if (
-              /^[A-Za-z0-9+/=]+$/.test(licenseKeyFromInstaller) &&
-              !licenseKeyFromInstaller.startsWith('DAWA')
+              /^[A-Za-z0-9+/=]{16,}$/.test(licenseKeyFromInstaller) &&
+              !licenseKeyFromInstaller.includes('-')
             ) {
               try {
                 const decoded = Buffer.from(licenseKeyFromInstaller, 'base64').toString('utf16le')
-                if (decoded && decoded.startsWith('DAWA')) {
-                  licenseKeyFromInstaller = decoded.replace(/\0/g, '').trim()
+                const clean = decoded.replace(/\0/g, '').trim()
+                if (clean && clean.length >= 8) {
+                  licenseKeyFromInstaller = clean
                 }
               } catch {
                 void 0

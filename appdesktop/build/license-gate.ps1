@@ -1,0 +1,197 @@
+﻿Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+[System.Windows.Forms.Application]::EnableVisualStyles()
+
+function Show-LicenseGate {
+    $form = New-Object System.Windows.Forms.Form
+    $form.Text = "DAWA Optimizer Setup — Kích Hoạt Bản Quyền"
+    $form.Size = New-Object System.Drawing.Size(480, 270)
+    $form.StartPosition = "CenterScreen"
+    $form.FormBorderStyle = "FixedDialog"
+    $form.MaximizeBox = $false
+    $form.MinimizeBox = $false
+    $form.TopMost = $true
+    $form.BackColor = [System.Drawing.Color]::FromArgb(20, 21, 26)
+    $form.ForeColor = [System.Drawing.Color]::White
+
+    $lblTitle = New-Object System.Windows.Forms.Label
+    $lblTitle.Text = "XÁC THỰC BẢN QUYỀN DAWA OPTIMIZER"
+    $lblTitle.Font = New-Object System.Drawing.Font("Segoe UI", 11, [System.Drawing.FontStyle]::Bold)
+    $lblTitle.ForeColor = [System.Drawing.Color]::FromArgb(0, 194, 255)
+    $lblTitle.Location = New-Object System.Drawing.Point(24, 16)
+    $lblTitle.Size = New-Object System.Drawing.Size(420, 24)
+    $form.Controls.Add($lblTitle)
+
+    $lblDesc = New-Object System.Windows.Forms.Label
+    $lblDesc.Text = "Nhập mã key (12 ký tự, ví dụ: XXXX-XXXX-XXXX) để bắt đầu cài đặt:"
+    $lblDesc.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+    $lblDesc.ForeColor = [System.Drawing.Color]::FromArgb(180, 185, 195)
+    $lblDesc.Location = New-Object System.Drawing.Point(24, 44)
+    $lblDesc.Size = New-Object System.Drawing.Size(420, 20)
+    $form.Controls.Add($lblDesc)
+
+    $txtKey = New-Object System.Windows.Forms.TextBox
+    $txtKey.Font = New-Object System.Drawing.Font("Consolas", 13, [System.Drawing.FontStyle]::Bold)
+    $txtKey.Location = New-Object System.Drawing.Point(24, 72)
+    $txtKey.Size = New-Object System.Drawing.Size(416, 30)
+    $txtKey.TextAlign = "Center"
+    $txtKey.BackColor = [System.Drawing.Color]::FromArgb(30, 32, 40)
+    $txtKey.ForeColor = [System.Drawing.Color]::FromArgb(0, 255, 180)
+    $txtKey.BorderStyle = "FixedSingle"
+    $txtKey.CharacterCasing = "Upper"
+    $txtKey.MaxLength = 24
+    $form.Controls.Add($txtKey)
+
+    $lblStatus = New-Object System.Windows.Forms.Label
+    $lblStatus.Text = ""
+    $lblStatus.Font = New-Object System.Drawing.Font("Segoe UI", 8.5)
+    $lblStatus.ForeColor = [System.Drawing.Color]::FromArgb(255, 80, 80)
+    $lblStatus.Location = New-Object System.Drawing.Point(24, 110)
+    $lblStatus.Size = New-Object System.Drawing.Size(416, 38)
+    $form.Controls.Add($lblStatus)
+
+    $btnOk = New-Object System.Windows.Forms.Button
+    $btnOk.Text = "Tiếp Tục Cài Đặt"
+    $btnOk.Font = New-Object System.Drawing.Font("Segoe UI", 9.5, [System.Drawing.FontStyle]::Bold)
+    $btnOk.Size = New-Object System.Drawing.Size(200, 38)
+    $btnOk.Location = New-Object System.Drawing.Point(24, 160)
+    $btnOk.BackColor = [System.Drawing.Color]::FromArgb(0, 140, 225)
+    $btnOk.ForeColor = [System.Drawing.Color]::White
+    $btnOk.FlatStyle = "Flat"
+    $btnOk.FlatAppearance.BorderSize = 0
+    $btnOk.Cursor = [System.Windows.Forms.Cursors]::Hand
+    $form.Controls.Add($btnOk)
+
+    $btnCancel = New-Object System.Windows.Forms.Button
+    $btnCancel.Text = "Hủy Bỏ"
+    $btnCancel.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+    $btnCancel.Size = New-Object System.Drawing.Size(200, 38)
+    $btnCancel.Location = New-Object System.Drawing.Point(240, 160)
+    $btnCancel.BackColor = [System.Drawing.Color]::FromArgb(45, 48, 56)
+    $btnCancel.ForeColor = [System.Drawing.Color]::FromArgb(180, 185, 195)
+    $btnCancel.FlatStyle = "Flat"
+    $btnCancel.FlatAppearance.BorderSize = 0
+    $btnCancel.Cursor = [System.Windows.Forms.Cursors]::Hand
+    $btnCancel.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+    $form.Controls.Add($btnCancel)
+    $form.CancelButton = $btnCancel
+
+    $script:finalResult = "CANCEL"
+    $script:validatedKey = ""
+
+    $btnCancel.Add_Click({
+        $script:finalResult = "CANCEL"
+        $form.Close()
+    })
+
+    $btnOk.Add_Click({
+        $raw = $txtKey.Text.Trim().ToUpper()
+        if ([string]::IsNullOrWhiteSpace($raw)) {
+            $lblStatus.ForeColor = [System.Drawing.Color]::FromArgb(255, 90, 90)
+            $lblStatus.Text = "Vui lòng nhập mã key bản quyền."
+            $txtKey.Focus()
+            return
+        }
+
+        # Normalize key: uppercase alphanumeric, chunk by 4
+        $clean = ($raw -replace '[^A-Z0-9]', '')
+        if ($clean.Length -lt 8 -or $clean.Length -gt 24) {
+            $lblStatus.ForeColor = [System.Drawing.Color]::FromArgb(255, 90, 90)
+            $lblStatus.Text = "Định dạng key không đúng (12 ký tự, ví dụ: XXXX-XXXX-XXXX)."
+            $txtKey.Focus()
+            return
+        }
+
+        # Auto format chunks if user entered without hyphens
+        $chunks = [regex]::Matches($clean, '.{1,4}') | ForEach-Object { $_.Value }
+        $formattedKey = ($chunks -join '-')
+
+        # Update input display with formatted key
+        $txtKey.Text = $formattedKey
+
+        # Disable UI during check
+        $btnOk.Enabled = $false
+        $btnCancel.Enabled = $false
+        $txtKey.Enabled = $false
+        $lblStatus.ForeColor = [System.Drawing.Color]::FromArgb(0, 194, 255)
+        $lblStatus.Text = "Đang kết nối máy chủ xác thực key..."
+        $form.Refresh()
+
+        # Collect lightweight HWID
+        $uuid = (Get-CimInstance Win32_ComputerSystemProduct -ErrorAction SilentlyContinue | Select-Object -ExpandProperty UUID) -replace '[^A-Z0-9-]',''
+        $cpu = (Get-CimInstance Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty ProcessorId) -replace '[^A-Z0-9]',''
+        $serial = (Get-CimInstance Win32_BIOS -ErrorAction SilentlyContinue | Select-Object -ExpandProperty SerialNumber) -replace '[^A-Z0-9]',''
+        $machine = $env:COMPUTERNAME
+        $hwid = ($uuid + '_' + $cpu + '_' + $serial + '_' + $machine).Trim('_')
+        if ([string]::IsNullOrWhiteSpace($hwid)) { $hwid = "UNKNOWN-HWID" }
+
+        $osInfo = (Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue | ForEach-Object { $_.Caption + ' ' + $_.Version })
+
+        $body = @{
+            key_code = $formattedKey
+            hardware_id = $hwid
+            device_hash = $hwid
+            device_name = $machine
+            os_info = $osInfo
+        } | ConvertTo-Json -Compress
+
+        try {
+            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
+            $resp = Invoke-RestMethod -Uri 'https://rduc.onrender.com/api/license/validate' -Method POST -Body $body -ContentType 'application/json; charset=utf-8' -UseBasicParsing -TimeoutSec 15
+            
+            if ($resp.success -and $resp.valid) {
+                $lblStatus.ForeColor = [System.Drawing.Color]::FromArgb(0, 255, 150)
+                $lblStatus.Text = "Key hợp lệ! Đang chuẩn bị cài đặt..."
+                $form.Refresh()
+                Start-Sleep -Milliseconds 600
+
+                # Save key to registry
+                try {
+                    $regPath = "HKCU:\Software\DAWA Optimizer"
+                    if (-not (Test-Path $regPath)) { New-Item -Path $regPath -Force | Out-Null }
+                    Set-ItemProperty -Path $regPath -Name "LicenseKey" -Value $formattedKey -Force | Out-Null
+                    Set-ItemProperty -Path $regPath -Name "ValidatedByInstaller" -Value 1 -Type DWord -Force | Out-Null
+                } catch {}
+
+                $script:finalResult = "OK"
+                $script:validatedKey = $formattedKey
+                $form.Close()
+                return
+            } else {
+                $msg = $resp.message
+                if ([string]::IsNullOrWhiteSpace($msg)) { $msg = "Key không hợp lệ hoặc đã hết hạn." }
+                $lblStatus.ForeColor = [System.Drawing.Color]::FromArgb(255, 90, 90)
+                $lblStatus.Text = $msg
+            }
+        } catch {
+            $err = $_.Exception.Message
+            $lblStatus.ForeColor = [System.Drawing.Color]::FromArgb(255, 90, 90)
+            if ($err -match "400" -or $err -match "BadRequest") {
+                $lblStatus.Text = "Key không hợp lệ hoặc thiết bị không đúng."
+            } elseif ($err -match "403") {
+                $lblStatus.Text = "Thiết bị hoặc key này đã bị khóa."
+            } elseif ($err -match "timeout" -or $err -match "Unable to connect") {
+                $lblStatus.Text = "Không thể kết nối máy chủ. Kiểm tra mạng rồi thử lại."
+            } else {
+                $lblStatus.Text = "Lỗi kết nối: " + $err
+            }
+        }
+
+        # Re-enable UI for retry
+        $btnOk.Enabled = $true
+        $btnCancel.Enabled = $true
+        $txtKey.Enabled = $true
+        $txtKey.Focus()
+        $txtKey.SelectAll()
+    })
+
+    $null = $form.ShowDialog()
+    if ($script:finalResult -eq "OK") {
+        Write-Output ("OK|" + $script:validatedKey)
+    } else {
+        Write-Output "CANCEL"
+    }
+}
+
+Show-LicenseGate
+

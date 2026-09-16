@@ -396,7 +396,7 @@ onUnmounted(() => {
       <footer class="hud-bar">
         <div class="hud-bar-item">
           <span><KeyRound :size="12" :stroke-width="2" class="icon-key-glow" /> KEY</span>
-          <strong class="sidebar-key">{{ licenseInfo?.keyCode || 'DAWA-ACTIVE-KEY' }}</strong>
+          <strong class="sidebar-key">{{ licenseInfo?.keyCode || 'LICENSE-ACTIVE' }}</strong>
         </div>
         <div class="hud-bar-item">
           <span>

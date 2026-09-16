@@ -20,15 +20,18 @@ const emit = defineEmits(['activated', 'close'])
 
 const TYPING_FRAMES = [
   'XXXX-XXXX-XXXX',
-  'DXXX-XXXX-XXXX',
-  'DAXX-XXXX-XXXX',
-  'DAWX-XXXX-XXXX',
-  'DAWA-XXXX-XXXX',
-  'DAWA-SXXX-XXXX',
-  'DAWA-SEXX-XXXX',
-  'DAWA-SECX-XXXX',
-  'DAWA-SECR-XXXX',
-  'DAWA-SECRET-KEY'
+  'AXXX-XXXX-XXXX',
+  'ABXX-XXXX-XXXX',
+  'ABCX-XXXX-XXXX',
+  'ABCD-XXXX-XXXX',
+  'ABCD-1XXX-XXXX',
+  'ABCD-12XX-XXXX',
+  'ABCD-123X-XXXX',
+  'ABCD-1234-XXXX',
+  'ABCD-1234-EXXX',
+  'ABCD-1234-EFXX',
+  'ABCD-1234-EFGX',
+  'ABCD-1234-EFGH'
 ]
 const typingIndex = ref(0)
 let typingTimer = null
