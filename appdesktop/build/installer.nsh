@@ -5,25 +5,37 @@ Var LicenseKey
 Var LicenseGateOutput
 Var InstallerLogFh
 Var LogStampTmp
+Var LogTmp1
+Var LogTmp2
+Var LogBootWritten
 
 ; ============================================================
-; Helper: append a line with timestamp to shared installer log.
-; Uses ONLY built-in NSIS 3.x core commands (no plugins required).
-; Timestamp is pulled from %DATE% %TIME% environment variables.
+; LogInstaller MSG — append timestamped line to APPDATA installer log.
+;
+; CRITICAL: ZERO labels inside this macro (no name: declarations).
+; NSIS labels inside macros cause "already declared" if the macro
+; is inserted 2+ times. All branching uses StrCmp +N forward jumps.
 ; ============================================================
 !macro LogInstaller MSG
-  StrCmp $InstallerLogFh "" 0 LogWriteDo
+  ; --- Branch 1: If log already open → skip open/header logic ----
+  StrCmp $InstallerLogFh "" 0 +8
+    ; --- Open block runs only if handle is empty ------------------
     CreateDirectory "$APPDATA\dawa-optimizer\logs"
     FileOpen $InstallerLogFh "$APPDATA\dawa-optimizer\logs\dawa-installer.log" a
-    StrCmp $InstallerLogFh "" LogSkipWrite LogBootHeader
-    LogBootHeader:
+    ; If still failed to open (permission?) → skip everything else
+    StrCmp $InstallerLogFh "" 0 +4
+      Goto +23
+    ; Header block: write only on first successful open per phase --
+    StrCmp $LogBootWritten "1" +4
       FileWrite $InstallerLogFh "$\r$\n============================================================$\r$\n"
-      FileWrite $InstallerLogFh "[BOOT] NSIS Installer v${APP_VERSION} started$\r$\n"
-  LogWriteDo:
-    ExpandEnvStrings $LogStampTmp "%DATE% %TIME%"
-    StrCpy $LogStampTmp $LogStampTmp -1 " "
-    FileWrite $InstallerLogFh "[$LogStampTmp] [NSIS] ${MSG}$\r$\n"
-  LogSkipWrite:
+      FileWrite $InstallerLogFh "[BOOT] NSIS Installer started — APP version=${VERSION}$\r$\n"
+      StrCpy $LogBootWritten "1"
+  ; --- Branch 2: Append actual timestamped message line ----------
+  StrCmp $InstallerLogFh "" 0 +4
+    Goto +5
+  ExpandEnvStrings $LogStampTmp "%DATE% %TIME%"
+  StrCpy $LogStampTmp $LogStampTmp -1 " "
+  FileWrite $InstallerLogFh "[$LogStampTmp] [NSIS] ${MSG}$\r$\n"
 !macroend
 
 !macro customInstall
@@ -31,7 +43,9 @@ Var LogStampTmp
 !macroend
 
 !macro customInit
+  ; Reset per-process bookkeeping at the very start of installer phase
   StrCpy $InstallerLogFh ""
+  StrCpy $LogBootWritten ""
   !insertmacro LogInstaller "customInit invoked — preventing silent bypass, preparing plugins dir"
 
   StrCmp $0 "" 0 +2
@@ -76,7 +90,7 @@ Var LogStampTmp
 
   GateQuit:
   !insertmacro LogInstaller "Gate FAILED — user cancel / invalid key / no fallback. Quitting installer."
-  StrCmp $InstallerLogFh "" 0 +3
+  StrCmp $InstallerLogFh "" +3
     FileWrite $InstallerLogFh "[EXIT] NSIS installer aborted (gate not passed)$\r$\n"
     FileClose $InstallerLogFh
   Quit
@@ -86,8 +100,8 @@ Var LogStampTmp
   DetailPrint "-> Ban quyen hop le. Bat dau cai dat..."
 !macroend
 
-; NOTE: electron-builder expects the macro name with exact casing.
-; Hook here gets called during uninstall, shares APPDATA log file path.
 !macro customUnInstall
+  StrCpy $InstallerLogFh ""
+  StrCpy $LogBootWritten ""
   !insertmacro LogInstaller "customUnInstall — removing files + cleanup for $INSTDIR"
 !macroend
