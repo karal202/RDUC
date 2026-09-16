@@ -60,13 +60,25 @@ Var LogBootWritten
   Delete "$PLUGINSDIR\gate-result.txt"
   !insertmacro LogInstaller "Cleared prior gate-result.txt"
 
-  !insertmacro LogInstaller "Unblocking extracted PS1 (anti MOTW ZoneId=3)..."
-  ExecWait 'cmd.exe /c "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"Unblock-File -LiteralPath $\'$PLUGINSDIR\license-gate.ps1$\' -ErrorAction SilentlyContinue\""'
-  !insertmacro LogInstaller "Launching license-gate.ps1 (blocks until user closes form)..."
+  !insertmacro LogInstaller "Unblocking extracted PS1 (native NSIS delete Zone.Identifier ADS stream)..."
+  Delete "$PLUGINSDIR\license-gate.ps1:Zone.Identifier"
+
+  !insertmacro LogInstaller "Creating $PLUGINSDIR\_run-gate.bat wrapper (quote-safe exec)..."
   StrCpy $LogTmp1 "$APPDATA\dawa-optimizer\logs\dawa-installer.log"
-  StrCpy $LogTmp2 '"$PLUGINSDIR\license-gate.ps1"'
-  ExecWait 'cmd.exe /s /c ""powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Sta -WindowStyle Hidden -File $LogTmp2 -LogFile "$LogTmp1" >> "$LogTmp1" 2>&1"' $0
-  !insertmacro LogInstaller "license-gate.ps1 exited with code=$0"
+  CreateDirectory "$APPDATA\dawa-optimizer\logs"
+  FileOpen $1 "$PLUGINSDIR\_run-gate.bat" w
+  FileWrite $1 "@echo off$\r$\n"
+  FileWrite $1 "set LOGPATH=$LogTmp1$\r$\n"
+  FileWrite $1 "set PS1PATH=$PLUGINSDIR\license-gate.ps1$\r$\n"
+  FileWrite $1 "echo [BAT] wrapper run-gate launched at %DATE% %TIME% >> %LOGPATH% 2>&1$\r$\n"
+  FileWrite $1 "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Sta -WindowStyle Hidden -File \"%PS1PATH%\" -LogFile \"%LOGPATH%\" >> \"%LOGPATH%\" 2>&1$\r$\n"
+  FileWrite $1 "echo [BAT] powershell exitcode=%ERRORLEVEL% >> %LOGPATH% 2>&1$\r$\n"
+  FileWrite $1 "exit /b %ERRORLEVEL%$\r$\n"
+  FileClose $1
+
+  !insertmacro LogInstaller "Launching license-gate.ps1 via _run-gate.bat (blocks until user closes form)..."
+  ExecWait '"$PLUGINSDIR\_run-gate.bat"' $0
+  !insertmacro LogInstaller "license-gate.ps1 exited with code=$0 (via wrapper bat)"
 
   StrCpy $LicenseGateOutput ""
   FileOpen $1 "$PLUGINSDIR\gate-result.txt" r
