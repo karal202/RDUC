@@ -732,11 +732,13 @@ function createLicenseWindow() {
   launchLog('info', 'LICENSE', 'Opening license window (BrowserWindow construct)')
   try {
     licenseWindow = new BrowserWindow({
-      width: 480,
-      height: 520,
-      resizable: false,
-      maximizable: false,
-      minimizable: false,
+      width: 1080,
+      height: 720,
+      minWidth: 920,
+      minHeight: 640,
+      resizable: true,
+      maximizable: true,
+      minimizable: true,
       fullscreenable: false,
       show: false,
       autoHideMenuBar: true,
@@ -756,6 +758,11 @@ function createLicenseWindow() {
         devTools: is.dev
       }
     })
+    try {
+      licenseWindow.center()
+    } catch {
+      void 0
+    }
     launchLog('info', 'LICENSE', 'License window BrowserWindow instance created')
     attachWebContentsDebugListeners(licenseWindow, 'licenseWindow')
   } catch (e) {
