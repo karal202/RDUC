@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
 const api = {
+  log: (level, tag, msg) => ipcRenderer.invoke('app:log', level, tag, msg),
   getDeviceHash: () => ipcRenderer.invoke('license:get-device-hash'),
   checkLicenseStatus: () => ipcRenderer.invoke('license:check-status'),
   activateLicense: (keyCode) => ipcRenderer.invoke('license:activate', keyCode),
