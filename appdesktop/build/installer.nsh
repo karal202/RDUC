@@ -321,7 +321,7 @@ msgWriteQ:
   IntOp $R12 $R12 + 1
   Goto msgReadLoop
 msgWriteB:
-  StrCpy $R11 "$R11\"
+  StrCpy $R11 `$R11\`
   IntOp $R12 $R12 + 1
   Goto msgReadLoop
 msgDone:
