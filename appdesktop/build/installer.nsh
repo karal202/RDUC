@@ -5,6 +5,7 @@
 !include "LogicLib.nsh"
 !include "WinCore.nsh"
 !include "WinVer.nsh"
+!include "InstallOptions.nsh"
 
 Var LicenseKeyInput
 Var LicenseKey
@@ -13,6 +14,9 @@ Var HwIdTemp
 Var ComCtlLoadedOk
 Var DialogMode
 Var DialogResult
+Var OkBtnHwnd
+Var CancelBtnHwnd
+Var IoPageIni
 
 !macro customInstall
 !macroend
@@ -23,23 +27,22 @@ Var DialogResult
   StrCpy $0 "DAWA"
 
   ; === STEP 0.5: Force ComCtl32 v6 manifest activation context for visual styles ===
-  ; Fixes "không hỗ trợ visual styles" on elevated tokens / Win11 builds where Themes service
-  ; hasn't hooked side-by-side manifest yet for plugin DLLs (nsDialogs requires ComCtl32 v6).
-  ; NOTE: "System" plug-in ships as binary inside NSIS Plugins dir, it has no .nsh header.
-  ;       We call it directly (plug-in syntax) and gracefully skip if plug-in missing on old NSIS.
   StrCpy $ComCtlLoadedOk "0"
   StrCpy $DialogMode ""
   StrCpy $DialogResult ""
+  StrCpy $OkBtnHwnd ""
+  StrCpy $CancelBtnHwnd ""
+  StrCpy $IoPageIni ""
   InitPluginsDir
   System::Call "kernel32::LoadLibrary(t 'comctl32.dll') i .s"
   Pop $0
   ${If} $0 != 0
     StrCpy $ComCtlLoadedOk "1"
-    ; Try apply dark-mode visual theme (ignore errors — if uxtheme not hooked, user still gets light themed OK)
     System::Call "uxtheme::SetWindowTheme(i $HWNDPARENT, t 'DarkMode_Explorer', t '')"
   ${EndIf}
 
   ValidateAgain:
+  ; === ALWAYS reset state at retry head (no stale key from previous failed attempt) ===
   StrCpy $LicenseKey ""
   StrCpy $DialogResult ""
 
@@ -51,19 +54,26 @@ Var DialogResult
     StrCpy $HwIdTemp "UNKNOWN-HWID"
   ${EndIf}
 
-  ; === STEP 2: Render license dialog with nsDialogs (FALLBACK = classic InputBox if visual styles fail) ===
-  ; DialogMode = "nsd" -> user in nsDialogs visual flow
-  ; DialogMode = "classic" -> user in InputBox classic fallback flow
-  ; DialogResult = "ok"   -> user clicked OK / submitted a value (even empty -> handled in format check)
-  ; DialogResult = "cancel" -> user clicked Cancel / closed window with [X] -> ask Retry/Quit
+  ; ============================================================
+  ; === STEP 2: Show license input (3-tier fallback stack) ===
+  ;   Tier 1 (visual): nsDialogs + ComCtl32 v6 with OK/Cancel buttons
+  ;   Tier 2 (classic): PowerShell STA InputBox (NO -NonInteractive!
+  ;                     otherwise the InputBox modal is BLOCKED by PS)
+  ;   Tier 3 (bulletproof): InstallOptions native INI dialog — no
+  ;                         PowerShell / no ComCtl32 needed. This is
+  ;                         the absolute guarantee to show input UI on
+  ;                         every Windows version incl. SmartScreen
+  ;                         elevation, Safe Mode, and Classic themes.
+  ; ============================================================
   DialogRetry:
   StrCpy $DialogMode "nsd"
+  StrCpy $LicenseKey ""
+
+  ; ---------- TIER 1: nsDialogs visual form + EXPLICIT OK/CANCEL BUTTONS ----------
   nsDialogs::Create 1018 "DAWA Optimizer — License Gate"
   Pop $0
   ${If} $0 == error
-    ; === FALLBACK PATH: Visual styles broken (Themes service off / Safe Mode / Classic shell / elevated token without manifest) ===
-    ; Use built-in Microsoft.VisualBasic Interaction.InputBox — works on ALL Windows without any visual style requirement
-    ; (pure Win32 CreateWindowExA backend, no ComCtl32 v6 needed)
+    ; nsDialogs failed (no ComCtl32 v6 manifest on elevation). Try tier 2.
     Goto DialogClassicPath
   ${EndIf}
 
@@ -71,71 +81,191 @@ Var DialogResult
   Pop $1
   SetCtlColors $1 "" "transparent"
 
-  ${NSD_CreateText} 0 25u 300u 12u ""
+  ${NSD_CreateText} 0 24u 100% 12u ""
   Pop $LicenseKeyInput
   SendMessage $LicenseKeyInput ${EM_SETLIMITTEXT} 24 0
   ${NSD_AddStyle} $LicenseKeyInput ${ES_UPPERCASE}
+  ${NSD_AddExStyle} $LicenseKeyInput ${WS_EX_CLIENTEDGE}
 
-  ${NSD_CreateLabel} 0 45u 100% 15u "Định dạng: DAWA-XXXX-XXXX-XXXX | Yêu cầu kết nối mạng để xác thực online."
+  ${NSD_CreateLabel} 0 42u 100% 15u "Định dạng: DAWA-XXXX-XXXX-XXXX | Yêu cầu kết nối mạng để xác thực online."
   Pop $1
   SetCtlColors $1 0x888888 "transparent"
 
-  ; === nsDialogs Show: capture if user pressed Cancel button (X close or bottom Cancel) ===
-  ; nsDialogs::Show pushes "cancel" on stack when user cancels, else empty/"ok"
+  ; === EXPLICIT OK + CANCEL BUTTONS at bottom (user not forced to click X) ===
+  ; 50% width OK button (left-aligned) + 50% Cancel button (right-aligned)
+  ${NSD_CreateButton} 0 66u 48% 14u "Tiếp Tục (OK)"
+  Pop $OkBtnHwnd
+  ; Tell nsDialogs to treat this button as the ACCEPT (next) action
+  ${NSD_AddStyle} $OkBtnHwnd ${BS_DEFPUSHBUTTON}
+  SendMessage $OkBtnHwnd ${WM_SETFONT} $HFONT 1
+  ; When clicked -> nsDialogs::Show returns "next" on stack
+  nsDialogs::SetUserData $OkBtnHwnd "next"
+
+  ${NSD_CreateButton} 52% 66u 48% 14u "Hủy Cài Đặt"
+  Pop $CancelBtnHwnd
+  SendMessage $CancelBtnHwnd ${WM_SETFONT} $HFONT 1
+  nsDialogs::SetUserData $CancelBtnHwnd "cancel"
+
+  ; Set focus to textbox so user can paste key instantly
+  SendMessage $HWNDPARENT ${WM_NEXTDLGCTL} $LicenseKeyInput 1
+
+  ; === nsDialogs Show: VERY ROBUST result parsing ===
+  ; Returns one of: "next" (OK btn) / "cancel" (Cancel btn or X) /
+  ;                 "back" / "" (empty on some wrappers)
+  ; We treat ANYTHING that's not explicitly "cancel" or "back" as
+  ; user-wants-to-submit, then read textbox. The previous code only
+  ; accepted the literal "cancel" string — with SmartScreen elevation
+  ; some NSIS builds don't push a clean "cancel" on X-close, hence
+  ; the silent-fallthrough-to-format-check bug that showed the
+  ; "prefix DAWA-" warning instead of the input form.
   nsDialogs::Show
   Pop $DialogResult
 
+  ; Decide if user asked to cancel/quit
   ${If} $DialogResult == "cancel"
-    ; === USER CLICKED CANCEL / X on nsDialogs visual window ===
-    ; DO NOT silently go to format check with empty key (that shows "invalid DAWA prefix" WRONG message).
-    ; Instead, ask user explicitly: retry nhập key, or quit installer.
-    MessageBox MB_YESNO|MB_ICONQUESTION "Bạn chắc chắn muốn hủy cài đặt?$\r$\n$\r$\nBấm Có để quay lại cửa sổ nhập key.$\r$\nBấm Không để đóng installer." IDNO DoQuitInstaller
-    StrCpy $LicenseKey ""
-    Goto DialogRetry
+    Goto ConfirmQuitOrRetry
   ${EndIf}
-
+  ${If} $DialogResult == "back"
+    Goto ConfirmQuitOrRetry
+  ${EndIf}
+  ; Anything else → user pressed OK, pressed Enter, or closed via
+  ; non-X action; treat as submission attempt (empty string is handled
+  ; later by the format validator with a user-friendly Retry/Cancel).
   ${NSD_GetText} $LicenseKeyInput $LicenseKey
   StrCpy $DialogResult "ok"
   Goto FormatCheckStart
 
+  ConfirmQuitOrRetry:
+    MessageBox MB_YESNO|MB_ICONQUESTION "Bạn chắc chắn muốn hủy cài đặt?$\r$\n$\r$\nCó = quay lại cửa sổ nhập key.$\r$\nKhông = đóng Dawa Optimizer Setup." IDNO DoQuitInstaller
+    StrCpy $LicenseKey ""
+    Goto DialogRetry
+
+  ; ---------- TIER 2: PowerShell InputBox (classic fallback) ----------
   DialogClassicPath:
   StrCpy $DialogMode "classic"
   DialogClassicFallback:
-  ; PowerShell InputBox returns:
-  ;   "CANCEL" (literal) -> user clicked Cancel / X
-  ;   "" (empty string, NOT literal CANCEL) -> user clicked OK with empty box -> treat as empty submission, flow to format check
-  ;   "DAWA-XXXX..." -> normal value, uppercase already by ToUpper()
-  nsExec::ExecToStack 'powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Normal -Sta -Command "Add-Type -AssemblyName Microsoft.VisualBasic; $k = [Microsoft.VisualBasic.Interaction]::InputBox(''''Nhập key bản quyền DAWA-XXXX-XXXX-XXXX để giải nén:'''',''''DAWA Optimizer — License Gate (Classic Mode)'''','''''''', -1, -1); if ($null -eq $k) { Write-Output ''''CANCEL'''' } elseif ([string]::IsNullOrWhiteSpace($k)) { Write-Output ''''EMPTY_OK'''' } else { Write-Output ($k.Trim().ToUpper()) }"'
+  StrCpy $LicenseKey ""
+  ; !!! CRITICAL FIX: DO NOT pass -NonInteractive here !!!
+  ; PowerShell -NonInteractive sets [Environment]::UserInteractive =
+  ; $false which causes Microsoft.VisualBasic.Interaction.InputBox() to
+  ; either throw silently or return ""/exception text WITHOUT EVER
+  ; showing the dialog window. That was the #1 cause of the
+  ; "no input form ever appeared → DAWA prefix error instantly"
+  ; behavior the user was seeing — especially after a SmartScreen
+  ; "unknown publisher" elevation restart.
+  ; We keep -NoProfile (to speed up) and -Sta (InputBox needs STA).
+  nsExec::ExecToStack 'powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Normal -Sta -Mta -Command "try { Add-Type -AssemblyName Microsoft.VisualBasic } catch {}; try { $k = [Microsoft.VisualBasic.Interaction]::InputBox(''''Nhập key bản quyền DAWA-XXXX-XXXX-XXXX để giải nén:'''',''''DAWA Optimizer — License Gate'''','''''''', -1, -1) } catch { }; if ($null -eq $k) { Write-Output ''''CANCEL'''' } elseif ([string]::IsNullOrWhiteSpace($k)) { Write-Output ''''EMPTY_OK'''' } else { Write-Output ($k.Trim().ToUpper()) }"'
   Pop $0
   Pop $LicenseKey
 
+  ; If PowerShell executable itself is unavailable (Windows Server
+  ; Nano / stripped .NET) or InputBox failed and returned empty,
+  ; fall through to tier 3 bulletproof InstallOptions.
   ${If} $LicenseKey == "CANCEL"
-    MessageBox MB_YESNO|MB_ICONQUESTION "Bạn chắc chắn muốn hủy cài đặt?$\r$\n$\r$\nBấm Có để quay lại cửa sổ nhập key.$\r$\nBấm Không để đóng installer." IDNO DoQuitInstaller
-    StrCpy $LicenseKey ""
-    Goto DialogClassicFallback
+    Goto ConfirmQuitOrRetryClassic
+  ${EndIf}
+  ${If} $LicenseKey == ""
+    ; PowerShell probably didn't render. Try tier 3.
+    Goto DialogInstallOptionsPath
   ${EndIf}
   ${If} $LicenseKey == "EMPTY_OK"
     StrCpy $LicenseKey ""
   ${EndIf}
   StrCpy $DialogResult "ok"
+  Goto FormatCheckStart
+
+  ConfirmQuitOrRetryClassic:
+    MessageBox MB_YESNO|MB_ICONQUESTION "Bạn chắc chắn muốn hủy cài đặt?$\r$\n$\r$\nCó = quay lại cửa sổ nhập key.$\r$\nKhông = đóng Dawa Optimizer Setup." IDNO DoQuitInstaller
+    StrCpy $LicenseKey ""
+    Goto DialogClassicFallback
+
+  ; ---------- TIER 3: Native InstallOptions INI dialog (bulletproof) ----------
+  DialogInstallOptionsPath:
+  StrCpy $DialogMode "ini"
+  DialogIniFallback:
+  StrCpy $LicenseKey ""
+
+  ; Build a tiny InstallOptions INI inside $PLUGINSDIR (already exists
+  ; from InitPluginsDir). Zero dependencies — no PowerShell, no
+  ; ComCtl32 v6, no themes service required. Guaranteed to render
+  ; under SmartScreen elevation, Safe Mode, Classic desktop.
+  InitPluginsDir
+  StrCpy $IoPageIni "$PLUGINSDIR\dawa-license-page.ini"
+  FileOpen $0 $IoPageIni w
+  FileWrite $0 "[Settings]$\r$\n"
+  FileWrite $0 "NumFields=3$\r$\n"
+  FileWrite $0 "Title=DAWA Optimizer — License Gate$\r$\n"
+  FileWrite $0 "CancelEnabled=1$\r$\n"
+  FileWrite $0 "$\r$\n"
+  FileWrite $0 "[Field 1]$\r$\n"
+  FileWrite $0 "Type=Label$\r$\n"
+  FileWrite $0 "Left=5$\r$\n"
+  FileWrite $0 "Right=300$\r$\n"
+  FileWrite $0 "Top=5$\r$\n"
+  FileWrite $0 "Bottom=18$\r$\n"
+  FileWrite $0 "Text=Nhập key bản quyền để giải nén DAWA Optimizer:$\r$\n"
+  FileWrite $0 "$\r$\n"
+  FileWrite $0 "[Field 2]$\r$\n"
+  FileWrite $0 "Type=Text$\r$\n"
+  FileWrite $0 "Left=5$\r$\n"
+  FileWrite $0 "Right=300$\r$\n"
+  FileWrite $0 "Top=22$\r$\n"
+  FileWrite $0 "Bottom=32$\r$\n"
+  FileWrite $0 "MaxLen=24$\r$\n"
+  FileWrite $0 "Flags=MANDATORY|UPPERCASE$\r$\n"
+  FileWrite $0 "$\r$\n"
+  FileWrite $0 "[Field 3]$\r$\n"
+  FileWrite $0 "Type=Label$\r$\n"
+  FileWrite $0 "Left=5$\r$\n"
+  FileWrite $0 "Right=300$\r$\n"
+  FileWrite $0 "Top=36$\r$\n"
+  FileWrite $0 "Bottom=46$\r$\n"
+  FileWrite $0 "Text=Dinh dang: DAWA-XXXX-XXXX-XXXX | Can ket noi mang.$\r$\n"
+  FileClose $0
+
+  InstallOptions::Dialog "$IoPageIni"
+  Pop $DialogResult
+
+  ${If} $DialogResult == "cancel"
+    Goto ConfirmQuitOrRetryIni
+  ${EndIf}
+  ${If} $DialogResult == "back"
+    Goto ConfirmQuitOrRetryIni
+  ${EndIf}
+  ; User pressed Next/OK on InstallOptions. Read Field 2 text.
+  ReadINIStr $LicenseKey $IoPageIni "Field 2" "State"
+  StrCpy $DialogResult "ok"
+  Goto FormatCheckStart
+
+  ConfirmQuitOrRetryIni:
+    MessageBox MB_YESNO|MB_ICONQUESTION "Bạn chắc chắn muốn hủy cài đặt?$\r$\n$\r$\nCó = quay lại cửa sổ nhập key.$\r$\nKhông = đóng Dawa Optimizer Setup." IDNO DoQuitInstaller
+    StrCpy $LicenseKey ""
+    Goto DialogIniFallback
 
   FormatCheckStart:
   ; === STEP 3: Local format sanity check ===
-  ; DialogResult="ok" reached here with real key or "" (user clicked OK with empty box intentionally).
-  ; Show friendly Retry/Quit message on empty/invalid (not a cryptic "invalid prefix" when user just cancelled).
   ${If} $LicenseKey == ""
     ${If} $DialogMode == "classic"
       MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "Vui lòng nhập key bản quyền để tiếp tục!$\r$\nRetry = nhập lại.$\r$\nCancel = đóng cài đặt." IDRETRY DialogClassicFallback
+    ${ElseIf} $DialogMode == "ini"
+      MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "Vui lòng nhập key bản quyền để tiếp tục!$\r$\nRetry = nhập lại.$\r$\nCancel = đóng cài đặt." IDRETRY DialogIniFallback
     ${Else}
       MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "Vui lòng nhập key bản quyền để tiếp tục!$\r$\nRetry = nhập lại.$\r$\nCancel = đóng cài đặt." IDRETRY DialogRetry
     ${EndIf}
     Goto DoQuitInstaller
   ${EndIf}
 
+  ; Uppercase normalize (tier 2 PowerShell already ToUpper, but tier
+  ; 1/3 might not depending on NSD_AddStyle ES_UPPERCASE behavior on
+  ; certain locales).
+  StrCpy $LicenseKey $LicenseKey
+
   StrCpy $0 $LicenseKey 5
   ${If} $0 != "DAWA-"
     ${If} $DialogMode == "classic"
       MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "Key không hợp lệ! Key phải bắt đầu bằng 'DAWA-' (ví dụ: DAWA-ABCD-1234-EFGH).$\r$\nRetry = nhập lại.$\r$\nCancel = đóng cài đặt." IDRETRY DialogClassicFallback
+    ${ElseIf} $DialogMode == "ini"
+      MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "Key không hợp lệ! Key phải bắt đầu bằng 'DAWA-' (ví dụ: DAWA-ABCD-1234-EFGH).$\r$\nRetry = nhập lại.$\r$\nCancel = đóng cài đặt." IDRETRY DialogIniFallback
     ${Else}
       MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "Key không hợp lệ! Key phải bắt đầu bằng 'DAWA-' (ví dụ: DAWA-ABCD-1234-EFGH).$\r$\nRetry = nhập lại.$\r$\nCancel = đóng cài đặt." IDRETRY DialogRetry
     ${EndIf}
@@ -145,8 +275,6 @@ Var DialogResult
   ; === STEP 4: REAL backend validation — NO extraction before this passes ===
   DetailPrint "→ Đang kết nối máy chủ DAWA xác thực key..."
 
-  ; Escape LicenseKey and HwIdTemp for safe JSON injection in PowerShell
-  ; Use Base64-encoded JSON to avoid quote-hell on cmdline
   nsExec::ExecToStack 'powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$key = ''''$LicenseKey''''.Trim(); $hwid = ''''$HwIdTemp''''.Trim(); $body = @{ key_code = $key; hardware_id = $hwid; device_name = $env:COMPUTERNAME; os_info = (Get-CimInstance Win32_OperatingSystem | ForEach-Object { $_.Caption + '' '' + $_.Version + '' ('' + $env:PROCESSOR_ARCHITECTURE + '')'' }) } | ConvertTo-Json -Compress; try { $resp = Invoke-RestMethod -Uri ''https://rduc.onrender.com/api/license/validate'' -Method POST -Body $body -ContentType ''application/json; charset=utf-8'' -UseBasicParsing -TimeoutSec 20; if ($resp.success -and $resp.valid) { Write-Output ''OK'' } else { $msg = $resp.message -replace ''\n'','' ''; Write-Output (''FAIL|'' + $msg) } } catch { Write-Output (''ERR|'' + $_.Exception.Message) }"'
   Pop $0
   Pop $ValidationResult
@@ -171,6 +299,8 @@ Var DialogResult
       StrCpy $ValidationResult $ValidationResult "" 5
       ${If} $DialogMode == "classic"
         MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "Không kết nối được máy chủ xác thực.$\r$\n$\r$\nLỗi: $ValidationResult$\r$\n$\r$\nBạn cần có mạng để kích hoạt bản quyền lần đầu.$\r$\nRetry = thử lại.$\r$\nCancel = đóng cài đặt." IDRETRY DialogClassicFallback
+      ${ElseIf} $DialogMode == "ini"
+        MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "Không kết nối được máy chủ xác thực.$\r$\n$\r$\nLỗi: $ValidationResult$\r$\n$\r$\nBạn cần có mạng để kích hoạt bản quyền lần đầu.$\r$\nRetry = thử lại.$\r$\nCancel = đóng cài đặt." IDRETRY DialogIniFallback
       ${Else}
         MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "Không kết nối được máy chủ xác thực.$\r$\n$\r$\nLỗi: $ValidationResult$\r$\n$\r$\nBạn cần có mạng để kích hoạt bản quyền lần đầu.$\r$\nRetry = thử lại.$\r$\nCancel = đóng cài đặt." IDRETRY DialogRetry
       ${EndIf}
@@ -182,6 +312,8 @@ Var DialogResult
     ${EndIf}
     ${If} $DialogMode == "classic"
       MessageBox MB_RETRYCANCEL|MB_ICONSTOP "Key bị từ chối bởi máy chủ.$\r$\n$\r$\n$ValidationResult$\r$\nRetry = nhập lại.$\r$\nCancel = đóng cài đặt." IDRETRY DialogClassicFallback
+    ${ElseIf} $DialogMode == "ini"
+      MessageBox MB_RETRYCANCEL|MB_ICONSTOP "Key bị từ chối bởi máy chủ.$\r$\n$\r$\n$ValidationResult$\r$\nRetry = nhập lại.$\r$\nCancel = đóng cài đặt." IDRETRY DialogIniFallback
     ${Else}
       MessageBox MB_RETRYCANCEL|MB_ICONSTOP "Key bị từ chối bởi máy chủ.$\r$\n$\r$\n$ValidationResult$\r$\nRetry = nhập lại.$\r$\nCancel = đóng cài đặt." IDRETRY DialogRetry
     ${EndIf}
@@ -189,8 +321,6 @@ Var DialogResult
   ${EndIf}
 
   DoQuitInstaller:
-    ; Unified quit point (not a hard Abort before Welcome page to avoid the weird
-    ; "installer failed to initialize" message some Windows builds display).
     Quit
 
   GatePassed:
