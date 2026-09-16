@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import {
   Bolt,
   Gamepad2,
@@ -12,6 +12,7 @@ import {
   Monitor,
   RotateCcw,
   Briefcase,
+  Search,
   Check,
   Copy,
   Terminal,
@@ -21,12 +22,22 @@ import {
   Layers2
 } from 'lucide-vue-next'
 
+const activeCategory = ref('all')
+const searchQuery = ref('')
 const isCleaning = ref(false)
 const runningToolKey = ref(null)
 const cleanLog = ref('')
 const copied = ref(false)
 const ramProfile = ref('16')
 const ramProfiles = ['2', '3', '4', '6', '8', '10', '12', '16', '20', '24', '32', '48', '64']
+
+const CATEGORIES = [
+  { key: 'cleanup', label: 'Bảo Trì & RAM', icon: Trash2, accent: '#06b6d4' },
+  { key: 'nvidia', label: 'NVIDIA GPU', icon: Monitor, accent: '#76b900' },
+  { key: 'amd', label: 'AMD GPU', icon: Cpu, accent: '#ed1c24' },
+  { key: 'cpu', label: 'CPU & Tiến Trình', icon: Bolt, accent: '#3b82f6' },
+  { key: 'system', label: 'Hệ Thống & Services', icon: SlidersHorizontal, accent: '#f59e0b' }
+]
 
 const tools = [
   {
@@ -388,17 +399,27 @@ const tools = [
   }
 ]
 
+const filteredTools = computed(() => {
+  return tools.filter((tool) => {
+    const matchCat = activeCategory.value === 'all' || tool.category === activeCategory.value
+    const q = searchQuery.value.trim().toLowerCase()
+    const matchSearch =
+      !q ||
+      tool.label.toLowerCase().includes(q) ||
+      tool.desc.toLowerCase().includes(q) ||
+      tool.badge.toLowerCase().includes(q)
+    return matchCat && matchSearch
+  })
+})
+
 const handleExecuteTool = async (tool) => {
   if (!tool.action || runningToolKey.value) return
   runningToolKey.value = tool.key
   const time = new Date().toLocaleTimeString()
   cleanLog.value += `[${time}] [TOOLS] Đang thực thi [${tool.label}]...\n`
   try {
-    const options =
-      tool.action === 'ram-optimization'
-        ? { profile: ramProfile.value, label: `${tool.label} — ${ramProfile.value} GB profile` }
-        : { label: tool.label }
-    const res = await window.api.executeFeature(tool.action, options)
+    const options = tool.action === 'ram-optimization' ? { profile: ramProfile.value } : {}
+    const res = await window.api.runDawaScript(tool.action, options)
     cleanLog.value += res?.success ? `✅ ${res.message}\n` : `❌ ${res?.message || 'Thất bại'}\n`
   } catch (err) {
     cleanLog.value += `❌ Lỗi: ${err.message || err}\n`
@@ -413,9 +434,7 @@ const handleRunCacheClean = async () => {
   const time = new Date().toLocaleTimeString()
   cleanLog.value += `[${time}] [CACHE CLEANER] Đang quét và dọn dẹp các thư mục đệm hệ thống (Temp, Prefetch)...\n`
   try {
-    const res = await window.api.executeFeature('dawa-cleaner', {
-      label: 'Dọn Dẹp Sâu Bộ Nhớ Đệm (Temp / Prefetch / Logs)'
-    })
+    const res = await window.api.runDawaScript('dawa-cleaner')
     if (res?.success) {
       cleanLog.value += `✅ ${res.message}\n`
       if (res.stepResults) {
@@ -528,13 +547,11 @@ const clearLog = () => {
             <h3 class="tools-cat-title">Bảo Trì & RAM</h3>
             <p class="tools-cat-desc">Dọn dẹp cache, tối ưu bộ nhớ RAM</p>
           </div>
-          <span class="tools-cat-count"
-            >{{ tools.filter((t) => t.category === 'cleanup').length }} Tools</span
-          >
+          <span class="tools-cat-count">{{ tools.filter(t => t.category === 'cleanup').length }} Tools</span>
         </div>
         <div class="tools-cat-grid">
           <div
-            v-for="tool in tools.filter((t) => t.category === 'cleanup')"
+            v-for="tool in tools.filter(t => t.category === 'cleanup')"
             :key="tool.key"
             class="tool-card"
             :style="{ '--c': tool.accent }"
@@ -585,13 +602,11 @@ const clearLog = () => {
             <h3 class="tools-cat-title">NVIDIA GPU</h3>
             <p class="tools-cat-desc">Tinh chỉnh driver, profile và power</p>
           </div>
-          <span class="tools-cat-count"
-            >{{ tools.filter((t) => t.category === 'nvidia').length }} Tools</span
-          >
+          <span class="tools-cat-count">{{ tools.filter(t => t.category === 'nvidia').length }} Tools</span>
         </div>
         <div class="tools-cat-grid">
           <div
-            v-for="tool in tools.filter((t) => t.category === 'nvidia')"
+            v-for="tool in tools.filter(t => t.category === 'nvidia')"
             :key="tool.key"
             class="tool-card"
             :style="{ '--c': tool.accent }"
@@ -635,13 +650,11 @@ const clearLog = () => {
             <h3 class="tools-cat-title">AMD GPU</h3>
             <p class="tools-cat-desc">Ép xung, tinh chỉnh registry và driver</p>
           </div>
-          <span class="tools-cat-count"
-            >{{ tools.filter((t) => t.category === 'amd').length }} Tools</span
-          >
+          <span class="tools-cat-count">{{ tools.filter(t => t.category === 'amd').length }} Tools</span>
         </div>
         <div class="tools-cat-grid">
           <div
-            v-for="tool in tools.filter((t) => t.category === 'amd')"
+            v-for="tool in tools.filter(t => t.category === 'amd')"
             :key="tool.key"
             class="tool-card"
             :style="{ '--c': tool.accent }"
@@ -685,13 +698,11 @@ const clearLog = () => {
             <h3 class="tools-cat-title">CPU & Tiến Trình</h3>
             <p class="tools-cat-desc">Quản lý xung nhịp, core parking và process</p>
           </div>
-          <span class="tools-cat-count"
-            >{{ tools.filter((t) => t.category === 'cpu').length }} Tools</span
-          >
+          <span class="tools-cat-count">{{ tools.filter(t => t.category === 'cpu').length }} Tools</span>
         </div>
         <div class="tools-cat-grid">
           <div
-            v-for="tool in tools.filter((t) => t.category === 'cpu')"
+            v-for="tool in tools.filter(t => t.category === 'cpu')"
             :key="tool.key"
             class="tool-card"
             :style="{ '--c': tool.accent }"
@@ -735,13 +746,11 @@ const clearLog = () => {
             <h3 class="tools-cat-title">Hệ Thống & Services</h3>
             <p class="tools-cat-desc">Tinh chỉnh Windows, menu và extreme services</p>
           </div>
-          <span class="tools-cat-count"
-            >{{ tools.filter((t) => t.category === 'system').length }} Tools</span
-          >
+          <span class="tools-cat-count">{{ tools.filter(t => t.category === 'system').length }} Tools</span>
         </div>
         <div class="tools-cat-grid">
           <div
-            v-for="tool in tools.filter((t) => t.category === 'system')"
+            v-for="tool in tools.filter(t => t.category === 'system')"
             :key="tool.key"
             class="tool-card"
             :style="{ '--c': tool.accent }"
@@ -1057,9 +1066,7 @@ const clearLog = () => {
 }
 
 .tools-cat-title {
-  font:
-    700 16px/1.2 'Archivo',
-    sans-serif;
+  font: 700 16px/1.2 'Archivo', sans-serif;
   color: #ffffff;
   margin: 0 0 4px;
 }
@@ -1137,9 +1144,7 @@ const clearLog = () => {
 }
 
 .tool-card-title {
-  font:
-    600 14px/1.3 'Archivo',
-    sans-serif;
+  font: 600 14px/1.3 'Archivo', sans-serif;
   color: #ffffff;
   margin: 0 0 4px;
 }

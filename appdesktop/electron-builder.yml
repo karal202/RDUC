@@ -9,10 +9,7 @@ files:
   - 'package.json'
   - 'node_modules/**/*'
   - 'resources/**/*'
-  - '!resources/scripts/**/*.reg'
-  - '!resources/scripts/**/*.bat'
-  - '!resources/scripts/**/*.ps1'
-  - '!resources/scripts/**/*.cmd'
+  - '!resources/scripts/**/*'
   - '!**/*.map'
   - '!**/.vscode/*'
   - '!src/*'
@@ -20,37 +17,17 @@ files:
 extraResources:
   - from: 'resources/scripts'
     to: 'scripts'
-    filter:
-      - '**/*.dat'
-      - '**/*.exe'
-      - '**/*.txt'
-      - '**/*.pdf'
-      - '**/*.md'
-      - '**/*.png'
-      - '**/*.jpg'
-      - '**/*.jpeg'
 win:
   icon: build/icon.ico
   target:
     - nsis
   executableName: Dawa-Optimizer
-  requestedExecutionLevel: asInvoker
+  requestedExecutionLevel: requireAdministrator
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: always
   createStartMenuShortcut: true
-  include: build/installer.nsh
-  warningsAsErrors: false
-  allowElevation: true
-  perMachine: false
-  unicode: true
-  differentialPackage: true
-  installerIcon: build/icon.ico
-  uninstallerIcon: build/icon.ico
-  # Enable native NSIS /LOG flag → installer also writes its native log to INSTDIR next to exe (failsafe even if custom log fails)
-  runAfterFinish: true
-  deleteAppDataOnUninstall: false
 publish:
   - provider: github
     owner: karal202

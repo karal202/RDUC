@@ -45,7 +45,7 @@ const run = async (scriptKey, description, options = {}) => {
   const time = new Date().toLocaleTimeString()
   logOutput.value += `[${time}] [RESTORE] Đang thực thi [${scriptKey}] - ${description}...\n`
   try {
-    const res = await window.api.executeFeature(scriptKey, { ...options, label: description })
+    const res = await window.api.runDawaScript(scriptKey, options)
     if (res?.success) {
       logOutput.value += `✅ ${res.message}\n`
       if (res.stepResults) {
@@ -104,12 +104,8 @@ const toggleExtremeDrivers = async () => {
 }
 
 const toggleExtremeGamerServices = async () => {
-  const key = extremeGamerServicesEnabled.value
-    ? 'disable-extreme-gamer-services'
-    : 'enable-extreme-gamer-services'
-  const desc = extremeGamerServicesEnabled.value
-    ? 'Disable Extreme Gamer Services'
-    : 'Enable Extreme Gamer Services'
+  const key = extremeGamerServicesEnabled.value ? 'disable-extreme-gamer-services' : 'enable-extreme-gamer-services'
+  const desc = extremeGamerServicesEnabled.value ? 'Disable Extreme Gamer Services' : 'Enable Extreme Gamer Services'
   await run(key, desc)
   if (logOutput.value.includes('✅')) {
     extremeGamerServicesEnabled.value = !extremeGamerServicesEnabled.value
@@ -179,9 +175,7 @@ const toggleExtremeGamerServices = async () => {
             </div>
             <div class="restore-toggle-info">
               <h3 class="restore-toggle-title">Extreme Drivers</h3>
-              <p class="restore-toggle-desc">
-                Bật/Tắt Tcpip6, Beep, NdisVirtualBus, NetBIOS drivers
-              </p>
+              <p class="restore-toggle-desc">Bật/Tắt Tcpip6, Beep, NdisVirtualBus, NetBIOS drivers</p>
             </div>
           </div>
           <button
@@ -205,9 +199,7 @@ const toggleExtremeGamerServices = async () => {
             </div>
             <div class="restore-toggle-info">
               <h3 class="restore-toggle-title">Extreme Gamer Services</h3>
-              <p class="restore-toggle-desc">
-                Bật/Tắt 100+ services cho game thủ (Xbox, Defender, Bluetooth...)
-              </p>
+              <p class="restore-toggle-desc">Bật/Tắt 100+ services cho game thủ (Xbox, Defender, Bluetooth...)</p>
             </div>
           </div>
           <button
@@ -733,7 +725,8 @@ const toggleExtremeGamerServices = async () => {
   border: 1px solid rgba(148, 163, 184, 0.3);
   background: rgba(15, 23, 42, 0.6);
   color: #94a3b8;
-  font: 600 12px var(--font-sans);
+  font:
+    600 12px var(--font-sans);
   cursor: pointer;
   transition: all 0.25s ease;
   flex-shrink: 0;

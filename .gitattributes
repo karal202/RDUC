@@ -1,3 +1,0 @@
-appdesktop/resources/scripts/Tool&cache/AME[[:space:]]Beta.exe filter=lfs diff=lfs merge=lfs -text
-appdesktop/resources/scripts/**/*.exe filter=lfs diff=lfs merge=lfs -text
-*.exe filter=lfs diff=lfs merge=lfs -text

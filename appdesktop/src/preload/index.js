@@ -1,13 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
 const api = {
-  log: (level, tag, msg) => ipcRenderer.invoke('app:log', level, tag, msg),
   getDeviceHash: () => ipcRenderer.invoke('license:get-device-hash'),
   checkLicenseStatus: () => ipcRenderer.invoke('license:check-status'),
   activateLicense: (keyCode) => ipcRenderer.invoke('license:activate', keyCode),
   activateFromWindow: (keyCode) => ipcRenderer.invoke('license:activate-from-window', keyCode),
   checkActivation: () => ipcRenderer.invoke('license:check-activation'),
-  closeLicenseWindow: () => ipcRenderer.send('license:close-window'),
   deactivateLicense: () => ipcRenderer.invoke('license:deactivate'),
   checkAppVersion: () => ipcRenderer.invoke('app:check-version'),
   openDownloadUrl: (url) => ipcRenderer.invoke('app:open-download-url', url),
@@ -44,8 +42,6 @@ const api = {
   restartToBios: () => ipcRenderer.invoke('system:restart-to-bios'),
   runDawaScript: (scriptKey, options = {}) =>
     ipcRenderer.invoke('system:run-dawa-script', { scriptKey, options }),
-  executeFeature: (scriptKey, options = {}) =>
-    ipcRenderer.invoke('system:execute-feature', { scriptKey, options }),
   executeCmdScript: ({ action }) =>
     ipcRenderer.invoke('system:run-dawa-script', { scriptKey: action }),
   listAllowedScripts: () => ipcRenderer.invoke('security:list-allowed-scripts'),
@@ -55,13 +51,7 @@ const api = {
   trayShowWindow: () => ipcRenderer.invoke('tray:show-window'),
 
   isAdmin: () => ipcRenderer.invoke('system:is-admin'),
-  restartAsAdmin: () => ipcRenderer.invoke('system:restart-as-admin'),
-
-  onFeatureProgress: (callback) => {
-    const listener = (_, payload) => callback(payload)
-    ipcRenderer.on('system:feature-progress', listener)
-    return () => ipcRenderer.removeListener('system:feature-progress', listener)
-  }
+  restartAsAdmin: () => ipcRenderer.invoke('system:restart-as-admin')
 }
 
 if (process.contextIsolated) {

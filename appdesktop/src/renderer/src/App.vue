@@ -1,12 +1,10 @@
 <script setup>
 import { computed, ref, onMounted, onUnmounted, watch } from 'vue'
 import { useSocket } from './composables/useSocket'
-import LicenseWindow from './components/LicenseWindow.vue'
 import ActivationModal from './components/ActivationModal.vue'
 import UpdateModal from './components/UpdateModal.vue'
 import RocketLaunch from './components/RocketLaunch.vue'
 import BannerCarousel from './components/BannerCarousel.vue'
-import ExecutionProgressOverlay from './components/ExecutionProgressOverlay.vue'
 import DashboardTab from './components/DashboardTab.vue'
 import DawaTab from './components/DawaTab.vue'
 import BiosTab from './components/BiosTab.vue'
@@ -70,7 +68,6 @@ const ACTIVATED_FLAG = '__DAWA_ACTIVATED_BEFORE'
 const bootGate = ref('rocket')
 const isLaunching = ref(false)
 const revokedAlert = ref(false)
-const inAppActivationMode = ref(false)
 
 const showUpdateModal = ref(false)
 const latestVersionInfo = ref({
@@ -173,44 +170,21 @@ const handleDeactivate = async () => {
   }
 }
 
-const handleRuntimeRevocation = async () => {
-  try {
-    await window.api?.deactivateLicense?.()
-  } catch (error) {
-    console.warn('Unable to deactivate revoked license:', error)
-  }
-  revokedAlert.value = true
-  isActivated.value = false
-  licenseInfo.value = null
-  // Clear local first-time flag so the user is treated as unlicensed on next boot.
-  try {
-    localStorage.removeItem(ACTIVATED_FLAG)
-  } catch {
-    void 0
-  }
-  // If the user already reached the dashboard (boot was ready), show the
-  // in-app ActivationModal instead of resetting the entire gate. This keeps
-  // the user inside the same process so they can re-enter a freshly issued
-  // key without the app being closed on them.
-  if (bootGate.value === 'ready') {
-    inAppActivationMode.value = true
-  } else {
-    bootGate.value = 'activate'
-  }
-  setTimeout(() => {
-    revokedAlert.value = false
-  }, 8000)
-}
-
-const handleModalActivated = async (activationData) => {
-  inAppActivationMode.value = false
-  await handleActivated(activationData)
-}
-
 const { connected: socketConnected, reconnect: reconnectSocket } = useSocket({
   // Admin thu hồi / vô hiệu key → buộc app logout ngay
   license_revoked: async () => {
-    await handleRuntimeRevocation()
+    try {
+      await window.api?.deactivateLicense?.()
+    } catch (error) {
+      console.warn('Unable to deactivate revoked license:', error)
+    }
+    revokedAlert.value = true
+    isActivated.value = false
+    licenseInfo.value = null
+    bootGate.value = 'activate'
+    setTimeout(() => {
+      revokedAlert.value = false
+    }, 8000)
   },
 
   // Admin cập nhật key → re-verify để bắt hết hạn, disabled, v.v.
@@ -274,7 +248,13 @@ onMounted(() => {
   checkLicense({ splash: true })
   checkAppVersion(true)
   window.api?.onLicenseRevoked?.(() => {
-    handleRuntimeRevocation()
+    revokedAlert.value = true
+    isActivated.value = false
+    licenseInfo.value = null
+    bootGate.value = 'activate'
+    setTimeout(() => {
+      revokedAlert.value = false
+    }, 8000)
   })
 
   // Performance optimization: Pause animations when document is hidden
@@ -301,27 +281,21 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <LicenseWindow v-if="bootGate === 'activate' && !inAppActivationMode" />
+  <ActivationModal v-if="bootGate === 'activate'" @activated="handleActivated" />
   <RocketLaunch
     v-else-if="bootGate === 'rocket'"
     :launching="isLaunching"
     :copy="isActivated ? 'Đang vào khu vực tối ưu' : 'Đang xác thực bản quyền HWID'"
   />
 
-  <template v-else-if="bootGate === 'ready' || inAppActivationMode">
+  <template v-else-if="bootGate === 'ready' && isActivated">
     <Transition name="slide-down">
-      <div v-if="revokedAlert && !inAppActivationMode" class="revoked-alert">
+      <div v-if="revokedAlert" class="revoked-alert">
         <span>Key bản quyền đã bị thu hồi hoặc vô hiệu hóa. Liên hệ hỗ trợ để kích hoạt lại.</span>
       </div>
     </Transition>
 
-    <!-- In-app activation overlay: shown when admin revokes a key while the
-         user is already inside the main app. This replaces the old behavior
-         of fully closing to LicenseWindow so a freshly issued key can be
-         re-entered without losing process state. -->
-    <ActivationModal v-if="inAppActivationMode" @activated="handleModalActivated" />
-
-    <div v-if="!inAppActivationMode && isActivated" class="app-shell">
+    <div class="app-shell">
       <div class="hud-grid" aria-hidden="true"></div>
 
       <header class="hud-top">
@@ -396,7 +370,7 @@ onUnmounted(() => {
       <footer class="hud-bar">
         <div class="hud-bar-item">
           <span><KeyRound :size="12" :stroke-width="2" class="icon-key-glow" /> KEY</span>
-          <strong class="sidebar-key">{{ licenseInfo?.keyCode || 'LICENSE-ACTIVE' }}</strong>
+          <strong class="sidebar-key">{{ licenseInfo?.keyCode || 'DAWA-ACTIVE-KEY' }}</strong>
         </div>
         <div class="hud-bar-item">
           <span>
@@ -439,12 +413,9 @@ onUnmounted(() => {
 
     <!-- App Update Modal -->
     <UpdateModal
-      v-if="showUpdateModal && !inAppActivationMode"
+      v-if="showUpdateModal"
       :version-info="latestVersionInfo"
       @close="showUpdateModal = false"
     />
-
-    <!-- Global execution progress toast stack -->
-    <ExecutionProgressOverlay />
   </template>
 </template>

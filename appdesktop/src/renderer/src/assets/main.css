@@ -112,24 +112,20 @@ body {
   display: flex;
   align-items: center;
   gap: 18px;
-  height: 80px;
+  height: 58px;
   padding: 0 16px 0 18px;
   flex-shrink: 0;
   border-bottom: 1px solid rgba(42, 42, 54, 0.9);
   background: rgba(5, 5, 8, 0.72);
-  position: relative;
-  z-index: 10;
 }
 
 .hud-logo {
-  width: 350px;
-  height: 70px;
+  width: 118px;
+  height: 34px;
   object-fit: contain;
   flex-shrink: 0;
   filter: brightness(1.18);
   pointer-events: none;
-  position: relative;
-  z-index: 1;
 }
 
 .hud-nav {

@@ -1,251 +1,16 @@
-const fsLaunch = require('fs')
-const pathLaunch = require('path')
-const osLaunch = require('os')
-
-let _launchLogPath = null
-function _getLaunchLogPath() {
-  if (_launchLogPath) return _launchLogPath
-  let baseDir = null
-  try {
-    const { app } = require('electron')
-    if (app && typeof app.getPath === 'function') baseDir = app.getPath('userData')
-  } catch {
-    void 0
-  }
-  if (!baseDir) baseDir = osLaunch.tmpdir()
-  try {
-    if (!fsLaunch.existsSync(baseDir)) fsLaunch.mkdirSync(baseDir, { recursive: true })
-    const logDir = pathLaunch.join(baseDir, 'logs')
-    if (!fsLaunch.existsSync(logDir)) fsLaunch.mkdirSync(logDir, { recursive: true })
-    _launchLogPath = pathLaunch.join(logDir, 'dawa-launch.log')
-  } catch {
-    _launchLogPath = pathLaunch.join(osLaunch.tmpdir(), 'dawa-launch.log')
-  }
-  return _launchLogPath
-}
-
-let _stdioWriteCount = 0
-let _stdioBroken = false
-function _tryWriteStdio(stream, line) {
-  if (_stdioBroken) return
-  if (_stdioWriteCount > 4096) return
-  try {
-    _stdioWriteCount += 1
-    if (typeof stream?.write !== 'function') return
-    if (!stream.writable) return
-    if (stream.destroyed) return
-    stream.write(line, () => {})
-  } catch {
-    _stdioBroken = true
-  }
-}
-
-let _insideFatalHandler = false
-function launchLog(level, tag, msg) {
-  const ts = new Date().toISOString()
-  const line = `[${ts}] [${level.toUpperCase()}] [${tag}] ${msg}${
-    msg && msg.endsWith('\n') ? '' : '\n'
-  }`
-  try {
-    fsLaunch.appendFileSync(_getLaunchLogPath(), line, 'utf8')
-  } catch {
-    void 0
-  }
-  if (_insideFatalHandler) return
-  const out = level === 'error' || level === 'warn' ? process.stderr : process.stdout
-  _tryWriteStdio(out, line)
-}
-function bootBanner() {
-  const p = _getLaunchLogPath()
-  const logDir = pathLaunch.dirname(p)
-  const installerLog = pathLaunch.join(logDir, 'dawa-installer.log')
-  const uninstallerLog = pathLaunch.join(logDir, 'dawa-uninstaller.log')
-  try {
-    fsLaunch.writeFileSync(
-      p,
-      `\n========== DAWA OPTIMIZER STARTUP ${new Date().toISOString()} ==========\n` +
-        `PID=${process.pid}  ARGV=${JSON.stringify(process.argv)}\n` +
-        `CWD=${process.cwd()}  EXE=${process.execPath}\n` +
-        `PLATFORM=${process.platform}  ARCH=${process.arch}  NODE=${process.versions.node}  ELECTRON=${process.versions.electron}\n` +
-        `LOG DIR=${logDir}\n` +
-        `  - App launch   log → ${p}\n` +
-        `  - NSIS install log → ${installerLog}\n` +
-        `  - NSIS remove  log → ${uninstallerLog}\n`,
-      'utf8'
-    )
-  } catch {
-    void 0
-  }
-  launchLog('info', 'BOOT', `Launch log file: ${p}`)
-  launchLog('info', 'BOOT', `Installer (NSIS) log → ${installerLog} (created by Setup.exe)`)
-  try {
-    if (fsLaunch.existsSync(installerLog)) {
-      const stat = fsLaunch.statSync(installerLog)
-      launchLog(
-        'info',
-        'BOOT',
-        `Installer log PRESENT, size=${stat.size} bytes (use this to debug Setup.exe issues)`
-      )
-    }
-  } catch {
-    void 0
-  }
-}
-bootBanner()
-
-;(function patchConsole() {
-  const origLog = console.log
-  const origWarn = console.warn
-  const origErr = console.error
-  const origInfo = console.info
-  function fmt(args) {
-    try {
-      return args
-        .map((a) => {
-          if (a instanceof Error) return a.stack || String(a)
-          if (typeof a === 'object') return JSON.stringify(a)
-          return String(a)
-        })
-        .join(' ')
-    } catch {
-      return String(args[0] || '')
-    }
-  }
-  console.log = function () {
-    launchLog('info', 'console', fmt(Array.from(arguments)))
-    return origLog.apply(console, arguments)
-  }
-  console.warn = function () {
-    launchLog('warn', 'console', fmt(Array.from(arguments)))
-    return origWarn.apply(console, arguments)
-  }
-  console.error = function () {
-    launchLog('error', 'console', fmt(Array.from(arguments)))
-    return origErr.apply(console, arguments)
-  }
-  console.info = function () {
-    launchLog('info', 'console', fmt(Array.from(arguments)))
-    return origInfo.apply(console, arguments)
-  }
-})()
-
-let _uncaughtCount = 0
-process.on('uncaughtException', (err) => {
-  _uncaughtCount += 1
-  const stack = err && err.stack ? err.stack : String(err)
-  const msg = err && err.message ? err.message : String(err)
-
-  if (_uncaughtCount === 1 || !/EPIPE|broken pipe/i.test(msg || '')) {
-    try {
-      const ts = new Date().toISOString()
-      const line = `[${ts}] [ERROR] [CRASH] uncaughtException: ${stack}\n`
-      fsLaunch.appendFileSync(_getLaunchLogPath(), line, 'utf8')
-    } catch {
-      void 0
-    }
-    _insideFatalHandler = true
-    try {
-      const { dialog } = require('electron')
-      if (dialog && typeof dialog.showErrorBox === 'function') {
-        dialog.showErrorBox(
-          'DAWA Optimizer — Lỗi khởi động',
-          `Ứng dụng bị lỗi nghiêm trọng và phải dừng lại.\n\n` +
-            `Chi tiết lỗi: ${msg}\n\n` +
-            `Đường dẫn file log: ${_getLaunchLogPath()}`
-        )
-      }
-    } catch {
-      void 0
-    }
-  }
-  if (_uncaughtCount >= 5) {
-    process.exit(1)
-    return
-  }
-  setTimeout(() => {
-    if (_uncaughtCount >= 5) process.exit(1)
-  }, 800)
-})
-process.on('unhandledRejection', (reason) => {
-  const r = reason instanceof Error ? reason.stack : String(reason)
-  try {
-    const ts = new Date().toISOString()
-    const line = `[${ts}] [ERROR] [CRASH] unhandledRejection: ${r}\n`
-    fsLaunch.appendFileSync(_getLaunchLogPath(), line, 'utf8')
-  } catch {
-    void 0
-  }
-})
-
-try {
-  require('dotenv').config()
-  launchLog('info', 'BOOT', 'dotenv loaded successfully')
-} catch (e) {
-  launchLog('warn', 'BOOT', `dotenv not available (skipping): ${e.message}`)
-}
-
+import 'dotenv/config'
 import { app, shell, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-let icon = null
-let buildIcon = null
-try {
-  const { nativeImage } = require('electron')
-  const path = require('path')
-  const fs = require('fs')
-  function _findIcon(rel) {
-    const checks = [
-      path.join(process.resourcesPath || '', rel),
-      path.join(process.resourcesPath || '', 'app', rel),
-      path.join(__dirname, '..', '..', rel),
-      path.join(process.cwd(), rel)
-    ]
-    try {
-      const { app } = require('electron')
-      checks.unshift(path.join(app.getAppPath(), rel))
-    } catch {
-      void 0
-    }
-    for (const c of checks) {
-      try {
-        if (fs.existsSync(c)) {
-          const img = nativeImage.createFromPath(c)
-          if (img && !img.isEmpty()) return img
-        }
-      } catch {
-        void 0
-      }
-    }
-    return null
-  }
-  icon = _findIcon(path.join('resources', 'icon.png'))
-  buildIcon = _findIcon(path.join('build', 'icon.png'))
-  if (!icon) {
-    try {
-      const fsMod = require('fs')
-      const p = path.join(process.resourcesPath || '', 'resources', 'icon.png')
-      if (fsMod.existsSync(p)) icon = nativeImage.createFromPath(p)
-    } catch {
-      void 0
-    }
-  }
-  launchLog(
-    'info',
-    'BOOT',
-    `Icon resolution: trayIcon=${icon ? icon.getSize().width + 'x' + icon.getSize().height : 'null'} buildIcon=${buildIcon ? buildIcon.getSize().width + 'x' + buildIcon.getSize().height : 'null'}`
-  )
-} catch (e) {
-  launchLog('warn', 'BOOT', `Icon asset resolution failed: ${e.message}`)
-}
+import icon from '../../resources/icon.png?asset'
+import buildIcon from '../../build/icon.png?asset'
 import path from 'path'
 import os from 'os'
 import { execFile, spawn } from 'child_process'
 import { deflateSync } from 'zlib'
 import si from 'systeminformation'
 import fs from 'fs'
-launchLog('info', 'BOOT', 'Core modules imported')
-
 import {
   detectDeviceType,
   formatGpuVram,
@@ -263,14 +28,10 @@ import {
   checkWithBackend,
   getDesktopFeaturePolicy,
   validateWithBackend,
-  isTokenExpiringSoon,
-  verifyLocalLicense
-} from './services/licenseService.js'
-import { startLicensePolling, isFeatureAllowed } from './services/licenseManager.js'
-import { executeFeature, cleanupOrphanedTempFiles } from './services/featureExecutor.js'
-import { ALLOWED_DAWA_SCRIPTS } from './services/dawaScripts'
-import { runDawaScript } from './services/dawaScripts.js'
-launchLog('info', 'BOOT', 'Service modules imported')
+  verifyLocalLicense,
+  isTokenExpiringSoon
+} from './services/licenseService'
+import { ALLOWED_DAWA_SCRIPTS, runDawaScript } from './services/dawaScripts'
 
 // Function to check if running as admin
 function isAdmin() {
@@ -314,31 +75,29 @@ const BACKEND_URL_CHECK = process.env.BACKEND_URL
 const allowOfflineLicense =
   process.env.NODE_ENV === 'development' && process.env.ALLOW_OFFLINE_LICENSE === 'true'
 if (!BACKEND_URL_CHECK) {
-  launchLog(
-    'warn',
-    'BOOT',
-    'BACKEND_URL env var is not set — using the hardcoded default endpoint.'
+  console.warn(
+    '[SECURITY WARN] BACKEND_URL env var is not set — using the hardcoded default endpoint. ' +
+      'For production builds, explicitly configure BACKEND_URL in the build environment.'
   )
 }
 if (!is.dev) {
   const debugFlags = ['inspect', 'inspect-brk', 'inspect-port', 'remote-debugging-port']
   const foundDebug = debugFlags.find((f) => app.commandLine.hasSwitch(f))
   if (foundDebug) {
-    launchLog('error', 'BOOT', `Debug flag --${foundDebug} detected, aborting launch`)
-    try {
-      dialog.showErrorBox(
+    console.error(
+      `[SECURITY] Debug flag --${foundDebug} detected on production build. Aborting launch.`
+    )
+    dialog
+      .showErrorBox(
         'DAWA — Anti-Tamper',
         'Phát hiện flag gỡ lỗi trên build Production. Vui lòng khởi động lại ứng dụng mà không có flag phát triển.'
       )
-    } catch {
-      void 0
-    }
+      .catch(() => {})
     app.exit(1)
   }
   app.commandLine.appendSwitch('disable-remote-debugging')
   app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor')
 }
-launchLog('info', 'BOOT', 'Anti-tamper / debug flag checks passed')
 
 app.commandLine.appendSwitch('disable-http-cache')
 app.commandLine.appendSwitch('media-cache-size', '0')
@@ -354,21 +113,17 @@ try {
   if (!fs.existsSync(cacheRoot)) fs.mkdirSync(cacheRoot, { recursive: true })
   app.commandLine.appendSwitch('disk-cache-dir', cacheRoot)
   app.commandLine.appendSwitch('gpu-cache-dir', path.join(cacheRoot, 'gpu'))
-  launchLog('info', 'BOOT', `Chromium cache dirs created at ${cacheRoot}`)
-} catch (e) {
-  launchLog('warn', 'BOOT', `Chromium cache dir setup failed: ${e.message}`)
+} catch {
+  void 0
 }
 
-launchLog('info', 'BOOT', `app.getPath(userData)=${app.getPath('userData')}`)
 const LICENSE_FILE_PATH = path.join(app.getPath('userData'), 'dawa_license_vault.dat')
 const WINDOWS_SHUTDOWN_PATH = path.join(
   process.env.SystemRoot || 'C:\\Windows',
   'System32',
   'shutdown.exe'
 )
-launchLog('info', 'BOOT', `Creating license store at ${LICENSE_FILE_PATH}`)
 const licenseStore = createLicenseStore(LICENSE_FILE_PATH)
-launchLog('info', 'BOOT', 'License store created successfully')
 const activateAttempts = []
 
 // Performance optimization: Cache for system stats to reduce CPU usage
@@ -749,115 +504,73 @@ let mainWindow = null
 let licenseWindow = null
 
 function createLicenseWindow() {
-  launchLog('info', 'LICENSE', 'Opening license window (BrowserWindow construct)')
-  try {
-    licenseWindow = new BrowserWindow({
-      width: 1080,
-      height: 720,
-      minWidth: 920,
-      minHeight: 640,
-      resizable: true,
-      maximizable: true,
-      minimizable: true,
-      fullscreenable: false,
-      show: false,
-      autoHideMenuBar: true,
-      titleBarStyle: 'default',
-      backgroundColor: '#08080b',
-      ...(process.platform === 'linux' ? { icon } : {}),
-      webPreferences: {
-        preload: join(__dirname, '../preload/index.js'),
-        sandbox: true,
-        contextIsolation: true,
-        nodeIntegration: false,
-        nodeIntegrationInWorker: false,
-        webSecurity: true,
-        allowRunningInsecureContent: false,
-        experimentalFeatures: false,
-        enableBlinkFeatures: '',
-        devTools: is.dev
-      }
-    })
-    try {
-      licenseWindow.center()
-    } catch {
-      void 0
-    }
-    launchLog('info', 'LICENSE', 'License window BrowserWindow instance created')
-    attachWebContentsDebugListeners(licenseWindow, 'licenseWindow')
-  } catch (e) {
-    launchLog('error', 'LICENSE', `License window creation FAILED: ${e.stack || e.message}`)
-    throw e
-  }
-
-  licenseWindow.on('ready-to-show', () => {
-    launchLog('info', 'LICENSE', 'License window ready-to-show, calling show()')
-    try {
-      licenseWindow.show()
-    } catch (e) {
-      launchLog('error', 'LICENSE', `licenseWindow.show() failed: ${e.message}`)
+  licenseWindow = new BrowserWindow({
+    width: 480,
+    height: 520,
+    resizable: false,
+    maximizable: false,
+    minimizable: false,
+    fullscreenable: false,
+    show: false,
+    autoHideMenuBar: true,
+    titleBarStyle: 'default',
+    backgroundColor: '#08080b',
+    ...(process.platform === 'linux' ? { icon } : {}),
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      nodeIntegrationInWorker: false,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      experimentalFeatures: false,
+      enableBlinkFeatures: '',
+      devTools: is.dev
     }
   })
 
+  licenseWindow.on('ready-to-show', () => {
+    licenseWindow.show()
+  })
+
   licenseWindow.on('closed', () => {
-    launchLog('info', 'LICENSE', 'License window closed')
     licenseWindow = null
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    const url = process.env['ELECTRON_RENDERER_URL'] + '#/license'
-    launchLog('info', 'LICENSE', `Loading license window URL: ${url}`)
-    licenseWindow
-      .loadURL(url)
-      .then(() => launchLog('info', 'LICENSE', 'Dev license page loaded'))
-      .catch((e) => launchLog('error', 'LICENSE', `Dev license page load error: ${e.message}`))
+    licenseWindow.loadURL(process.env['ELECTRON_RENDERER_URL'] + '#/license')
   } else {
-    const p = join(__dirname, '../renderer/index.html')
-    launchLog('info', 'LICENSE', `Loading license window file: ${p}`)
-    licenseWindow
-      .loadFile(p, { hash: '#/license' })
-      .then(() => launchLog('info', 'LICENSE', 'Prod license page loaded'))
-      .catch((e) =>
-        launchLog('error', 'LICENSE', `Prod license page load error: ${e.stack || e.message}`)
-      )
+    licenseWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: '#/license' })
   }
 }
 
 function createWindow() {
-  launchLog('info', 'MAINWIN', 'Opening main window (BrowserWindow construct)')
-  try {
-    mainWindow = new BrowserWindow({
-      width: 1280,
-      height: 800,
-      minWidth: 960,
-      minHeight: 650,
-      show: false,
-      autoHideMenuBar: true,
-      titleBarStyle: 'default',
-      backgroundColor: '#08080b',
-      ...(process.platform === 'linux' ? { icon } : {}),
-      webPreferences: {
-        preload: join(__dirname, '../preload/index.js'),
-        sandbox: true,
-        contextIsolation: true,
-        nodeIntegration: false,
-        nodeIntegrationInWorker: false,
-        webSecurity: true,
-        allowRunningInsecureContent: false,
-        experimentalFeatures: false,
-        enableBlinkFeatures: '',
-        devTools: is.dev
-      }
-    })
-    launchLog('info', 'MAINWIN', 'Main window BrowserWindow instance created')
-    attachWebContentsDebugListeners(mainWindow, 'mainWindow')
-  } catch (e) {
-    launchLog('error', 'MAINWIN', `Main window creation FAILED: ${e.stack || e.message}`)
-    throw e
-  }
+  mainWindow = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    minWidth: 960,
+    minHeight: 650,
+    show: false,
+    autoHideMenuBar: true,
+    titleBarStyle: 'default',
+    backgroundColor: '#08080b',
+    ...(process.platform === 'linux' ? { icon } : {}),
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      nodeIntegrationInWorker: false,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      experimentalFeatures: false,
+      enableBlinkFeatures: '',
+      devTools: is.dev
+    }
+  })
 
   mainWindow.on('ready-to-show', () => {
-    launchLog('info', 'MAINWIN', 'Main window ready-to-show, calling show()')
     mainWindow.show()
     setTrayState(trayCurrentState)
   })
@@ -958,35 +671,18 @@ function createWindow() {
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    const url = process.env['ELECTRON_RENDERER_URL']
-    launchLog('info', 'MAINWIN', `Loading main window URL: ${url}`)
-    mainWindow
-      .loadURL(url)
-      .then(() => launchLog('info', 'MAINWIN', 'Dev main page loaded'))
-      .catch((e) =>
-        launchLog('error', 'MAINWIN', `Dev main page load error: ${e.stack || e.message}`)
-      )
+    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
-    const p = join(__dirname, '../renderer/index.html')
-    launchLog('info', 'MAINWIN', `Loading main window file: ${p}`)
-    mainWindow
-      .loadFile(p)
-      .then(() => launchLog('info', 'MAINWIN', 'Prod main page loaded'))
-      .catch((e) =>
-        launchLog('error', 'MAINWIN', `Prod main page load error: ${e.stack || e.message}`)
-      )
+    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
 }
 
 app.whenReady().then(() => {
-  launchLog('info', 'BOOT', 'app.whenReady fired — entering main bootstrap')
   electronApp.setAppUserModelId('com.dawa.optimizer')
-  launchLog('info', 'BOOT', 'AppUserModelId set')
 
-  const admin = isAdmin()
-  launchLog('info', 'BOOT', `Admin privilege check: isAdmin=${admin}`)
-  if (!admin) {
-    launchLog('warn', 'BOOT', 'Not running as Administrator — showing prompt')
+  // Check admin privileges
+  if (!isAdmin()) {
+    console.warn('[SECURITY] Application is not running with Administrator privileges')
     dialog
       .showMessageBox({
         type: 'warning',
@@ -1000,27 +696,22 @@ app.whenReady().then(() => {
       })
       .then(({ response }) => {
         if (response === 1) {
-          launchLog('info', 'BOOT', 'User chose to restart as admin')
           restartAsAdmin()
-        } else {
-          launchLog('info', 'BOOT', 'User chose to continue without admin')
         }
       })
-      .catch((e) => launchLog('error', 'BOOT', `Admin dialog error: ${e.message}`))
+      .catch(() => {})
   }
 
-  launchLog('info', 'BOOT', 'Creating system tray...')
+  // Create tray BEFORE main window so tray icon is available when window hides to it
   try {
     createTray()
-    launchLog('info', 'BOOT', 'System tray created successfully')
   } catch (trayErr) {
-    launchLog('error', 'BOOT', `Failed to create tray: ${trayErr.stack || trayErr.message}`)
+    console.warn('[TRAY] Failed to create tray:', trayErr.message)
   }
 
-  launchLog('info', 'BOOT', 'Warming up static hardware info cache...')
-  getStaticInfo()
-    .then(() => launchLog('info', 'BOOT', 'Static hardware info cache warm-up complete'))
-    .catch((e) => launchLog('warn', 'BOOT', `Static info warm-up failed: ${e.message}`))
+  // Warm-up static cache ngay khi app khởi động
+  // → khi user vào Dashboard, CPU/GPU info đã sẵn, không cần fetch lại
+  getStaticInfo().catch(() => {})
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
@@ -1506,8 +1197,7 @@ app.whenReady().then(() => {
           'Không thể kiểm tra trạng thái chức năng với máy chủ. Vui lòng kiểm tra mạng rồi thử lại.'
       }
     }
-    const feature =
-      typeof policy?.get === 'function' ? policy.get(scriptKey) : policy?.features?.[scriptKey]
+    const feature = policy?.features?.[scriptKey]
     if (feature?.deleted) {
       return {
         success: false,
@@ -1542,30 +1232,26 @@ app.whenReady().then(() => {
   ipcMain.handle('system:restart-as-admin', () => restartAsAdmin())
 
   // License window IPC handlers
-  ipcMain.handle('license:activate-from-window', async (event, rawKey) => {
-    if (isActivateRateLimited()) {
-      return { success: false, message: 'Quá nhiều lần thử. Đợi 1 phút rồi thử lại.' }
-    }
-    const keyCode = normalizeLicenseKey(rawKey) || rawKey.trim()
+  ipcMain.handle('license:activate-from-window', async (event, keyCode) => {
     const currentDeviceHash = await getHardwareHash()
     const activation = await validateWithBackend(keyCode, currentDeviceHash)
     if (activation.success && activation.valid) {
-      // Correct signature: save(keyCode, deviceHash, expiresAt)
-      licenseStore.save(keyCode, currentDeviceHash, activation.data?.expires_at)
+      licenseStore.save({
+        keyCode,
+        deviceHash: currentDeviceHash,
+        activatedAt: Date.now()
+      })
       licenseStore.saveTokens({
         accessToken: activation.accessToken,
         refreshToken: activation.refreshToken
       })
-      // Start polling immediately so revoke events are picked up
-      const tokens = licenseStore.getTokens()
-      if (tokens) startLicensePolling(licenseStore, tokens)
       // Close license window and open main window
       if (licenseWindow) {
         licenseWindow.close()
         licenseWindow = null
       }
       createWindow()
-      return { success: true, message: activation.message || 'Kích hoạt thành công!' }
+      return { success: true, message: 'Kích hoạt thành công!' }
     }
     return { success: false, message: activation.message || 'Kích hoạt thất bại' }
   })
@@ -1580,385 +1266,27 @@ app.whenReady().then(() => {
     return { isActivated: localCheck.valid }
   })
 
-  ipcMain.on('license:close-window', () => {
-    if (licenseWindow) {
-      licenseWindow.close()
-      licenseWindow = null
-    }
-  })
-
-  // Secure feature execution with license check, temp file handling, and cleanup
-  ipcMain.handle('system:execute-feature', async (event, { scriptKey, options = {} }) => {
-    const tokens = licenseStore.getTokens()
-    const webContents = event.sender
-    const executionId = `${scriptKey}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-
-    const emitProgress = (stage) => {
-      try {
-        if (webContents && !webContents.isDestroyed()) {
-          webContents.send('system:feature-progress', {
-            executionId,
-            scriptKey,
-            label: options?.label || scriptKey,
-            ...stage
-          })
-        }
-      } catch {
-        void 0
-      }
-    }
-
-    // Check license and feature policy first
-    const licenseCheck = await isFeatureAllowed(licenseStore, tokens, scriptKey)
-    if (!licenseCheck.allowed) {
-      emitProgress({
-        percent: 100,
-        phase: 'failed',
-        message: licenseCheck.reason,
-        featureKey: scriptKey
-      })
-      return {
-        success: false,
-        message: licenseCheck.reason,
-        licenseStatus: licenseCheck.mode
-      }
-    }
-
-    // Get script mapping
-    const script = ALLOWED_DAWA_SCRIPTS[scriptKey]
-    if (!script) {
-      emitProgress({
-        percent: 100,
-        phase: 'failed',
-        message: `Script [${scriptKey}] không nằm trong danh sách được phép thực thi.`,
-        featureKey: scriptKey
-      })
-      return {
-        success: false,
-        message: `Script [${scriptKey}] không nằm trong danh sách được phép thực thi.`
-      }
-    }
-
-    const scriptLabel = options?.label || script.label || scriptKey
-    emitProgress({
-      percent: 8,
-      phase: 'license',
-      message: 'Giấy phép hợp lệ. Đang phân giải đường dẫn file…',
-      featureKey: scriptKey
-    })
-
-    // Determine script path and type
-    let scriptPath = null
-    let scriptType = 'reg'
-
-    if (script.launch) {
-      // Launch executable directly — but still show a 3-stage progress for UX consistency
-      emitProgress({
-        percent: 25,
-        phase: 'launch',
-        message: 'Đang khởi chạy tiến trình con…',
-        featureKey: scriptKey
-      })
-      const result = await runDawaScript(scriptKey, options)
-      emitProgress({
-        percent: 100,
-        phase: result.success ? 'done' : 'failed',
-        message:
-          result?.message || (result.success ? 'Đã khởi chạy xong.' : 'Không thể khởi chạy.'),
-        featureKey: scriptKey
-      })
-      return result
-    }
-
-    if (script.profileFiles) {
-      const file = script.profileFiles[options.profile]
-      if (!file) {
-        emitProgress({
-          percent: 100,
-          phase: 'failed',
-          message: 'Invalid registry script profile.',
-          featureKey: scriptKey
-        })
-        return { success: false, message: 'Invalid registry script profile.' }
-      }
-
-      scriptPath = file
-      scriptType =
-        file.toLowerCase().endsWith('.cmd') || file.toLowerCase().endsWith('.bat') ? 'bat' : 'reg'
-    } else if (script.profiles) {
-      const profileFile = script.profiles[options.profile]
-      if (!profileFile) {
-        emitProgress({
-          percent: 100,
-          phase: 'failed',
-          message: 'Cấu hình không hợp lệ.',
-          featureKey: scriptKey
-        })
-        return { success: false, message: 'Cấu hình không hợp lệ.' }
-      }
-
-      const file = join(
-        script.profileDirectory ||
-          join(__dirname, '../../resources/scripts/Optimizer/Ram Optimization'),
-        profileFile
-      )
-
-      scriptPath = file
-      scriptType = 'reg'
-    } else {
-      // Fallback to existing execution
-      emitProgress({
-        percent: 30,
-        phase: 'launch',
-        message: 'Đang phân phối script đến trình thực thi…',
-        featureKey: scriptKey
-      })
-      const result = await runDawaScript(scriptKey, options)
-      emitProgress({
-        percent: 100,
-        phase: result.success ? 'done' : 'failed',
-        message: result?.message || (result.success ? 'Thực thi xong.' : 'Thất bại'),
-        featureKey: scriptKey
-      })
-      return result
-    }
-
-    // Check if encrypted file exists (.dat)
-    const encryptedPath = scriptPath + '.dat'
-    const useEncrypted = fs.existsSync(encryptedPath)
-
-    const finalScriptPath = useEncrypted ? encryptedPath : scriptPath
-
-    // Execute with secure feature executor + stream progress
-    const result = await executeFeature({
-      licenseStore,
-      tokens,
-      featureKey: scriptKey,
-      scriptPath: finalScriptPath,
-      scriptType,
-      args: [],
-      label: scriptLabel,
-      onProgress: emitProgress
-    })
-
-    return result
-  })
-
+  // Check license on startup and show appropriate window
   const checkLicenseOnStartup = async () => {
-    launchLog('info', 'LICENSE', '====== checkLicenseOnStartup START ======')
-    try {
-      launchLog('info', 'LICENSE', 'Cleaning up orphaned temp files...')
-      await cleanupOrphanedTempFiles()
-      launchLog('info', 'LICENSE', 'Temp file cleanup done')
+    const currentDeviceHash = await getHardwareHash()
+    const stored = licenseStore.get()
+    const localCheck = stored ? verifyLocalLicense(stored, currentDeviceHash) : { valid: false }
 
-      launchLog('info', 'LICENSE', 'Computing hardware hash...')
-      const currentDeviceHash = await getHardwareHash()
-      launchLog('info', 'LICENSE', `Hardware hash (masked): ${maskHardwareId(currentDeviceHash)}`)
-
-      const stored = licenseStore.get()
-      launchLog('info', 'LICENSE', `Stored license present: ${!!stored}`)
-      const localCheck = stored ? verifyLocalLicense(stored, currentDeviceHash) : { valid: false }
-      launchLog(
-        'info',
-        'LICENSE',
-        `Local license valid=${localCheck.valid}` +
-          (localCheck.message ? ` (${localCheck.message})` : '')
-      )
-
-      if (!localCheck.valid) {
-        launchLog(
-          'info',
-          'LICENSE',
-          'No valid local license — checking installer registry fallback...'
-        )
-        let licenseKeyFromInstaller = null
-        try {
-          const { execSync } = require('child_process')
-          const hives = ['HKCU', 'HKLM']
-          for (const hive of hives) {
-            try {
-              const regQuery = execSync(
-                `reg query "${hive}\\Software\\DAWA Optimizer" /v LicenseKey`,
-                { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
-              )
-              if (regQuery) {
-                const match = regQuery.match(/LicenseKey\s+REG_SZ\s+(.+)/)
-                if (match && match[1]) {
-                  let rawKey = match[1].trim()
-                  launchLog(
-                    'info',
-                    'LICENSE',
-                    `Installer registry key read from ${hive}: length=${rawKey.length}`
-                  )
-                  if (/^[A-Za-z0-9+/=]{16,}$/.test(rawKey) && !rawKey.includes('-')) {
-                    try {
-                      const decoded = Buffer.from(rawKey, 'base64').toString('utf16le')
-                      const clean = decoded.replace(/\0/g, '').trim()
-                      if (clean && clean.length >= 8) {
-                        rawKey = clean
-                        launchLog('info', 'LICENSE', 'Installer key: Base64-UTF16LE decoded OK')
-                      }
-                    } catch (e) {
-                      launchLog('warn', 'LICENSE', `Installer key B64 decode failed: ${e.message}`)
-                    }
-                  }
-                  try {
-                    execSync(
-                      `reg delete "${hive}\\Software\\DAWA Optimizer" /v LicenseKey /f 2>NUL`,
-                      { stdio: 'ignore' }
-                    )
-                    launchLog(
-                      'info',
-                      'LICENSE',
-                      `Installer registry key wiped (${hive}, one-time read)`
-                    )
-                  } catch {
-                    launchLog('warn', 'LICENSE', `Could not wipe installer registry key (${hive})`)
-                  }
-                  licenseKeyFromInstaller = rawKey
-                  break
-                }
-              }
-            } catch (hiveErr) {
-              launchLog(
-                'debug',
-                'LICENSE',
-                `Installer registry read skipped for ${hive}: ${hiveErr.message}`
-              )
-            }
-          }
-          if (!licenseKeyFromInstaller) {
-            launchLog('warn', 'LICENSE', 'No LicenseKey found in either HKCU or HKLM hives')
-          }
-        } catch (err) {
-          launchLog('warn', 'LICENSE', `Installer registry read failed: ${err.message}`)
-        }
-        if (licenseKeyFromInstaller) {
-          launchLog('info', 'LICENSE', 'Validating installer key against backend...')
-          const activation = await validateWithBackend(licenseKeyFromInstaller, currentDeviceHash)
-          launchLog(
-            'info',
-            'LICENSE',
-            `Backend activation result: success=${activation.success} valid=${activation.valid}`
-          )
-          if (activation.success && activation.valid) {
-            licenseStore.save(
-              normalizeLicenseKey(licenseKeyFromInstaller) || licenseKeyFromInstaller,
-              currentDeviceHash,
-              activation.data?.expires_at
-            )
-            licenseStore.saveTokens({
-              accessToken: activation.accessToken,
-              refreshToken: activation.refreshToken
-            })
-            const tokens = licenseStore.getTokens()
-            if (tokens) startLicensePolling(licenseStore, tokens)
-            launchLog('info', 'LICENSE', 'Installer-key activation succeeded — opening MAIN window')
-            createWindow()
-            return
-          }
-        }
-        launchLog('info', 'LICENSE', 'Falling back — opening LICENSE window')
-        createLicenseWindow()
-      } else {
-        launchLog('info', 'LICENSE', 'Local license valid — starting polling + opening MAIN window')
-        const tokens = licenseStore.getTokens()
-        if (tokens) {
-          launchLog(
-            'info',
-            'LICENSE',
-            `Tokens present: access=${!!tokens.accessToken} refresh=${!!tokens.refreshToken}`
-          )
-          startLicensePolling(licenseStore, tokens)
-        }
-        createWindow()
-      }
-    } catch (e) {
-      launchLog('error', 'LICENSE', `checkLicenseOnStartup FATAL ERROR: ${e.stack || e.message}`)
-      throw e
-    } finally {
-      launchLog('info', 'LICENSE', '====== checkLicenseOnStartup END ======')
+    if (!localCheck.valid) {
+      createLicenseWindow()
+    } else {
+      createWindow()
     }
   }
 
-  launchLog('info', 'BOOT', 'Calling checkLicenseOnStartup()')
   checkLicenseOnStartup()
-    .then(() => launchLog('info', 'BOOT', 'checkLicenseOnStartup resolved'))
-    .catch((e) =>
-      launchLog('error', 'BOOT', `checkLicenseOnStartup promise rejected: ${e.stack || e.message}`)
-    )
 
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 
-app.on('render-process-gone', (event, webContents, details) => {
-  const url = webContents.getURL ? webContents.getURL() : 'unknown'
-  launchLog(
-    'error',
-    'CRASH',
-    `render-process-gone: reason=${details.reason} exitCode=${details.exitCode} url=${url}`
-  )
-  try {
-    dialog.showErrorBox(
-      'DAWA Optimizer — Renderer Crash',
-      `Quá trình render giao diện bị dừng đột ngột.\n` +
-        `Lý do: ${details.reason || 'unknown'}\n` +
-        `Mã thoát: ${details.exitCode}\n\n` +
-        `File log: ${_getLaunchLogPath()}`
-    )
-  } catch {
-    void 0
-  }
-})
-app.on('child-process-gone', (event, details) => {
-  launchLog(
-    'warn',
-    'CRASH',
-    `child-process-gone: type=${details.type} name=${details.name || ''} reason=${details.reason} exitCode=${details.exitCode}`
-  )
-})
-
-ipcMain.handle('app:log', async (_, level, tag, msg) => {
-  const lvl = ['error', 'warn', 'info', 'debug'].includes(level) ? level : 'info'
-  launchLog(lvl, `UI:${tag || 'renderer'}`, String(msg || ''))
-  return { success: true }
-})
-
-function attachWebContentsDebugListeners(win, winName) {
-  if (!win || !win.webContents) return
-  const wc = win.webContents
-  wc.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
-    if (!isMainFrame) return
-    launchLog(
-      'error',
-      'UI',
-      `${winName} did-fail-load: code=${errorCode} desc=${errorDescription} url=${validatedURL}`
-    )
-  })
-  wc.on('did-finish-load', () => {
-    launchLog('info', 'UI', `${winName} did-finish-load`)
-  })
-  wc.on('crashed', (e, killed) => {
-    launchLog('error', 'UI', `${winName} webContents crashed killed=${killed}`)
-  })
-  wc.on('unresponsive', () => {
-    launchLog('warn', 'UI', `${winName} webContents unresponsive`)
-  })
-  wc.on('console-message', (event, level, message, line, sourceId) => {
-    if (level === 3 || (level === 2 && /error|fail|exception|crash/i.test(message))) {
-      launchLog(
-        level === 3 ? 'error' : 'warn',
-        'UI',
-        `${winName} console[${level}]: ${message} (${sourceId}:${line})`
-      )
-    }
-  })
-}
-
 app.on('window-all-closed', () => {
-  launchLog('info', 'BOOT', 'window-all-closed event fired')
   if (process.platform === 'darwin') return
   if (tray && !app.isQuiting) {
     try {
@@ -1977,6 +1305,5 @@ app.on('window-all-closed', () => {
     }
     return
   }
-  launchLog('info', 'BOOT', 'Calling app.quit() from window-all-closed')
   app.quit()
 })

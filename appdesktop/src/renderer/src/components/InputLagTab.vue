@@ -162,7 +162,7 @@ const run = async (scriptKey, description, options = {}) => {
   const time = new Date().toLocaleTimeString()
   logOutput.value += `[${time}] [INPUT LAG] Đang thực thi [${scriptKey}] - ${description}...\n`
   try {
-    const res = await window.api.executeFeature(scriptKey, { ...options, label: description })
+    const res = await window.api.runDawaScript(scriptKey, options)
     if (res?.success) {
       logOutput.value += `✅ ${res.message}\n`
     } else {

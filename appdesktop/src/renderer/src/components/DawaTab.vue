@@ -290,10 +290,12 @@ const PRIVACY_TWEAKS = Object.freeze([
 
 const switchStates = reactive(
   Object.fromEntries(
-    [...TWEAK_SWITCHES, ...ADVANCED_TWEAKS, ...SYSTEM_TWEAKS, ...PRIVACY_TWEAKS].map((s) => [
-      s.id,
-      false
-    ])
+    [
+      ...TWEAK_SWITCHES,
+      ...ADVANCED_TWEAKS,
+      ...SYSTEM_TWEAKS,
+      ...PRIVACY_TWEAKS
+    ].map((s) => [s.id, false])
   )
 )
 
@@ -303,7 +305,7 @@ const runDawaScript = async (scriptKey, description, options = {}) => {
   const time = new Date().toLocaleTimeString()
   logOutput.value += `[${time}] [DAWA OPTIMIZE] Đang thực thi [${scriptKey}] - ${description}...\n`
   try {
-    const res = await window.api.executeFeature(scriptKey, { ...options, label: description })
+    const res = await window.api.runDawaScript(scriptKey, options)
     if (res?.success) {
       logOutput.value += `✅ ${res.message}\n`
       if (res.stepResults) {
@@ -328,12 +330,11 @@ const toggleWinSwitch = async (tweak) => {
   const next = !switchStates[tweak.id]
   const action = next ? tweak.onAction : tweak.offAction
   const verb = next ? 'Bật' : 'Tắt'
-  const label = `${verb} ${tweak.label}`
   const time = new Date().toLocaleTimeString()
   logOutput.value += `[${time}] [WINDOWS TWEAK] ${verb} [${tweak.label}]...\n`
   isRunning.value = true
   try {
-    const res = await window.api.executeFeature(action, { label })
+    const res = await window.api.runDawaScript(action)
     if (res?.success) {
       switchStates[tweak.id] = next
       logOutput.value += `✅ ${verb} [${tweak.label}] thành công.\n`
@@ -527,7 +528,9 @@ const clearLog = () => {
           <h2 class="opt-card-title">Tinh Chỉnh CPU Nâng Cao</h2>
           <span class="opt-count-pill">{{ ADVANCED_TWEAKS.length }} Toggles</span>
         </div>
-        <p class="opt-card-sub">Kiểm soát xung nhịp, timer coalescing và driver updates</p>
+        <p class="opt-card-sub">
+          Kiểm soát xung nhịp, timer coalescing và driver updates
+        </p>
       </div>
 
       <div class="opt-switch-grid">
@@ -580,7 +583,9 @@ const clearLog = () => {
           <h2 class="opt-card-title">Tinh Chỉnh Hệ Thống</h2>
           <span class="opt-count-pill">{{ SYSTEM_TWEAKS.length }} Toggles</span>
         </div>
-        <p class="opt-card-sub">Memory, network, runtime broker và security mitigations</p>
+        <p class="opt-card-sub">
+          Memory, network, runtime broker và security mitigations
+        </p>
       </div>
 
       <div class="opt-switch-grid">
@@ -633,7 +638,9 @@ const clearLog = () => {
           <h2 class="opt-card-title">Tinh Chỉnh Quyền Riêng Tư</h2>
           <span class="opt-count-pill">{{ PRIVACY_TWEAKS.length }} Toggles</span>
         </div>
-        <p class="opt-card-sub">Windows sync và tự động cài đặt applications</p>
+        <p class="opt-card-sub">
+          Windows sync và tự động cài đặt applications
+        </p>
       </div>
 
       <div class="opt-switch-grid">
