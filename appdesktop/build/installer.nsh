@@ -4,6 +4,8 @@
 !include "nsDialogs.nsh"
 !include "LogicLib.nsh"
 !include "WinCore.nsh"
+!include "WinVer.nsh"
+!include "System.nsh"
 
 Var LicenseKeyInput
 Var LicenseKey
@@ -18,6 +20,13 @@ Var HwIdTemp
   StrCmp $0 "" 0 +2
   StrCpy $0 "DAWA"
 
+  ; === STEP 0.5: Force ComCtl32 v6 manifest activation context for visual styles ===
+  ; Fixes "không hỗ trợ visual styles" on elevated tokens / Win11 builds where Themes service
+  ; hasn't hooked side-by-side manifest yet for plugin DLLs (nsDialogs requires ComCtl32 v6).
+  InitPluginsDir
+  System::Call "kernel32::LoadLibrary(t 'comctl32.dll')"
+  System::Call "uxtheme::SetWindowTheme(i $HWNDPARENT, t 'DarkMode_Explorer', t '')"
+
   ValidateAgain:
 
   ; === STEP 1: Collect lightweight HWID for server-side binding ===
@@ -28,13 +37,23 @@ Var HwIdTemp
     StrCpy $HwIdTemp "UNKNOWN-HWID"
   ${EndIf}
 
-  ; === STEP 2: Render license dialog with nsDialogs ===
+  ; === STEP 2: Render license dialog with nsDialogs (FALLBACK = classic InputBox if visual styles fail) ===
   DialogRetry:
   nsDialogs::Create 1018 "DAWA Optimizer — License Gate"
   Pop $0
   ${If} $0 == error
-    MessageBox MB_OK|MB_ICONSTOP "Không thể khởi tạo cửa sổ kích hoạt. Hệ thống không hỗ trợ visual styles."
-    Quit
+    ; === FALLBACK PATH: Visual styles broken (Themes service off / Safe Mode / Classic shell / elevated token without manifest) ===
+    ; Use built-in Microsoft.VisualBasic Interaction.InputBox — works on ALL Windows without any visual style requirement
+    ; (pure Win32 CreateWindowExA backend, no ComCtl32 v6 needed)
+    DialogClassicFallback:
+    nsExec::ExecToStack 'powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Normal -Sta -Command "Add-Type -AssemblyName Microsoft.VisualBasic; $k = [Microsoft.VisualBasic.Interaction]::InputBox(''''Nhập key bản quyền DAWA-XXXX-XXXX-XXXX để giải nén:'''',''''DAWA Optimizer — License Gate (Classic Mode)'''','''''''', -1, -1); if ([string]::IsNullOrWhiteSpace($k)) { Write-Output ''''CANCEL'''' } else { Write-Output ($k.Trim().ToUpper()) }"'
+    Pop $0
+    Pop $LicenseKey
+    ${If} $LicenseKey == "CANCEL"
+      MessageBox MB_OK|MB_ICONEXCLAMATION|MB_RETRYCANCEL "Vui lòng nhập key bản quyền để tiếp tục!" IDRETRY DialogClassicFallback
+      Quit
+    ${EndIf}
+    Goto FormatCheckStart
   ${EndIf}
 
   ${NSD_CreateLabel} 0 0 100% 20u "Nhập key bản quyền để giải nén DAWA Optimizer:"
@@ -54,6 +73,7 @@ Var HwIdTemp
 
   ${NSD_GetText} $LicenseKeyInput $LicenseKey
 
+  FormatCheckStart:
   ; === STEP 3: Local format sanity check ===
   ${If} $LicenseKey == ""
     MessageBox MB_OK|MB_ICONEXCLAMATION|MB_RETRYCANCEL "Vui lòng nhập key bản quyền!" IDRETRY DialogRetry
