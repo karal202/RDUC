@@ -34,7 +34,7 @@ win:
   target:
     - nsis
   executableName: Dawa-Optimizer
-  requestedExecutionLevel: requireAdministrator
+  requestedExecutionLevel: highestAvailable
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true

@@ -23,6 +23,24 @@ function _getLaunchLogPath() {
   }
   return _launchLogPath
 }
+
+let _stdioWriteCount = 0
+let _stdioBroken = false
+function _tryWriteStdio(stream, line) {
+  if (_stdioBroken) return
+  if (_stdioWriteCount > 4096) return
+  try {
+    _stdioWriteCount += 1
+    if (typeof stream?.write !== 'function') return
+    if (!stream.writable) return
+    if (stream.destroyed) return
+    stream.write(line, () => {})
+  } catch {
+    _stdioBroken = true
+  }
+}
+
+let _insideFatalHandler = false
 function launchLog(level, tag, msg) {
   const ts = new Date().toISOString()
   const line = `[${ts}] [${level.toUpperCase()}] [${tag}] ${msg}${
@@ -33,12 +51,9 @@ function launchLog(level, tag, msg) {
   } catch {
     void 0
   }
+  if (_insideFatalHandler) return
   const out = level === 'error' || level === 'warn' ? process.stderr : process.stdout
-  try {
-    out.write(line)
-  } catch {
-    void 0
-  }
+  _tryWriteStdio(out, line)
 }
 function bootBanner() {
   const p = _getLaunchLogPath()
@@ -94,28 +109,52 @@ bootBanner()
   }
 })()
 
+let _uncaughtCount = 0
 process.on('uncaughtException', (err) => {
-  launchLog('error', 'CRASH', `uncaughtException: ${err && err.stack ? err.stack : String(err)}`)
-  try {
-    const { dialog } = require('electron')
-    dialog
-      .showErrorBox(
-        'DAWA Optimizer — Lỗi khởi động',
-        `Ứng dụng bị lỗi nghiêm trọng và phải dừng lại.\n\n` +
-          `Chi tiết lỗi: ${err && err.message ? err.message : String(err)}\n\n` +
-          `Đường dẫn file log: ${_getLaunchLogPath()}`
-      )
-      .catch(() => {
-        void 0
-      })
-  } catch {
-    void 0
+  _uncaughtCount += 1
+  const stack = err && err.stack ? err.stack : String(err)
+  const msg = err && err.message ? err.message : String(err)
+
+  if (_uncaughtCount === 1 || !/EPIPE|broken pipe/i.test(msg || '')) {
+    try {
+      const ts = new Date().toISOString()
+      const line = `[${ts}] [ERROR] [CRASH] uncaughtException: ${stack}\n`
+      fsLaunch.appendFileSync(_getLaunchLogPath(), line, 'utf8')
+    } catch {
+      void 0
+    }
+    _insideFatalHandler = true
+    try {
+      const { dialog } = require('electron')
+      if (dialog && typeof dialog.showErrorBox === 'function') {
+        dialog.showErrorBox(
+          'DAWA Optimizer — Lỗi khởi động',
+          `Ứng dụng bị lỗi nghiêm trọng và phải dừng lại.\n\n` +
+            `Chi tiết lỗi: ${msg}\n\n` +
+            `Đường dẫn file log: ${_getLaunchLogPath()}`
+        )
+      }
+    } catch {
+      void 0
+    }
   }
-  setTimeout(() => process.exit(1), 500)
+  if (_uncaughtCount >= 5) {
+    process.exit(1)
+    return
+  }
+  setTimeout(() => {
+    if (_uncaughtCount >= 5) process.exit(1)
+  }, 800)
 })
 process.on('unhandledRejection', (reason) => {
   const r = reason instanceof Error ? reason.stack : String(reason)
-  launchLog('error', 'CRASH', `unhandledRejection: ${r}`)
+  try {
+    const ts = new Date().toISOString()
+    const line = `[${ts}] [ERROR] [CRASH] unhandledRejection: ${r}\n`
+    fsLaunch.appendFileSync(_getLaunchLogPath(), line, 'utf8')
+  } catch {
+    void 0
+  }
 })
 
 try {
@@ -132,14 +171,52 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 let icon = null
 let buildIcon = null
 try {
-  icon = require('../../resources/icon.png?asset').default
+  const { nativeImage } = require('electron')
+  const path = require('path')
+  const fs = require('fs')
+  function _findIcon(rel) {
+    const checks = [
+      path.join(process.resourcesPath || '', rel),
+      path.join(process.resourcesPath || '', 'app', rel),
+      path.join(__dirname, '..', '..', rel),
+      path.join(process.cwd(), rel)
+    ]
+    try {
+      const { app } = require('electron')
+      checks.unshift(path.join(app.getAppPath(), rel))
+    } catch {
+      void 0
+    }
+    for (const c of checks) {
+      try {
+        if (fs.existsSync(c)) {
+          const img = nativeImage.createFromPath(c)
+          if (img && !img.isEmpty()) return img
+        }
+      } catch {
+        void 0
+      }
+    }
+    return null
+  }
+  icon = _findIcon(path.join('resources', 'icon.png'))
+  buildIcon = _findIcon(path.join('build', 'icon.png'))
+  if (!icon) {
+    try {
+      const fsMod = require('fs')
+      const p = path.join(process.resourcesPath || '', 'resources', 'icon.png')
+      if (fsMod.existsSync(p)) icon = nativeImage.createFromPath(p)
+    } catch {
+      void 0
+    }
+  }
+  launchLog(
+    'info',
+    'BOOT',
+    `Icon resolution: trayIcon=${icon ? icon.getSize().width + 'x' + icon.getSize().height : 'null'} buildIcon=${buildIcon ? buildIcon.getSize().width + 'x' + buildIcon.getSize().height : 'null'}`
+  )
 } catch (e) {
-  launchLog('warn', 'BOOT', `icon asset import failed: ${e.message}`)
-}
-try {
-  buildIcon = require('../../build/icon.png?asset').default
-} catch (e) {
-  launchLog('warn', 'BOOT', `build-icon asset import failed: ${e.message}`)
+  launchLog('warn', 'BOOT', `Icon asset resolution failed: ${e.message}`)
 }
 import path from 'path'
 import os from 'os'
@@ -1402,7 +1479,8 @@ app.whenReady().then(() => {
           'Không thể kiểm tra trạng thái chức năng với máy chủ. Vui lòng kiểm tra mạng rồi thử lại.'
       }
     }
-    const feature = policy?.features?.[scriptKey]
+    const feature =
+      typeof policy?.get === 'function' ? policy.get(scriptKey) : policy?.features?.[scriptKey]
     if (feature?.deleted) {
       return {
         success: false,
