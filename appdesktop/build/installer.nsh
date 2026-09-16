@@ -60,8 +60,12 @@ Var LogBootWritten
   Delete "$PLUGINSDIR\gate-result.txt"
   !insertmacro LogInstaller "Cleared prior gate-result.txt"
 
+  !insertmacro LogInstaller "Unblocking extracted PS1 (anti MOTW ZoneId=3)..."
+  ExecWait 'cmd.exe /c "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"Unblock-File -LiteralPath $\'$PLUGINSDIR\license-gate.ps1$\' -ErrorAction SilentlyContinue\""'
   !insertmacro LogInstaller "Launching license-gate.ps1 (blocks until user closes form)..."
-  ExecWait 'powershell.exe -NoProfile -ExecutionPolicy Bypass -Sta -WindowStyle Hidden -File "$PLUGINSDIR\license-gate.ps1" -LogFile "$APPDATA\dawa-optimizer\logs\dawa-installer.log"' $0
+  StrCpy $LogTmp1 "$APPDATA\dawa-optimizer\logs\dawa-installer.log"
+  StrCpy $LogTmp2 '"$PLUGINSDIR\license-gate.ps1"'
+  ExecWait 'cmd.exe /s /c ""powershell.exe" -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Sta -WindowStyle Hidden -File $LogTmp2 -LogFile "$LogTmp1" >> "$LogTmp1" 2>&1"' $0
   !insertmacro LogInstaller "license-gate.ps1 exited with code=$0"
 
   StrCpy $LicenseGateOutput ""
