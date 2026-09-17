@@ -1,7 +1,8 @@
 param(
   [Parameter(Mandatory = $true)][string]$LicenseKey,
   [Parameter(Mandatory = $true)][string]$BackendUrl,
-  [Parameter(Mandatory = $true)][string]$OutputFile
+  [Parameter(Mandatory = $true)][string]$OutputFile,
+  [Parameter(Mandatory = $true)][string]$ValidFlagFile
 )
 
 $ErrorActionPreference = 'Stop'
@@ -75,10 +76,12 @@ try {
   $result = @{
     success   = $false
     valid     = $false
-    message   = if ($offline) { 'Không thể kết nối máy chủ xác thực. Kiểm tra mạng.' } else { $msg }
+    message   = if ($offline) { 'Cannot connect to license server. Check your network connection.' } else { $msg }
     isOffline = [bool]$offline
   }
 }
 
 $result | ConvertTo-Json -Depth 6 -Compress | Out-File -FilePath $OutputFile -Encoding utf8
+$flagVal = if ($result.valid) { '1' } else { '0' }
+[System.IO.File]::WriteAllText($ValidFlagFile, $flagVal, [System.Text.Encoding]::ASCII)
 exit 0
