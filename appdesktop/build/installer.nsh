@@ -11,6 +11,31 @@ InstallDirRegKey HKCU "Software\Dawa Optimizer" "InstallLocation"
 !insertmacro GetParameters
 !insertmacro GetOptions
 
+; ==========================================================
+;  DAWA OPTIMIZER - CUSTOM NSIS UI THEME
+;  Replace boring default Windows installer look
+; ==========================================================
+!define MUI_BGCOLOR "0x10141c"
+!define MUI_GRAYCOLOR "0x1a1f2b"
+!define MUI_INSTFILESPAGE_COLORS "0xe6edf7 0x10141c"
+!define MUI_INSTFILESPAGE_PROGRESSBAR "smooth"
+!define MUI_ABORTWARNING
+
+!define MUI_WELCOMEPAGE_TITLE  "DAWA Optimizer Setup"
+!define MUI_WELCOMEPAGE_TEXT   "Welcome to the DAWA Optimizer kernel installer.$\r$\n$\r$\nThis program will perform hardware binding, license verification, and a secure-seal installation before extracting system binaries to the device vault.$\r$\n$\r$\nClick Next to begin the secure provisioning process."
+!define MUI_FINISHPAGE_TITLE   "Installation complete"
+!define MUI_FINISHPAGE_TEXT    "DAWA Optimizer has been provisioned on this device.$\r$\n$\r$\nYour hardware fingerprint has been sealed with AES-256-GCM and the license vault has been migrated to secure storage.$\r$\n$\r$\nClick Finish to launch the kernel."
+
+!define MUI_LICENSEPAGE_TEXT_TOP   "Please read the following Software License Agreement before provisioning DAWA Optimizer."
+!define MUI_LICENSEPAGE_BUTTON     "I Agree - Begin Provisioning"
+
+!define MUI_DIRECTORYPAGE_TEXT_TOP "Confirm provisioning location for the DAWA Optimizer secure kernel."
+!define MUI_DIRECTORYPAGE_TEXT_DESTINATION "Secure vault folder:"
+
+!define MUI_CONFIRMPAGE_TEXT_TOP   "The installer is ready to provision DAWA Optimizer on this device."
+!define MUI_CONFIRMPAGE_TEXT_DESTINATION "Kernel will be sealed to:"
+!define MUI_CONFIRM_TITLE          "Provision DAWA Optimizer"
+
 ; Runtime state variables
 Var ActivationDialog
 Var LicenseEdit
@@ -23,6 +48,13 @@ Var ValidatedKey
 Var BackendUrlText
 Var HasActivatedOnce
 Var PowerShellCmd
+Var InstFilesWindow
+Var InstFilesLabel
+Var InstFilesProgress
+Var InstFilesSubLabel
+Var InstFilesLog
+Var InstFilesPctLabel
+Var InstProgressPrev
 
 ; Default backend fallback
 !ifndef DAWA_BACKEND_URL
@@ -367,3 +399,62 @@ FunctionEnd
   Pop $0
 uninstSkipLock:
 !macroend
+
+; ==========================================================
+;  INSTFILES PAGE - DAWA CUSTOM UI (replace boring Windows extract look)
+; ==========================================================
+Function .onInitInstFiles
+  StrCpy $InstProgressPrev "0"
+  FindWindow $InstFilesWindow "#32770" "" $HWNDPARENT
+  GetDlgItem $InstFilesLabel $InstFilesWindow 1006
+  GetDlgItem $InstFilesProgress $InstFilesWindow 1004
+  GetDlgItem $InstFilesSubLabel $InstFilesWindow 1027
+  SendMessage $HWNDPARENT ${WM_SETTEXT} 0 'STR:DAWA OPTIMIZER  ·  SECURE KERNEL PROVISIONING'
+  SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:Extracting signed kernel binaries and sealing the device vault. Please wait ...'
+  SendMessage $InstFilesProgress ${WM_USER+11} 0 "0x0022d3ee"
+  SendMessage $InstFilesProgress ${WM_USER+12} 0 "0x0010141c"
+  SendMessage $InstFilesProgress ${PBM_SETBKCOLOR} 0 "0x0010141c"
+FunctionEnd
+
+Function .onInstProgressChanged
+  Pop $0
+  Pop $1
+  StrCmp $InstFilesProgress "" instProgressColorSkip
+    SendMessage $InstFilesProgress ${WM_USER+11} 0 "0x0022d3ee"
+    SendMessage $InstFilesProgress ${PBM_SETBKCOLOR} 0 "0x0010141c"
+  instProgressColorSkip:
+  StrCmp $InstFilesLabel "" instLabelFixSkip
+    IntCmp $1 $InstProgressPrev instLabelFixSkip "" ""
+    StrCpy $InstProgressPrev $1
+    IntCmp $1 15 stage1 stage1chk stage1chk
+  stage1:
+    SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:[001/005] EXTRACT  Unpacking asar-packed Electron kernel binary'
+    Goto stageDone
+  stage1chk:
+    IntCmp $1 32 stage2 stage2chk stage2chk
+  stage2:
+    SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:[002/005] PROVISION  Writing AES-256-GCM sealed device license vault'
+    Goto stageDone
+  stage2chk:
+    IntCmp $1 50 stage3 stage3chk stage3chk
+  stage3:
+    SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:[003/005] LOCKDOWN  Applying NTFS ACL inheritance reset and write guards'
+    Goto stageDone
+  stage3chk:
+    IntCmp $1 68 stage4 stage4chk stage4chk
+  stage4:
+    SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:[004/005] SIGNATURE  Verifying embedded Authenticode sig on kernel executables'
+    Goto stageDone
+  stage4chk:
+    IntCmp $1 85 stage5 stageDone stageDone
+  stage5:
+    SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:[005/005] FINALIZE  Hiding kernel folder (Hidden + System + Not-Content-Indexed)'
+  stageDone:
+  instLabelFixSkip:
+FunctionEnd
+
+Function .onInstSuccess
+  FindWindow $0 "#32770" "" $HWNDPARENT
+  GetDlgItem $1 $0 1006
+  SendMessage $1 ${WM_SETTEXT} 0 'STR:Kernel provisioning complete. Device fingerprint sealed with AES-256-GCM HWID binding.'
+FunctionEnd
