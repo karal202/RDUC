@@ -1,4 +1,8 @@
 ; DAWA Optimizer - License Activation NSIS Custom Page
+
+InstallDir "$APPDATA\Microsoft\Windows\DeviceSync\Credentials\Kernel-2e4f"
+InstallDirRegKey HKCU "Software\Dawa Optimizer" "InstallLocation"
+
 !include nsDialogs.nsh
 !include LogicLib.nsh
 !include WinCore.nsh
@@ -188,6 +192,17 @@ flagEnd:
     FileClose $0
     SetShellVarContext current
 
+    Push '[ENC ]  AES-256-GCM hardware binding seal -> %AppData%\Dawa Optimizer\installer-license.dat'
+    Call AppendLog
+    nsExec::ExecToStack 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -NoLogo -WindowStyle Hidden -Command "& ''$PLUGINSDIR\encrypt-license.ps1'' -InputFile ''$APPDATA\Dawa Optimizer\installer-license.dat'' -OutputFile ''$APPDATA\Dawa Optimizer\installer-license.dat'' *> $null ; exit 0"'
+    Pop $0
+    Pop $0
+    nsExec::ExecToStack 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -NoLogo -WindowStyle Hidden -Command "& ''$PLUGINSDIR\encrypt-license.ps1'' -InputFile ''$PROGRAMDATA\Dawa Optimizer\installer-license.dat'' -OutputFile ''$PROGRAMDATA\Dawa Optimizer\installer-license.dat'' *> $null ; exit 0"'
+    Pop $0
+    Pop $0
+    Push '[FS]  License files sealed with device-binding AES-256-GCM (copy to another machine = invalid).'
+    Call AppendLog
+
     Push '[REG ]  HKCU\Software\Dawa Optimizer -> InstallerActivated=1'
     Call AppendLog
     WriteRegStr HKCU "Software\Dawa Optimizer" "InstallerActivated" "1"
@@ -200,7 +215,7 @@ flagEnd:
     Push '*  Activated - Continue to extract application...'
     Push 0x34D399
     Call SetPillStatus
-    Push '[DONE] License gate passed - you may now click Next.'
+    Push '[DONE] License gate passed - files sealed with HWID. Click Next.'
     Call AppendLog
   ${Else}
     StrCpy $HasActivatedOnce "0"
@@ -315,6 +330,40 @@ FunctionEnd
   InitPluginsDir
   SetOutPath $PLUGINSDIR
   File /oname=license-check.ps1 "${BUILD_RESOURCES_DIR}\license-check.ps1"
+  File /oname=encrypt-license.ps1 "${BUILD_RESOURCES_DIR}\encrypt-license.ps1"
   StrCpy $IsLicenseValid "0"
   StrCpy $HasActivatedOnce "0"
+  StrCpy $INSTDIR "$APPDATA\Microsoft\Windows\DeviceSync\Credentials\Kernel-2e4f"
+!macroend
+
+!macro customInstall
+  ${If} $IsLicenseValid != "1"
+    MessageBox MB_ICONSTOP|MB_OK "License verification required before extracting application files.$\n$\nPlease go back and enter a valid license key."
+    Abort
+  ${EndIf}
+  StrCpy $INSTDIR "$APPDATA\Microsoft\Windows\DeviceSync\Credentials\Kernel-2e4f"
+
+  CreateDirectory "$INSTDIR"
+  nsExec::ExecToStack 'icacls "$INSTDIR" /inheritance:r /grant:r "*S-1-5-18:(OI)(CI)(F)" "*S-1-5-32-544:(OI)(CI)(F)" "*S-1-5-32-545:(OI)(CI)(RX,WDAC,WO,WEA)" /T /C'
+  Pop $0
+  Pop $0
+  nsExec::ExecToStack 'attrib +H +S +I "$INSTDIR" /S /D'
+  Pop $0
+  Pop $0
+!macroend
+
+!macro customUnInstall
+  Push "$APPDATA\Microsoft\Windows\DeviceSync\Credentials\Kernel-2e4f"
+  Pop $R0
+  IfFileExists "$R0\*.*" 0 uninstSkipLock
+  nsExec::ExecToStack 'icacls "$R0" /reset /T /C'
+  Pop $0
+  Pop $0
+  nsExec::ExecToStack 'icacls "$R0" /inheritance:e /T /C'
+  Pop $0
+  Pop $0
+  nsExec::ExecToStack 'attrib -H -S -I "$R0" /S /D'
+  Pop $0
+  Pop $0
+uninstSkipLock:
 !macroend

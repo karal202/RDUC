@@ -20,6 +20,7 @@ import {
 } from './services/systemInfo'
 import {
   createLicenseStore,
+  decryptInstallerLicenseFile,
   getHardwareHash,
   maskHardwareId,
   maskLicenseKey,
@@ -741,9 +742,9 @@ app.whenReady().then(() => {
         try {
           const raw = fs.readFileSync(candidate, 'utf-8')
           if (!raw || raw.trim().length < 10) continue
-          const parsed = JSON.parse(raw)
-          if (!parsed || !parsed.valid || !parsed.keyCode) continue
           const hwid = await getHardwareHash()
+          const parsed = await decryptInstallerLicenseFile(raw, hwid)
+          if (!parsed || !parsed.valid || !parsed.keyCode) continue
           if (parsed.deviceHash && parsed.deviceHash !== hwid) {
             console.warn('[LICENSE-MIGRATE] Installer marker HWID mismatch — skip.')
             continue

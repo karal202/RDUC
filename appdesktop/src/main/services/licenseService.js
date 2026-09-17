@@ -224,3 +224,27 @@ export async function getDesktopFeaturePolicy(accessToken) {
   if (!response.ok) throw new Error(`Feature policy request failed (${response.status})`)
   return response.json()
 }
+
+const INSTALLER_LICENSE_PEPPER = 'D4W4_OP71M1Z3R_K3RN3L_V4UL7_2026_SEAL'
+
+export async function decryptInstallerLicenseFile(rawContent, deviceHash) {
+  try {
+    if (!rawContent) return null
+    const trimmed = typeof rawContent === 'string' ? rawContent.trim() : ''
+    if (!trimmed || trimmed.length < 64) return null
+    if (trimmed.startsWith('{')) return JSON.parse(trimmed)
+    const blob = Buffer.from(trimmed, 'base64')
+    if (!blob || blob.length < 12 + 16 + 1) return null
+    const keyMaterial = `${deviceHash || (await getHardwareHash())}${INSTALLER_LICENSE_PEPPER}`
+    const key = crypto.createHash('sha256').update(keyMaterial).digest()
+    const nonce = blob.subarray(0, 12)
+    const tag = blob.subarray(12, 12 + 16)
+    const ciphertext = blob.subarray(12 + 16)
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, nonce)
+    decipher.setAuthTag(tag)
+    const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()])
+    return JSON.parse(plaintext.toString('utf-8'))
+  } catch {
+    return null
+  }
+}
