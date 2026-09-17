@@ -33,10 +33,11 @@ win:
       arch:
         - x64
   executableName: Dawa-Optimizer
-  requestedExecutionLevel: requireAdministrator
+  requestedExecutionLevel: asInvoker
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: false
+  allowElevation: false
   createDesktopShortcut: always
   createStartMenuShortcut: true
   perMachine: false

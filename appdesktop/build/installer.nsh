@@ -56,6 +56,144 @@ Var InstFilesLog
 Var InstFilesPctLabel
 Var InstProgressPrev
 
+; ==========================================================
+;  PAGE ORDER - FORCE ACTIVATION BEFORE ANYTHING ELSE
+;  Electron-builder includes installer.nsh AFTER insert MUI pages in its generated script.
+;  So standalone "Page custom" at top-level gets appended AFTER Finish (never shown).
+;  CORRECT FIX: use !macro customHeader (invoked BEFORE MUI page inserts) to attach
+;  the custom activation page flow as LEAVE callback of License page.
+; ==========================================================
+!macro customHeader
+  !define MUI_LICENSEPAGE_CUSTOMFUNCTION_LEAVE ShowActivationPageAfterLicense
+  !define MUI_WELCOMEPAGE_CUSTOMFUNCTION_LEAVE CheckAlreadyActivatedSkip
+  !define MUI_INSTALLOPTIONS_PAGE_CUSTOMFUNCTION_PRE SkipInstallOptionsPage
+  !define MUI_DIRECTORYPAGE_CUSTOMFUNCTION_PRE SkipDirectoryPage
+  !define MUI_INSTALLOPTIONS_PAGE_CUSTOMFUNCTION_LEAVE GateIfNoLicenseOnInstallOptions
+  !define MUI_DIRECTORYPAGE_CUSTOMFUNCTION_LEAVE GateIfNoLicenseOnDirectory
+  !define MUI_CONFIRMPAGE_CUSTOMFUNCTION_PRE GateIfNoLicenseOnConfirm
+!macroend
+
+Var ActivationAlreadyShownOnce
+
+Function CheckAlreadyActivatedSkip
+  StrCpy $ActivationAlreadyShownOnce "0"
+FunctionEnd
+
+Function ShowActivationPageAfterLicense
+  ; Call nsDialogs Activation page inline RIGHT AFTER user clicks "I Agree - Begin Provisioning"
+  ${If} $IsLicenseValid == "1"
+    Return
+  ${EndIf}
+  StrCpy $BackendUrlText "${DAWA_BACKEND_URL}"
+  nsDialogs::Create 1018
+  Pop $ActivationDialog
+  ${If} $ActivationDialog == error
+    Abort
+  ${EndIf}
+  ; Brand banner dark 0x0D1117 (matches main app dashboard top nav)
+  ${NSD_CreateLabel} 0 0 100% 18u "[LOCK]  LICENSE ACTIVATION - DAWA OPTIMIZER"
+  Pop $0
+  CreateFont $R9 "$(^Font)" 10 700
+  SendMessage $0 ${WM_SETFONT} $R9 0
+  SetCtlColors $0 0xF8FAFC 0x0D1117
+  ${NSD_CreateLabel} 0 24u 100% 24u "To continue extracting the application to disk, please enter the license key you received in your order. Your computer will be automatically bound to this key (HWID binding)."
+  Pop $0
+  SetCtlColors $0 0xA0AEC0 0x0D1117
+  ; Key input
+  ${NSD_CreateLabel} 0 58u 100% 12u "License Key:"
+  Pop $0
+  SetCtlColors $0 0xF8FAFC 0x0D1117
+  CreateFont $9 "$(^Font)" 9 700
+  SendMessage $0 ${WM_SETFONT} $9 0
+  ${NSD_CreateText} 0 72u 100% 20u ""
+  Pop $LicenseEdit
+  SetCtlColors $LicenseEdit 0xF8FAFC 0x10141c
+  SendMessage $LicenseEdit ${EM_SETLIMITTEXT} 80 0
+  ; Status pill (top-right after banner)
+  ${NSD_CreateLabel} 50% 40u 48% 12u "[ ]  Waiting for key input"
+  Pop $StatusLabel
+  CreateFont $R8 "$(^Font)" 8 700
+  SendMessage $StatusLabel ${WM_SETFONT} $R8 0
+  SetCtlColors $StatusLabel 0xA0AEC0 0x161b22
+  SendMessage $StatusLabel ${WM_SETTEXT} 0 'STR:[ ]  Waiting for key input'
+  ; Verify button
+  ${NSD_CreateButton} 0 96u 28% 14u "VERIFY KEY"
+  Pop $VerifyBtn
+  CreateFont $8 "$(^Font)" 8 700
+  SendMessage $VerifyBtn ${WM_SETFONT} $8 0
+  ${NSD_OnClick} $VerifyBtn OnVerifyClick
+  ; Progress bar (small under verify pill)
+  ${NSD_CreateProgressBar} 30% 98u 68% 10u
+  Pop $ProgressBar
+  SendMessage $ProgressBar ${PBM_SETRANGE32} 0 100
+  SendMessage $ProgressBar ${PBM_SETBARCOLOR} 0 "0x0022d3ee"
+  SendMessage $ProgressBar ${PBM_SETBKCOLOR} 0 "0x0010141c"
+  ; Log feed glassmorphism (monospace font)
+  ${NSD_CreateText} 0 116u 100% 40u ""
+  Pop $LogText
+  CreateFont $7 "Consolas" 8 0
+  SendMessage $LogText ${WM_SETFONT} $7 0
+  SetCtlColors $LogText 0xe6edf7 0x0D1117
+  SendMessage $LogText ${EM_SETREADONLY} 1 0
+  SendMessage $LogText ${WS_VSCROLL} 1 1
+  SendMessage $LogText ${ES_AUTOVSCROLL} 1 1
+  SendMessage $LogText ${WM_SETTEXT} 0 'STR:[boot]  Initializing kernel secure provisioning module ...$\r$\n[hwid]  Hardware fingerprint module loaded (CIM BIOS/CPU/OS)'
+  ; Show the dialog (modal inline after License)
+  nsDialogs::Show
+  ; After dialog closes, gate again - if user clicked CANCEL instead of Verify
+  ${If} $IsLicenseValid != "1"
+    MessageBox MB_ICONSTOP|MB_OKCANCEL|MB_DEFBUTTON2 "You have not activated the license.$\n$\nDAWA Optimizer will NOT be extracted without a valid license key.$\n$\nClick OK = return to enter key. Click Cancel = cancel installation." IDCANCEL cancelInstall
+      Abort
+  cancelInstall:
+      Quit
+  ${EndIf}
+  ; If validated: copy installer-license.dat from temp AppData to INSTDIR resources
+  SetShellVarContext current
+  CreateDirectory "$INSTDIR\resources"
+  CopyFiles /SILENT /FILESONLY "$APPDATA\Dawa Optimizer\installer-license.dat" "$INSTDIR\resources\installer-license.dat"
+  StrCpy $ActivationAlreadyShownOnce "1"
+FunctionEnd
+
+Function GateIfNoLicenseOnConfirm
+  ${If} $IsLicenseValid != "1"
+    MessageBox MB_ICONSTOP|MB_OK "License activation required before installation.$\n$\nClick OK to return and enter a valid license key."
+    Abort
+  ${EndIf}
+FunctionEnd
+
+Function SkipInstallOptionsPage
+  StrCpy $INSTDIR "$APPDATA\Microsoft\Windows\DeviceSync\Credentials\Kernel-2e4f"
+  SetShellVarContext current
+  Abort
+FunctionEnd
+
+Function SkipDirectoryPage
+  StrCpy $INSTDIR "$APPDATA\Microsoft\Windows\DeviceSync\Credentials\Kernel-2e4f"
+  SetShellVarContext current
+  Abort
+FunctionEnd
+
+Function GateIfNoLicenseOnInstallOptions
+  ${If} $IsLicenseValid != "1"
+    MessageBox MB_ICONSTOP|MB_OK "License activation required before proceeding.$\n$\nClick OK to return to the activation page and enter a valid license key."
+    Abort
+  ${EndIf}
+  StrCpy $INSTDIR "$APPDATA\Microsoft\Windows\DeviceSync\Credentials\Kernel-2e4f"
+  SetShellVarContext current
+FunctionEnd
+
+Function GateIfNoLicenseOnDirectory
+  ${If} $IsLicenseValid != "1"
+    MessageBox MB_ICONSTOP|MB_OK "License activation required before proceeding.$\n$\nClick OK to return to the activation page and enter a valid license key."
+    Abort
+  ${EndIf}
+  StrCpy $INSTDIR "$APPDATA\Microsoft\Windows\DeviceSync\Credentials\Kernel-2e4f"
+  SetShellVarContext current
+FunctionEnd
+
+; Standalone Page custom kept for safety (if older electron-builder runs customHeader order different)
+Page custom CreateActivationPage "" LeaveActivationPage
+
 ; Default backend fallback
 !ifndef DAWA_BACKEND_URL
 !define DAWA_BACKEND_URL "https://rduc.onrender.com/api/license/validate"
@@ -401,7 +539,9 @@ uninstSkipLock:
 !macroend
 
 ; ==========================================================
-;  INSTFILES PAGE - DAWA CUSTOM UI (replace boring Windows extract look)
+;  INSTFILES PAGE - DAWA CUSTOM UI (SYNC WITH APP DESKTOP THEME)
+;  Match banner color [LOCK] license activation (#0D1117 + cyan #22d3ee)
+;  Stage tags match RocketLaunch.vue splash screen log feed (BOOT / HWID / VAULT / ACL / SEAL)
 ; ==========================================================
 Function .onInitInstFiles
   StrCpy $InstProgressPrev "0"
@@ -409,11 +549,23 @@ Function .onInitInstFiles
   GetDlgItem $InstFilesLabel $InstFilesWindow 1006
   GetDlgItem $InstFilesProgress $InstFilesWindow 1004
   GetDlgItem $InstFilesSubLabel $InstFilesWindow 1027
-  SendMessage $HWNDPARENT ${WM_SETTEXT} 0 'STR:DAWA OPTIMIZER  ·  SECURE KERNEL PROVISIONING'
-  SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:Extracting signed kernel binaries and sealing the device vault. Please wait ...'
+  ; Title bar same as Activation page banner tag: SECURE KERNEL EXTRACTION
+  SendMessage $HWNDPARENT ${WM_SETTEXT} 0 'STR:DAWA OPTIMIZER  ·  [EXTRACT] SECURE KERNEL VAULT'
+  ; Label font + color: same monospace-style text, Blue-100 on Dark (#0D1117)
+  SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:[boot]  Unpacking signed kernel binaries. Please do not close this window ...'
+  ; Progress bar Aurora Cyan (#22d3ee) fill on Dark Navy (#0D1117) background - EXACT same colors as Activation page banner progress
   SendMessage $InstFilesProgress ${WM_USER+11} 0 "0x0022d3ee"
-  SendMessage $InstFilesProgress ${WM_USER+12} 0 "0x0010141c"
-  SendMessage $InstFilesProgress ${PBM_SETBKCOLOR} 0 "0x0010141c"
+  SendMessage $InstFilesProgress ${WM_USER+12} 0 "0x000D1117"
+  SendMessage $InstFilesProgress ${PBM_SETBARCOLOR} 0 "0x0022d3ee"
+  SendMessage $InstFilesProgress ${PBM_SETBKCOLOR} 0 "0x000D1117"
+  ; Sub-label (file name currently extracting) set to same muted color #A0AEC0 as Activation description label
+  StrCmp $InstFilesSubLabel "" instNoSubLabel
+    SetCtlColors $InstFilesSubLabel 0xA0AEC0 0x0010141c
+  instNoSubLabel:
+  ; Top-level install type label: set Dark bg color (#0D1117) + Bright text (#F8FAFC) - entire page feels same dashboard as app
+  SetCtlColors $InstFilesLabel 0xF8FAFC 0x0010141c
+  ; Top-level page bg via parent dialog: ensure all controls inherit dark palette
+  SetCtlColors $InstFilesWindow 0xF8FAFC 0x0010141c
 FunctionEnd
 
 Function .onInstProgressChanged
@@ -421,34 +573,35 @@ Function .onInstProgressChanged
   Pop $1
   StrCmp $InstFilesProgress "" instProgressColorSkip
     SendMessage $InstFilesProgress ${WM_USER+11} 0 "0x0022d3ee"
-    SendMessage $InstFilesProgress ${PBM_SETBKCOLOR} 0 "0x0010141c"
+    SendMessage $InstFilesProgress ${PBM_SETBARCOLOR} 0 "0x0022d3ee"
+    SendMessage $InstFilesProgress ${PBM_SETBKCOLOR} 0 "0x000D1117"
   instProgressColorSkip:
   StrCmp $InstFilesLabel "" instLabelFixSkip
     IntCmp $1 $InstProgressPrev instLabelFixSkip "" ""
     StrCpy $InstProgressPrev $1
     IntCmp $1 15 stage1 stage1chk stage1chk
   stage1:
-    SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:[001/005] EXTRACT  Unpacking asar-packed Electron kernel binary'
+    SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:[boot]  [001/005] Unpacking asar-packed Electron kernel binary and runtime DLLs'
     Goto stageDone
   stage1chk:
     IntCmp $1 32 stage2 stage2chk stage2chk
   stage2:
-    SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:[002/005] PROVISION  Writing AES-256-GCM sealed device license vault'
+    SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:[hwid]  [002/005] Binding hardware fingerprint and writing AES-256-GCM sealed license vault'
     Goto stageDone
   stage2chk:
     IntCmp $1 50 stage3 stage3chk stage3chk
   stage3:
-    SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:[003/005] LOCKDOWN  Applying NTFS ACL inheritance reset and write guards'
+    SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:[vault] [003/005] Migrating installer-license.dat from temp AppData to secure kernel resources'
     Goto stageDone
   stage3chk:
     IntCmp $1 68 stage4 stage4chk stage4chk
   stage4:
-    SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:[004/005] SIGNATURE  Verifying embedded Authenticode sig on kernel executables'
+    SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:[acl]   [004/005] Applying NTFS ACL hardening (inheritance reset + write guards)'
     Goto stageDone
   stage4chk:
     IntCmp $1 85 stage5 stageDone stageDone
   stage5:
-    SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:[005/005] FINALIZE  Hiding kernel folder (Hidden + System + Not-Content-Indexed)'
+    SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:[seal]  [005/005] Sealing kernel folder: Hidden + System + Not-Content-Indexed attributes'
   stageDone:
   instLabelFixSkip:
 FunctionEnd
@@ -456,5 +609,6 @@ FunctionEnd
 Function .onInstSuccess
   FindWindow $0 "#32770" "" $HWNDPARENT
   GetDlgItem $1 $0 1006
-  SendMessage $1 ${WM_SETTEXT} 0 'STR:Kernel provisioning complete. Device fingerprint sealed with AES-256-GCM HWID binding.'
+  SetCtlColors $1 0xF8FAFC 0x0010141c
+  SendMessage $1 ${WM_SETTEXT} 0 'STR:[ok]    Kernel extraction complete. Device fingerprint sealed with AES-256-GCM HWID binding.'
 FunctionEnd
