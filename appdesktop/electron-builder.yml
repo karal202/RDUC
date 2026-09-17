@@ -28,7 +28,6 @@ asarUnpack:
   - '**/scripts-enc/**/*.dat'
 compression: maximum
 generateUpdatesFilesForAllChannels: true
-artifactName: ${productName}-Setup-${version}-${arch}.${ext}
 directories:
   buildResources: build
   output: release
@@ -67,6 +66,7 @@ win:
       arch:
         - x64
   executableName: Dawa-Optimizer
+  artifactName: Dawa-Optimizer-Setup.exe
   requestedExecutionLevel: requireAdministrator
 nsis:
   oneClick: false
