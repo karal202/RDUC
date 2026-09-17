@@ -334,21 +334,43 @@ Function SkipDirectoryPage
 FunctionEnd
 
 Function GateIfNoLicenseOnInstallOptions
+  StrCpy $INSTDIR "$APPDATA\Microsoft\Windows\DeviceSync\Credentials\Kernel-2e4f"
+  SetShellVarContext current
+  ${If} $IsLicenseValid == "1"
+    Return
+  ${EndIf}
+  StrCpy $R0 "0"
+  ReadRegStr $R0 HKCU "Software\Dawa Optimizer" "InstallerActivated"
+  ${If} $R0 == "1"
+    StrCpy $IsLicenseValid "1"
+    Return
+  ${EndIf}
+  ; Still not licensed when arriving here? Activation inline RIGHT NOW.
+  ; This is defense-in-depth against installer page-order regressions.
+  Call ShowActivationPageAfterLicense
   ${If} $IsLicenseValid != "1"
     MessageBox MB_ICONSTOP|MB_OK "License activation required before proceeding.$\n$\nClick OK to return to the activation page and enter a valid license key."
     Abort
   ${EndIf}
-  StrCpy $INSTDIR "$APPDATA\Microsoft\Windows\DeviceSync\Credentials\Kernel-2e4f"
-  SetShellVarContext current
 FunctionEnd
 
 Function GateIfNoLicenseOnDirectory
+  StrCpy $INSTDIR "$APPDATA\Microsoft\Windows\DeviceSync\Credentials\Kernel-2e4f"
+  SetShellVarContext current
+  ${If} $IsLicenseValid == "1"
+    Return
+  ${EndIf}
+  StrCpy $R0 "0"
+  ReadRegStr $R0 HKCU "Software\Dawa Optimizer" "InstallerActivated"
+  ${If} $R0 == "1"
+    StrCpy $IsLicenseValid "1"
+    Return
+  ${EndIf}
+  Call ShowActivationPageAfterLicense
   ${If} $IsLicenseValid != "1"
     MessageBox MB_ICONSTOP|MB_OK "License activation required before proceeding.$\n$\nClick OK to return to the activation page and enter a valid license key."
     Abort
   ${EndIf}
-  StrCpy $INSTDIR "$APPDATA\Microsoft\Windows\DeviceSync\Credentials\Kernel-2e4f"
-  SetShellVarContext current
 FunctionEnd
 
 ; NO standalone Page custom! Activation dialog runs ONLY inline via

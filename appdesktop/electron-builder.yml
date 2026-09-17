@@ -71,10 +71,10 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: false
-  allowElevation: true
+  allowElevation: false
+  perMachine: false
   createDesktopShortcut: always
   createStartMenuShortcut: true
-  perMachine: false
   differentialPackage: true
   include: build/installer.nsh
   license: build/license_en.txt
