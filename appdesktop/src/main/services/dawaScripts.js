@@ -1,12 +1,32 @@
 import { execFile, spawn } from 'child_process'
 import { readdir, rm } from 'fs/promises'
-import { existsSync } from 'fs'
-import { join } from 'path'
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs'
+import { join, sep as pathSep } from 'path'
+import { createDecipheriv, createHmac, randomBytes } from 'crypto'
+import { tmpdir } from 'os'
 
-const WINDOWS_SYSTEM_DIRECTORY = process.env.SystemRoot || 'C:\\Windows'
+const DAWA_SCRIPT_AES_PEPPER_2026 = 'D4W4_SCR1P7_A3S_P3PP3R_2026_K3RN3L_3NCRYPT'
+const BUILD_SALT = 'DAWA_OPTIMIZER_SCRIPT_BUILD_2026_V1'
+
+function deriveScriptKey() {
+  const hmac = createHmac('sha256', DAWA_SCRIPT_AES_PEPPER_2026)
+  hmac.update(BUILD_SALT)
+  return hmac.digest()
+}
+
+function decryptAesGcmBase64(b64) {
+  const key = deriveScriptKey()
+  const packed = Buffer.from(b64, 'base64')
+  if (packed.length < 28) throw new Error('Malformed encrypted blob')
+  const nonce = packed.subarray(0, 12)
+  const tag = packed.subarray(12, 28)
+  const ciphertext = packed.subarray(28)
+  const decipher = createDecipheriv('aes-256-gcm', key, nonce)
+  decipher.setAuthTag(tag)
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()])
+}
 
 function resolveScriptDirectory() {
-  // Production: try process.resourcesPath first
   if (process.resourcesPath) {
     const packagedPath = join(process.resourcesPath, 'scripts')
     if (existsSync(packagedPath)) return packagedPath
@@ -15,18 +35,124 @@ function resolveScriptDirectory() {
     if (existsSync(altPackagedPath)) return altPackagedPath
   }
 
-  // Development: fallback to local path
   const devPath = join(__dirname, '..', '..', 'resources', 'scripts')
   if (existsSync(devPath)) return devPath
 
-  // Alternative development path
   const altDevPath = join(process.cwd(), 'resources', 'scripts')
   if (existsSync(altDevPath)) return altDevPath
 
   return devPath
 }
 
+function resolveEncryptedScriptsDir() {
+  if (process.resourcesPath) {
+    const packaged = join(process.resourcesPath, 'scripts-enc')
+    if (existsSync(packaged)) return packaged
+    const alt = join(process.resourcesPath, 'resources', 'scripts-enc')
+    if (existsSync(alt)) return alt
+  }
+  const buildDir = join(__dirname, '..', '..', 'build', 'encrypted-scripts')
+  if (existsSync(buildDir)) return buildDir
+  return null
+}
+
 const SCRIPT_DIRECTORY = resolveScriptDirectory()
+const ENC_SCRIPTS_DIR = resolveEncryptedScriptsDir()
+const USE_ENCRYPTED_SCRIPTS = Boolean(ENC_SCRIPTS_DIR)
+let _manifestCache = null
+function getManifest() {
+  if (_manifestCache) return _manifestCache
+  if (!USE_ENCRYPTED_SCRIPTS) {
+    _manifestCache = null
+    return null
+  }
+  try {
+    const manifestPath = join(ENC_SCRIPTS_DIR, 'scripts-manifest.dat')
+    const b64 = readFileSync(manifestPath, 'utf8')
+    const jsonBuf = decryptAesGcmBase64(b64)
+    _manifestCache = JSON.parse(jsonBuf.toString('utf8'))
+    return _manifestCache
+  } catch (err) {
+    console.warn('[scripts] Manifest load failed, fallback to plaintext mode:', err.message)
+    _manifestCache = null
+    return null
+  }
+}
+
+const stagedTempFiles = new Set()
+function cleanupAllStaged() {
+  for (const p of stagedTempFiles) {
+    try {
+      unlinkSync(p)
+    } catch {
+      /* noop */
+    }
+  }
+  stagedTempFiles.clear()
+}
+if (typeof process !== 'undefined') {
+  process.on('exit', cleanupAllStaged)
+  process.on('uncaughtExceptionMonitor', cleanupAllStaged)
+  process.on('SIGINT', () => {
+    cleanupAllStaged()
+    process.exit(130)
+  })
+}
+
+let _licenseGate = null
+export function setLicenseValidator(checkFn) {
+  _licenseGate = checkFn
+}
+
+async function checkLicenseGate() {
+  if (typeof _licenseGate !== 'function') return true
+  try {
+    return await _licenseGate()
+  } catch (err) {
+    console.warn('[license-gate] validator error:', err.message)
+    return false
+  }
+}
+
+const LICENSE_REQUIRED_MESSAGE =
+  'Vui long kich hoat ban quyen DAWA Optimizer truoc khi su dung tinh nang nay.'
+
+async function decryptAndStageScript(manifestRelPath) {
+  const manifest = getManifest()
+  if (USE_ENCRYPTED_SCRIPTS && manifest) {
+    const entry = manifest[manifestRelPath]
+    if (!entry) {
+      throw new Error(`Script key not found in manifest: ${manifestRelPath}`)
+    }
+    const encFullPath = join(ENC_SCRIPTS_DIR, entry.encryptedRelPath.split('/').join(pathSep))
+    const b64 = readFileSync(encFullPath, 'utf8')
+    const decrypted = decryptAesGcmBase64(b64)
+    const ext = entry.originalExt || 'tmp'
+    const tempPath = join(tmpdir(), `dawa-${randomBytes(12).toString('hex')}.${ext}`)
+    writeFileSync(tempPath, decrypted, { mode: 0o600 })
+    stagedTempFiles.add(tempPath)
+    return {
+      tempPath,
+      cleanup() {
+        try {
+          unlinkSync(tempPath)
+        } catch {
+          /* noop */
+        }
+        stagedTempFiles.delete(tempPath)
+      }
+    }
+  }
+  const plainPath = join(SCRIPT_DIRECTORY, ...manifestRelPath.split('/'))
+  return {
+    tempPath: plainPath,
+    cleanup() {
+      /* noop for dev plaintext fallback */
+    }
+  }
+}
+
+const WINDOWS_SYSTEM_DIRECTORY = process.env.SystemRoot || 'C:\\Windows'
 const WINDOWS_COMMANDS = Object.freeze({
   powercfg: join(WINDOWS_SYSTEM_DIRECTORY, 'System32', 'powercfg.exe'),
   sc: join(WINDOWS_SYSTEM_DIRECTORY, 'System32', 'sc.exe'),
@@ -34,382 +160,125 @@ const WINDOWS_COMMANDS = Object.freeze({
   cmd: join(WINDOWS_SYSTEM_DIRECTORY, 'System32', 'cmd.exe')
 })
 const RAM_PROFILES = Object.freeze({
-  2: '2GB RAM.reg',
-  3: '3GB RAM.reg',
-  4: '4GB Ram.reg',
-  6: '6GB Ram.reg',
-  8: '8GB Ram.reg',
-  10: '10GB RAM.reg',
-  12: '12GB Ram.reg',
-  16: '16GB Ram.reg',
-  20: '20GB Ram.reg',
-  24: '24GB Ram.reg',
-  32: '32GB Ram.reg',
-  48: '48GB RAM.reg',
-  64: '64GB Ram.reg',
-  reset: 'Reset to Default.reg'
+  2: 'Optimizer/Ram Optimization/2GB RAM.reg',
+  3: 'Optimizer/Ram Optimization/3GB RAM.reg',
+  4: 'Optimizer/Ram Optimization/4GB Ram.reg',
+  6: 'Optimizer/Ram Optimization/6GB Ram.reg',
+  8: 'Optimizer/Ram Optimization/8GB Ram.reg',
+  10: 'Optimizer/Ram Optimization/10GB RAM.reg',
+  12: 'Optimizer/Ram Optimization/12GB Ram.reg',
+  16: 'Optimizer/Ram Optimization/16GB Ram.reg',
+  20: 'Optimizer/Ram Optimization/20GB Ram.reg',
+  24: 'Optimizer/Ram Optimization/24GB Ram.reg',
+  32: 'Optimizer/Ram Optimization/32GB Ram.reg',
+  48: 'Optimizer/Ram Optimization/48GB RAM.reg',
+  64: 'Optimizer/Ram Optimization/64GB Ram.reg',
+  reset: 'Optimizer/Ram Optimization/Reset to Default.reg'
 })
 const WIN32_PRIORITY_PROFILES = Object.freeze({
-  default: '2 hex Default.reg',
-  14: '14 hex.reg',
-  15: '15 Hex.reg',
-  16: '16 hex.reg',
-  18: '18 Hex.reg',
-  19: '19 Hex.reg',
-  '1a': '1a Hex.reg',
-  24: '24 Hex.reg',
-  25: '25 Hex.reg',
-  26: '26 hex.reg',
-  28: '28 hex.reg',
-  '2a': '2a hex.reg',
-  fa2a2a: 'fa2a2a hex.reg',
-  fa332a: 'fa332a hex.reg',
-  fb000000: 'fb000000 hex.reg',
-  fff9887: 'fff9887 hex.reg'
+  default: 'Optimizer/8. Win32Priority/2 hex Default.reg',
+  14: 'Optimizer/8. Win32Priority/14 hex.reg',
+  15: 'Optimizer/8. Win32Priority/15 Hex.reg',
+  16: 'Optimizer/8. Win32Priority/16 hex.reg',
+  18: 'Optimizer/8. Win32Priority/18 Hex.reg',
+  19: 'Optimizer/8. Win32Priority/19 Hex.reg',
+  '1a': 'Optimizer/8. Win32Priority/1a Hex.reg',
+  24: 'Optimizer/8. Win32Priority/24 Hex.reg',
+  25: 'Optimizer/8. Win32Priority/25 Hex.reg',
+  26: 'Optimizer/8. Win32Priority/26 hex.reg',
+  28: 'Optimizer/8. Win32Priority/28 hex.reg',
+  '2a': 'Optimizer/8. Win32Priority/2a hex.reg',
+  fa2a2a: 'Optimizer/8. Win32Priority/fa2a2a hex.reg',
+  fa332a: 'Optimizer/8. Win32Priority/fa332a hex.reg',
+  fb000000: 'Optimizer/8. Win32Priority/fb000000 hex.reg',
+  fff9887: 'Optimizer/8. Win32Priority/fff9887 hex.reg'
 })
 const POWER_PLAN_PROFILES = Object.freeze({
-  'dawa-ultimate': 'Dawa_Utilmate.pow',
-  atlas: 'Atlas.pow',
-  'bitsum-highest': 'Bitsum-Highest-Performance.pow',
-  'amitv3-idle': 'Amitv3IdleEnabled.pow',
-  'framesync-boost': 'FrameSyncBoost.pow'
+  'dawa-ultimate': 'Optimizer/4. PowerPlan/Dawa_Utilmate.pow',
+  atlas: 'Optimizer/4. PowerPlan/Atlas.pow',
+  'bitsum-highest': 'Optimizer/4. PowerPlan/Bitsum-Highest-Performance.pow',
+  'amitv3-idle': 'Optimizer/4. PowerPlan/Amitv3IdleEnabled.pow',
+  'framesync-boost': 'Optimizer/4. PowerPlan/FrameSyncBoost.pow'
 })
 const REGISTRY_FILE_PROFILES = Object.freeze({
-  'network-full-tweaks': join(SCRIPT_DIRECTORY, 'Network', 'Network Tweaks.reg'),
-  'network-fast-send': join(SCRIPT_DIRECTORY, 'Network', 'FastSendDatagramThreshold.reg'),
-  'mouse-queue-10': join(SCRIPT_DIRECTORY, 'Input Lag', 'Mouse', 'DataQueueSize', '10 Decimal.reg'),
-  'mouse-queue-20': join(SCRIPT_DIRECTORY, 'Input Lag', 'Mouse', 'DataQueueSize', '20 Decimal.reg'),
-  'mouse-queue-22': join(SCRIPT_DIRECTORY, 'Input Lag', 'Mouse', 'DataQueueSize', '22 Decimal.reg'),
-  'mouse-queue-25': join(SCRIPT_DIRECTORY, 'Input Lag', 'Mouse', 'DataQueueSize', '25 Decimal.reg'),
-  'mouse-queue-default': join(
-    SCRIPT_DIRECTORY,
-    'Input Lag',
-    'Mouse',
-    'DataQueueSize',
-    'Default Windows.reg'
-  ),
-  'keyboard-queue-10': join(
-    SCRIPT_DIRECTORY,
-    'Input Lag',
-    'Keyboard',
-    'DataQueueSize',
-    '10 Decimal.reg'
-  ),
-  'keyboard-queue-15': join(
-    SCRIPT_DIRECTORY,
-    'Input Lag',
-    'Keyboard',
-    'DataQueueSize',
-    '15 Decimal.reg'
-  ),
-  'keyboard-queue-20': join(
-    SCRIPT_DIRECTORY,
-    'Input Lag',
-    'Keyboard',
-    'DataQueueSize',
-    '20 Decimal.reg'
-  ),
-  'keyboard-queue-22': join(
-    SCRIPT_DIRECTORY,
-    'Input Lag',
-    'Keyboard',
-    'DataQueueSize',
-    '22 Decimal.reg'
-  ),
-  'keyboard-queue-25': join(
-    SCRIPT_DIRECTORY,
-    'Input Lag',
-    'Keyboard',
-    'DataQueueSize',
-    '25 Decimal.reg'
-  ),
-  'keyboard-queue-default': join(
-    SCRIPT_DIRECTORY,
-    'Input Lag',
-    'Keyboard',
-    'DataQueueSize',
-    'Default Windows.reg'
-  ),
-  'input-avx': join(SCRIPT_DIRECTORY, 'Input Lag', 'Reduce Input Lag', 'AVX.reg'),
-  'input-cache': join(SCRIPT_DIRECTORY, 'Input Lag', 'Reduce Input Lag', 'Cache.reg'),
-  'input-desktop': join(SCRIPT_DIRECTORY, 'Input Lag', 'Reduce Input Lag', 'Desktop.reg'),
-  'input-low-latency': join(SCRIPT_DIRECTORY, 'Input Lag', 'Reduce Input Lag', 'LowLatency.reg'),
-  'input-misc': join(SCRIPT_DIRECTORY, 'Input Lag', 'Reduce Input Lag', 'Misc.reg'),
-  'input-scripts': join(SCRIPT_DIRECTORY, 'Input Lag', 'Reduce Input Lag', 'Scripts.reg'),
-  'input-system': join(SCRIPT_DIRECTORY, 'Input Lag', 'Reduce Input Lag', 'System.reg'),
-  'win-desktop-settings': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Desktop Settings.reg'
-  ),
-  'win-disable-maintenance': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Disable Automatic Maintenance.reg'
-  ),
-  'win-disable-background-apps': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Disable Background Apps.reg'
-  ),
-  'win-enable-background-apps': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Enable Background Apps.reg'
-  ),
-  'win-disable-timer-coalescing': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Disable CoalescingTimerInterval.reg'
-  ),
-  'win-disable-cpu-throttling': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Disable CpuPwrThrottling.reg'
-  ),
-  'win-enable-cpu-throttling': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Enable CpuPwrThrottling.reg'
-  ),
-  'win-disable-driver-updates': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Disable Drivers Updates.reg'
-  ),
-  'win-disable-extra-services': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Disable Extra Unnecessary Services.reg'
-  ),
-  'win-enable-extra-services': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Enable Extra Unnecessary Services.reg'
-  ),
-  'win-enable-driver-updates': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Enable Drivers Updates.reg'
-  ),
-  'win-disable-memory-mirroring': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Disable MemoryMirroring.reg'
-  ),
-  'win-disable-network-throttling': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Disable NetworkThrottling.reg'
-  ),
-  'win-disable-notifications': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Disable NotificationCenter.reg'
-  ),
-  'win-enable-notifications': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Enable NotificationCenter.reg'
-  ),
-  'win-disable-runtime-broker': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Disable Runtime Broker.reg'
-  ),
-  'win-disable-spectre-meltdown': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Disable Spectre and Meltdown.reg'
-  ),
-  'win-disable-sync': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Disable Sync.reg'
-  ),
-  'win-disable-windows-apps': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Disable Windows Apps.reg'
-  ),
-  'win-fine-memory-quota': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'FineGrainedMemoryQuota.reg'
-  ),
-  'win-large-page': join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'LargePage.reg'),
-  'win-low-latency': join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Low Latency.reg'),
-  'win-memory-management': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Memory Management.reg'
-  ),
-  'win-perf-boost-mode': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'PerfBoostMode.reg'
-  ),
-  'win-power-settings': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Power Settings.reg'
-  ),
-  'win-prioritize-gpu': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Prioritize GPU.reg'
-  ),
-  'classic-menu-win10': join(
-    SCRIPT_DIRECTORY,
-    'Tool&cache',
-    'Classic Right Click Menu',
-    'Windows 10.reg'
-  ),
-  'classic-menu-win11': join(
-    SCRIPT_DIRECTORY,
-    'Tool&cache',
-    'Classic Right Click Menu',
-    'Windows 11.reg'
-  ),
-  'restore-gamer-services': join(
-    SCRIPT_DIRECTORY,
-    'Restore',
-    'Disable Services For Gamers Restore.reg'
-  ),
-  'restore-professional-services': join(
-    SCRIPT_DIRECTORY,
-    'Restore',
-    'Disable Services For Professionals Restore.reg'
-  ),
-  'network-tcp-ping': join(SCRIPT_DIRECTORY, 'Network', 'AckTicksandAckFrequency.reg'),
-  'network-ack-ticks': join(SCRIPT_DIRECTORY, 'Network', 'AckTicksandAckFrequency.reg'),
-  'network-acks-freq': join(SCRIPT_DIRECTORY, 'Network', 'AckTicksandAckFrequency.reg'),
-  'network-fast-send-reg': join(SCRIPT_DIRECTORY, 'Network', 'FastSendDatagramThreshold.reg'),
-  'network-tweaks-reg': join(SCRIPT_DIRECTORY, 'Network', 'Network Tweaks.reg'),
-  'network-dns': join(SCRIPT_DIRECTORY, 'Network', 'DNS.cmd'),
-  'network-flush-dns': join(SCRIPT_DIRECTORY, 'Network', 'DNS.cmd'),
-  'network-dns-gaming': join(SCRIPT_DIRECTORY, 'Network', 'DNS.cmd'),
-  'win-enable-maintenance': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Enable Automatic Maintenance.reg'
-  ),
-  'win-enable-timer-coalescing': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Enable CoalescingTimerInterval.reg'
-  ),
-  'win-enable-hibernation': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Enable Hibernation.reg'
-  ),
-  'win-enable-memory-mirroring': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Enable MemoryMirroring.reg'
-  ),
-  'win-enable-network-throttling': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Enable NetworkThrottling.reg'
-  ),
-  'win-enable-runtime-broker': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Enable Runtime Broker.reg'
-  ),
-  'win-enable-spectre-meltdown': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Enable Spectre and Meltdown.reg'
-  ),
-  'win-enable-sync': join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Sync.reg'),
-  'win-enable-windows-apps': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Enable Windows Apps.reg'
-  ),
-  'win-disable-transparency': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Disable Transparency.reg'
-  ),
-  'win-enable-transparency': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Enable Transparency.reg'
-  ),
-  'win-disable-fso-gamebar': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Disable FSO Game Bar.reg'
-  ),
-  'win-enable-fso-gamebar': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Enable FSO Game Bar.reg'
-  ),
-  'win-disable-telemetry': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Disable Telemetry.reg'
-  ),
-  'win-enable-telemetry': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Enable Telemetry.reg'
-  ),
-  'win-disable-superfetch': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Disable Superfetch.reg'
-  ),
-  'win-enable-superfetch': join(
-    SCRIPT_DIRECTORY,
-    'Optimizer',
-    '3. Windows Settings',
-    'Enable Superfetch.reg'
-  )
+  'network-full-tweaks': 'Network/Network Tweaks.reg',
+  'network-fast-send': 'Network/FastSendDatagramThreshold.reg',
+  'mouse-queue-10': 'Input Lag/Mouse/DataQueueSize/10 Decimal.reg',
+  'mouse-queue-20': 'Input Lag/Mouse/DataQueueSize/20 Decimal.reg',
+  'mouse-queue-22': 'Input Lag/Mouse/DataQueueSize/22 Decimal.reg',
+  'mouse-queue-25': 'Input Lag/Mouse/DataQueueSize/25 Decimal.reg',
+  'mouse-queue-default': 'Input Lag/Mouse/DataQueueSize/Default Windows.reg',
+  'keyboard-queue-10': 'Input Lag/Keyboard/DataQueueSize/10 Decimal.reg',
+  'keyboard-queue-15': 'Input Lag/Keyboard/DataQueueSize/15 Decimal.reg',
+  'keyboard-queue-20': 'Input Lag/Keyboard/DataQueueSize/20 Decimal.reg',
+  'keyboard-queue-22': 'Input Lag/Keyboard/DataQueueSize/22 Decimal.reg',
+  'keyboard-queue-25': 'Input Lag/Keyboard/DataQueueSize/25 Decimal.reg',
+  'keyboard-queue-default': 'Input Lag/Keyboard/DataQueueSize/Default Windows.reg',
+  'input-avx': 'Input Lag/Reduce Input Lag/AVX.reg',
+  'input-cache': 'Input Lag/Reduce Input Lag/Cache.reg',
+  'input-desktop': 'Input Lag/Reduce Input Lag/Desktop.reg',
+  'input-low-latency': 'Input Lag/Reduce Input Lag/LowLatency.reg',
+  'input-misc': 'Input Lag/Reduce Input Lag/Misc.reg',
+  'input-scripts': 'Input Lag/Reduce Input Lag/Scripts.reg',
+  'input-system': 'Input Lag/Reduce Input Lag/System.reg',
+  'win-desktop-settings': 'Optimizer/3. Windows Settings/Desktop Settings.reg',
+  'win-disable-maintenance': 'Optimizer/3. Windows Settings/Disable Automatic Maintenance.reg',
+  'win-disable-background-apps': 'Optimizer/3. Windows Settings/Disable Background Apps.reg',
+  'win-enable-background-apps': 'Optimizer/3. Windows Settings/Enable Background Apps.reg',
+  'win-disable-timer-coalescing':
+    'Optimizer/3. Windows Settings/Disable CoalescingTimerInterval.reg',
+  'win-disable-cpu-throttling': 'Optimizer/3. Windows Settings/Disable CpuPwrThrottling.reg',
+  'win-enable-cpu-throttling': 'Optimizer/3. Windows Settings/Enable CpuPwrThrottling.reg',
+  'win-disable-driver-updates': 'Optimizer/3. Windows Settings/Disable Drivers Updates.reg',
+  'win-disable-extra-services':
+    'Optimizer/3. Windows Settings/Disable Extra Unnecessary Services.reg',
+  'win-enable-extra-services':
+    'Optimizer/3. Windows Settings/Enable Extra Unnecessary Services.reg',
+  'win-enable-driver-updates': 'Optimizer/3. Windows Settings/Enable Drivers Updates.reg',
+  'win-disable-memory-mirroring': 'Optimizer/3. Windows Settings/Disable MemoryMirroring.reg',
+  'win-disable-network-throttling': 'Optimizer/3. Windows Settings/Disable NetworkThrottling.reg',
+  'win-disable-notifications': 'Optimizer/3. Windows Settings/Disable NotificationCenter.reg',
+  'win-enable-notifications': 'Optimizer/3. Windows Settings/Enable NotificationCenter.reg',
+  'win-disable-runtime-broker': 'Optimizer/3. Windows Settings/Disable Runtime Broker.reg',
+  'win-disable-spectre-meltdown': 'Optimizer/3. Windows Settings/Disable Spectre and Meltdown.reg',
+  'win-disable-sync': 'Optimizer/3. Windows Settings/Disable Sync.reg',
+  'win-disable-windows-apps': 'Optimizer/3. Windows Settings/Disable Windows Apps.reg',
+  'win-fine-memory-quota': 'Optimizer/3. Windows Settings/FineGrainedMemoryQuota.reg',
+  'win-large-page': 'Optimizer/3. Windows Settings/LargePage.reg',
+  'win-low-latency': 'Optimizer/3. Windows Settings/Low Latency.reg',
+  'win-memory-management': 'Optimizer/3. Windows Settings/Memory Management.reg',
+  'win-perf-boost-mode': 'Optimizer/3. Windows Settings/PerfBoostMode.reg',
+  'win-power-settings': 'Optimizer/3. Windows Settings/Power Settings.reg',
+  'win-prioritize-gpu': 'Optimizer/3. Windows Settings/Prioritize GPU.reg',
+  'classic-menu-win10': 'Tool&cache/Classic Right Click Menu/Windows 10.reg',
+  'classic-menu-win11': 'Tool&cache/Classic Right Click Menu/Windows 11.reg',
+  'restore-gamer-services': 'Restore/Disable Services For Gamers Restore.reg',
+  'restore-professional-services': 'Restore/Disable Services For Professionals Restore.reg',
+  'network-tcp-ping': 'Network/AckTicksandAckFrequency.reg',
+  'network-ack-ticks': 'Network/AckTicksandAckFrequency.reg',
+  'network-acks-freq': 'Network/AckTicksandAckFrequency.reg',
+  'network-fast-send-reg': 'Network/FastSendDatagramThreshold.reg',
+  'network-tweaks-reg': 'Network/Network Tweaks.reg',
+  'network-dns': 'Network/DNS.cmd',
+  'network-flush-dns': 'Network/DNS.cmd',
+  'network-dns-gaming': 'Network/DNS.cmd',
+  'win-enable-maintenance': 'Optimizer/3. Windows Settings/Enable Automatic Maintenance.reg',
+  'win-enable-timer-coalescing': 'Optimizer/3. Windows Settings/Enable CoalescingTimerInterval.reg',
+  'win-enable-hibernation': 'Optimizer/3. Windows Settings/Enable Hibernation.reg',
+  'win-enable-memory-mirroring': 'Optimizer/3. Windows Settings/Enable MemoryMirroring.reg',
+  'win-enable-network-throttling': 'Optimizer/3. Windows Settings/Enable NetworkThrottling.reg',
+  'win-enable-runtime-broker': 'Optimizer/3. Windows Settings/Enable Runtime Broker.reg',
+  'win-enable-spectre-meltdown': 'Optimizer/3. Windows Settings/Enable Spectre and Meltdown.reg',
+  'win-enable-sync': 'Optimizer/3. Windows Settings/Enable Sync.reg',
+  'win-enable-windows-apps': 'Optimizer/3. Windows Settings/Enable Windows Apps.reg',
+  'win-disable-transparency': 'Optimizer/3. Windows Settings/Disable Transparency.reg',
+  'win-enable-transparency': 'Optimizer/3. Windows Settings/Enable Transparency.reg',
+  'win-disable-fso-gamebar': 'Optimizer/3. Windows Settings/Disable FSO Game Bar.reg',
+  'win-enable-fso-gamebar': 'Optimizer/3. Windows Settings/Enable FSO Game Bar.reg',
+  'win-disable-telemetry': 'Optimizer/3. Windows Settings/Disable Telemetry.reg',
+  'win-enable-telemetry': 'Optimizer/3. Windows Settings/Enable Telemetry.reg',
+  'win-disable-superfetch': 'Optimizer/3. Windows Settings/Disable Superfetch.reg',
+  'win-enable-superfetch': 'Optimizer/3. Windows Settings/Enable Superfetch.reg'
 })
 
 export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
@@ -463,58 +332,32 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   },
   'bios-bat': {
     description: 'Khởi động vào BIOS bằng file BAT',
-    commands: [
-      [WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', join(SCRIPT_DIRECTORY, 'BIOS', 'bios.bat')]]
-    ]
+    commands: [[WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', 'BIOS/bios.bat']]]
   },
   'win-disable-hibernate': {
     description: 'Tắt Hibernate',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Disable Hibernation.reg')
-        ]
-      ],
+      [WINDOWS_COMMANDS.reg, ['import', 'Optimizer/3. Windows Settings/Disable Hibernation.reg']],
       [WINDOWS_COMMANDS.powercfg, ['/h', 'off']]
     ]
   },
   'win-enable-hibernate': {
     description: 'Bật Hibernate',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Hibernation.reg')
-        ]
-      ],
+      [WINDOWS_COMMANDS.reg, ['import', 'Optimizer/3. Windows Settings/Enable Hibernation.reg']],
       [WINDOWS_COMMANDS.powercfg, ['/h', 'on']]
     ]
   },
   'win-disable-fso-gamebar': {
     description: 'Tắt Game Bar và Game DVR',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Disable FSO Game Bar.reg')
-        ]
-      ]
+      [WINDOWS_COMMANDS.reg, ['import', 'Optimizer/3. Windows Settings/Disable FSO Game Bar.reg']]
     ]
   },
   'win-enable-fso-gamebar': {
     description: 'Bật lại Game Bar và Game DVR',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable FSO Game Bar.reg')
-        ]
-      ]
+      [WINDOWS_COMMANDS.reg, ['import', 'Optimizer/3. Windows Settings/Enable FSO Game Bar.reg']]
     ]
   },
   'win-disable-telemetry': {
@@ -527,13 +370,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   'win-enable-telemetry': {
     description: 'Bật lại dịch vụ Telemetry',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Telemetry.reg')
-        ]
-      ],
+      [WINDOWS_COMMANDS.reg, ['import', 'Optimizer/3. Windows Settings/Enable Telemetry.reg']],
       [WINDOWS_COMMANDS.sc, ['config', 'DiagTrack', 'start=', 'auto']]
     ]
   },
@@ -547,13 +384,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   'win-enable-superfetch': {
     description: 'Bật lại dịch vụ SysMain',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Superfetch.reg')
-        ]
-      ],
+      [WINDOWS_COMMANDS.reg, ['import', 'Optimizer/3. Windows Settings/Enable Superfetch.reg']],
       [WINDOWS_COMMANDS.sc, ['config', 'SysMain', 'start=', 'auto']]
     ]
   },
@@ -579,68 +410,36 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   'win-enable-transparency': {
     description: 'Bật hiệu ứng Transparency',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Transparency.reg')
-        ]
-      ]
+      [WINDOWS_COMMANDS.reg, ['import', 'Optimizer/3. Windows Settings/Enable Transparency.reg']]
     ]
   },
   'network-tcp-ping': {
     description: 'Áp dụng TCP ACK low-latency',
-    commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        ['import', join(SCRIPT_DIRECTORY, 'Network', 'AckTicksandAckFrequency.reg')]
-      ]
-    ]
+    commands: [[WINDOWS_COMMANDS.reg, ['import', 'Network/AckTicksandAckFrequency.reg']]]
   },
   'network-flush-dns': {
     description: 'Flush DNS',
-    commands: [
-      [WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', join(SCRIPT_DIRECTORY, 'Network', 'DNS.cmd')]]
-    ]
+    commands: [[WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', 'Network/DNS.cmd']]]
   },
   'network-dns-gaming': {
     description: 'Làm mới DNS cache',
-    commands: [
-      [WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', join(SCRIPT_DIRECTORY, 'Network', 'DNS.cmd')]]
-    ]
+    commands: [[WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', 'Network/DNS.cmd']]]
   },
   'network-full-tweaks': {
     description: 'Áp dụng Network Tweaks Full',
-    commands: [
-      [WINDOWS_COMMANDS.reg, ['import', join(SCRIPT_DIRECTORY, 'Network', 'Network Tweaks.reg')]]
-    ]
+    commands: [[WINDOWS_COMMANDS.reg, ['import', 'Network/Network Tweaks.reg']]]
   },
   'network-fast-send': {
     description: 'Áp dụng Fast Send Datagram Threshold',
-    commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        ['import', join(SCRIPT_DIRECTORY, 'Network', 'FastSendDatagramThreshold.reg')]
-      ]
-    ]
+    commands: [[WINDOWS_COMMANDS.reg, ['import', 'Network/FastSendDatagramThreshold.reg']]]
   },
   'mouse-disable-acceleration': {
     description: 'Áp dụng cấu hình chuột gaming',
-    commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        ['import', join(SCRIPT_DIRECTORY, 'Input Lag', 'Mouse', 'MouseSetting.reg')]
-      ]
-    ]
+    commands: [[WINDOWS_COMMANDS.reg, ['import', 'Input Lag/Mouse/MouseSetting.reg']]]
   },
   'keyboard-zero-delay': {
     description: 'Áp dụng cấu hình graphics low-latency',
-    commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        ['import', join(SCRIPT_DIRECTORY, 'Input Lag', 'Reduce Input Lag', 'Graphics.reg')]
-      ]
-    ]
+    commands: [[WINDOWS_COMMANDS.reg, ['import', 'Input Lag/Reduce Input Lag/Graphics.reg']]]
   },
   'msi-utility': {
     description: 'Mở MSI Utility V3',
@@ -666,21 +465,11 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   },
   'amd-3d-settings': {
     description: 'Áp dụng 3D Settings cho AMD GPU',
-    commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        ['import', join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Amd', '3D Settings.reg')]
-      ]
-    ]
+    commands: [[WINDOWS_COMMANDS.reg, ['import', 'Tool&cache/For Amd/3D Settings.reg']]]
   },
   'amd-driver-tweaks': {
     description: 'Áp dụng Driver Tweaks cho AMD GPU',
-    commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        ['import', join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Amd', 'Driver Tweaks.reg')]
-      ]
-    ]
+    commands: [[WINDOWS_COMMANDS.reg, ['import', 'Tool&cache/For Amd/Driver Tweaks.reg']]]
   },
   'nvidia-nvcleanstall': {
     description: 'Mở NvCleanstall cho NVIDIA GPU',
@@ -725,104 +514,54 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   },
   'nvidia-desktop-composition': {
     description: 'Áp dụng Desktop Composition cho NVIDIA GPU',
-    commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        ['import', join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Desktop Composition.reg')]
-      ]
-    ]
+    commands: [[WINDOWS_COMMANDS.reg, ['import', 'Tool&cache/For Nvidia/Desktop Composition.reg']]]
   },
   'nvidia-gamedvr-gamemode': {
     description: 'Áp dụng GameDVR và Game Mode cho NVIDIA GPU',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        ['import', join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'GameDVR And Game Mode.reg')]
-      ]
+      [WINDOWS_COMMANDS.reg, ['import', 'Tool&cache/For Nvidia/GameDVR And Game Mode.reg']]
     ]
   },
   'nvidia-graphics-tweaks': {
     description: 'Áp dụng Graphics Drivers Tweaks cho NVIDIA GPU',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        ['import', join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'GraphicsDrivers Tweaks.reg')]
-      ]
+      [WINDOWS_COMMANDS.reg, ['import', 'Tool&cache/For Nvidia/GraphicsDrivers Tweaks.reg']]
     ]
   },
   'nvidia-nvidia-tweaks': {
     description: 'Áp dụng NVIDIA Driver Tweaks',
-    commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        ['import', join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'NVIDIA Driver Tweaks.reg')]
-      ]
-    ]
+    commands: [[WINDOWS_COMMANDS.reg, ['import', 'Tool&cache/For Nvidia/NVIDIA Driver Tweaks.reg']]]
   },
   'nvidia-power-latency': {
     description: 'Áp dụng Power And Latency Tweaks cho NVIDIA GPU',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Power And Latency Tweaks.reg')
-        ]
-      ]
+      [WINDOWS_COMMANDS.reg, ['import', 'Tool&cache/For Nvidia/Power And Latency Tweaks.reg']]
     ]
   },
   'nvidia-task-priority': {
     description: 'Áp dụng Task Priority Tweaks cho NVIDIA GPU',
-    commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        ['import', join(SCRIPT_DIRECTORY, 'Tool&cache', 'For Nvidia', 'Task Priority Tweaks.reg')]
-      ]
-    ]
+    commands: [[WINDOWS_COMMANDS.reg, ['import', 'Tool&cache/For Nvidia/Task Priority Tweaks.reg']]]
   },
   'classic-menu-win10': {
     description: 'Áp dụng Classic Right Click Menu Windows 10',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Tool&cache', 'Classic Right Click Menu', 'Windows 10.reg')
-        ]
-      ]
+      [WINDOWS_COMMANDS.reg, ['import', 'Tool&cache/Classic Right Click Menu/Windows 10.reg']]
     ]
   },
   'classic-menu-win11': {
     description: 'Áp dụng Classic Right Click Menu Windows 11',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Tool&cache', 'Classic Right Click Menu', 'Windows 11.reg')
-        ]
-      ]
+      [WINDOWS_COMMANDS.reg, ['import', 'Tool&cache/Classic Right Click Menu/Windows 11.reg']]
     ]
   },
   'disable-extreme-drivers': {
     description: 'Disable Extreme Reg Drivers',
-    commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        ['import', join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Disable Drivers.reg')]
-      ]
-    ]
+    commands: [[WINDOWS_COMMANDS.reg, ['import', 'Tool&cache/Extreme Reg/Disable Drivers.reg']]]
   },
   'disable-extreme-gamer-services': {
     description: 'Disable Extreme Reg Services For Gamers',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Disable Services For Gamers.reg')
-        ]
-      ]
+      [WINDOWS_COMMANDS.reg, ['import', 'Tool&cache/Extreme Reg/Disable Services For Gamers.reg']]
     ]
   },
   'disable-extreme-professional-services': {
@@ -844,23 +583,12 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   },
   'enable-extreme-drivers': {
     description: 'Enable Extreme Reg Drivers',
-    commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        ['import', join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Enable Drivers.reg')]
-      ]
-    ]
+    commands: [[WINDOWS_COMMANDS.reg, ['import', 'Tool&cache/Extreme Reg/Enable Drivers.reg']]]
   },
   'enable-extreme-gamer-services': {
     description: 'Enable Extreme Reg Services For Gamers',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Tool&cache', 'Extreme Reg', 'Enable Services For Gamers.reg')
-        ]
-      ]
+      [WINDOWS_COMMANDS.reg, ['import', 'Tool&cache/Extreme Reg/Enable Services For Gamers.reg']]
     ]
   },
   'restore-extreme-gamer-services': {
@@ -955,10 +683,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
     commands: [
       [
         WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Disable CpuPwrThrottling.reg')
-        ]
+        ['import', 'Optimizer/3. Windows Settings/Disable CpuPwrThrottling.reg']
       ]
     ]
   },
@@ -967,10 +692,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
     commands: [
       [
         WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable CpuPwrThrottling.reg')
-        ]
+        ['import', 'Optimizer/3. Windows Settings/Enable CpuPwrThrottling.reg']
       ]
     ]
   },
@@ -1013,23 +735,14 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
     commands: [
       [
         WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Disable Drivers Updates.reg')
-        ]
+        ['import', 'Optimizer/3. Windows Settings/Disable Drivers Updates.reg']
       ]
     ]
   },
   'win-enable-driver-updates': {
     description: 'Bật Driver Updates',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Drivers Updates.reg')
-        ]
-      ]
+      [WINDOWS_COMMANDS.reg, ['import', 'Optimizer/3. Windows Settings/Enable Drivers Updates.reg']]
     ]
   },
   'win-disable-extra-services': {
@@ -1071,23 +784,14 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
     commands: [
       [
         WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Disable MemoryMirroring.reg')
-        ]
+        ['import', 'Optimizer/3. Windows Settings/Disable MemoryMirroring.reg']
       ]
     ]
   },
   'win-enable-memory-mirroring': {
     description: 'Bật Memory Mirroring',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable MemoryMirroring.reg')
-        ]
-      ]
+      [WINDOWS_COMMANDS.reg, ['import', 'Optimizer/3. Windows Settings/Enable MemoryMirroring.reg']]
     ]
   },
   'win-disable-network-throttling': {
@@ -1112,35 +816,20 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
     commands: [
       [
         WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable NetworkThrottling.reg')
-        ]
+        ['import', 'Optimizer/3. Windows Settings/Enable NetworkThrottling.reg']
       ]
     ]
   },
   'win-disable-runtime-broker': {
     description: 'Tắt Runtime Broker',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Disable Runtime Broker.reg')
-        ]
-      ]
+      [WINDOWS_COMMANDS.reg, ['import', 'Optimizer/3. Windows Settings/Disable Runtime Broker.reg']]
     ]
   },
   'win-enable-runtime-broker': {
     description: 'Bật Runtime Broker',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Runtime Broker.reg')
-        ]
-      ]
+      [WINDOWS_COMMANDS.reg, ['import', 'Optimizer/3. Windows Settings/Enable Runtime Broker.reg']]
     ]
   },
   'win-disable-spectre-meltdown': {
@@ -1179,44 +868,22 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   },
   'win-disable-sync': {
     description: 'Tắt Windows Sync',
-    commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        ['import', join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Disable Sync.reg')]
-      ]
-    ]
+    commands: [[WINDOWS_COMMANDS.reg, ['import', 'Optimizer/3. Windows Settings/Disable Sync.reg']]]
   },
   'win-enable-sync': {
     description: 'Bật Windows Sync',
-    commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        ['import', join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Sync.reg')]
-      ]
-    ]
+    commands: [[WINDOWS_COMMANDS.reg, ['import', 'Optimizer/3. Windows Settings/Enable Sync.reg']]]
   },
   'win-disable-windows-apps': {
     description: 'Tắt Windows Apps Auto-Install',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Disable Windows Apps.reg')
-        ]
-      ]
+      [WINDOWS_COMMANDS.reg, ['import', 'Optimizer/3. Windows Settings/Disable Windows Apps.reg']]
     ]
   },
   'win-enable-windows-apps': {
     description: 'Bật Windows Apps Auto-Install',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Windows Apps.reg')
-        ]
-      ]
+      [WINDOWS_COMMANDS.reg, ['import', 'Optimizer/3. Windows Settings/Enable Windows Apps.reg']]
     ]
   },
   'win-disable-notifications': {
@@ -1275,12 +942,7 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   },
   'clean-cache': {
     description: 'Dọn dẹp cache',
-    commands: [
-      [
-        WINDOWS_COMMANDS.cmd,
-        ['/d', '/c', 'call', join(SCRIPT_DIRECTORY, 'Tool&cache', 'Clean', 'Clear.bat')]
-      ]
-    ]
+    commands: [[WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', 'Tool&cache/Clean/Clear.bat']]]
   },
   'ram-optimization': {
     description: 'Áp dụng RAM Optimization',
@@ -1289,12 +951,12 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
   'win32-priority': {
     description: 'Apply Win32PrioritySeparation',
     profiles: WIN32_PRIORITY_PROFILES,
-    profileDirectory: join(SCRIPT_DIRECTORY, 'Optimizer', '8. Win32Priority')
+    profileDirectory: 'Optimizer/8. Win32Priority'
   },
   'power-plan': {
     description: 'Apply Power Plan',
     profiles: POWER_PLAN_PROFILES,
-    profileDirectory: join(SCRIPT_DIRECTORY, 'Optimizer', '4. PowerPlan')
+    profileDirectory: 'Optimizer/4. PowerPlan'
   },
   'registry-profile': {
     description: 'Apply registry script',
@@ -1305,18 +967,13 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
     commands: [
       [
         WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Windows Settings Tweaks.reg')
-        ]
+        ['import', 'Optimizer/3. Windows Settings/Windows Settings Tweaks.reg']
       ]
     ]
   },
   'ntfs-bat': {
     description: 'Kích hoạt sửa lỗi NTFS bằng file BAT',
-    commands: [
-      [WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', join(SCRIPT_DIRECTORY, 'BIOS', 'NTFS.bat')]]
-    ]
+    commands: [[WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', 'BIOS/NTFS.bat']]]
   },
   'dawa-cleaner': {
     description: 'Dọn dẹp bộ nhớ tạm & Temp files',
@@ -1327,23 +984,14 @@ export const ALLOWED_DAWA_SCRIPTS = Object.freeze({
     commands: [
       [
         WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Disable Background Apps.reg')
-        ]
+        ['import', 'Optimizer/3. Windows Settings/Disable Background Apps.reg']
       ]
     ]
   },
   'win-enable-background-apps': {
     description: 'Bật Background Apps',
     commands: [
-      [
-        WINDOWS_COMMANDS.reg,
-        [
-          'import',
-          join(SCRIPT_DIRECTORY, 'Optimizer', '3. Windows Settings', 'Enable Background Apps.reg')
-        ]
-      ]
+      [WINDOWS_COMMANDS.reg, ['import', 'Optimizer/3. Windows Settings/Enable Background Apps.reg']]
     ]
   }
 })
@@ -1418,6 +1066,16 @@ export async function runDawaScript(scriptKey, options = {}) {
       success: false,
       message: `Script [${scriptKey}] không nằm trong danh sách được phép thực thi.`
     }
+
+  const licensed = await checkLicenseGate()
+  if (!licensed) {
+    return {
+      success: false,
+      message: LICENSE_REQUIRED_MESSAGE,
+      stepResults: []
+    }
+  }
+
   const outputs = []
 
   if (script.launch) {
@@ -1433,16 +1091,23 @@ export async function runDawaScript(scriptKey, options = {}) {
   }
 
   if (script.profileFiles) {
-    const file = script.profileFiles[options.profile]
-    if (!file) return { success: false, message: 'Invalid registry script profile.' }
+    const manifestKey = script.profileFiles[options.profile]
+    if (!manifestKey) return { success: false, message: 'Invalid registry script profile.' }
+    const ext = manifestKey.slice(manifestKey.lastIndexOf('.') + 1).toLowerCase()
+    const isBatch = ext === 'cmd' || ext === 'bat'
 
-    const isBatch = file.toLowerCase().endsWith('.cmd') || file.toLowerCase().endsWith('.bat')
-    const result = isBatch
-      ? await runWhitelistedCommand(WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', file])
-      : await runWhitelistedCommand(WINDOWS_COMMANDS.reg, ['import', file])
+    const staged = await decryptAndStageScript(manifestKey)
+    let result
+    try {
+      result = isBatch
+        ? await runWhitelistedCommand(WINDOWS_COMMANDS.cmd, ['/d', '/c', 'call', staged.tempPath])
+        : await runWhitelistedCommand(WINDOWS_COMMANDS.reg, ['import', staged.tempPath])
+    } finally {
+      staged.cleanup()
+    }
     outputs.push({
       file: isBatch ? WINDOWS_COMMANDS.cmd : WINDOWS_COMMANDS.reg,
-      args: isBatch ? `/d /c call ${file}` : `import ${file}`,
+      args: isBatch ? `/d /c call ${staged.tempPath}` : `import ${staged.tempPath}`,
       ...result
     })
     return {
@@ -1455,36 +1120,39 @@ export async function runDawaScript(scriptKey, options = {}) {
   }
 
   if (script.profiles) {
-    const profileFile = script.profiles[options.profile]
-    if (!profileFile) {
+    const manifestKey = script.profiles[options.profile]
+    if (!manifestKey) {
       return { success: false, message: 'Cấu hình không hợp lệ.' }
     }
-    const file = join(
-      script.profileDirectory || join(SCRIPT_DIRECTORY, 'Optimizer', 'Ram Optimization'),
-      profileFile
-    )
 
-    // Special handling for power plans - use powercfg
-    if (scriptKey === 'power-plan') {
-      const result = await runWhitelistedCommand(WINDOWS_COMMANDS.powercfg, ['/import', file])
-      outputs.push({ file: WINDOWS_COMMANDS.powercfg, args: `/import ${file}`, ...result })
-      return {
-        success: result.success,
-        message: result.success
-          ? `Đã áp dụng Power Plan ${options.profile}.`
-          : `Không thể áp dụng Power Plan: ${result.stderr}`,
-        stepResults: outputs
+    const staged = await decryptAndStageScript(manifestKey)
+    let result
+    try {
+      if (scriptKey === 'power-plan') {
+        result = await runWhitelistedCommand(WINDOWS_COMMANDS.powercfg, [
+          '/import',
+          staged.tempPath
+        ])
+      } else {
+        result = await runWhitelistedCommand(WINDOWS_COMMANDS.reg, ['import', staged.tempPath])
       }
+    } finally {
+      staged.cleanup()
     }
-
-    // Default handling for registry files
-    const result = await runWhitelistedCommand(WINDOWS_COMMANDS.reg, ['import', file])
-    outputs.push({ file: WINDOWS_COMMANDS.reg, args: `import ${file}`, ...result })
+    outputs.push({
+      file: scriptKey === 'power-plan' ? WINDOWS_COMMANDS.powercfg : WINDOWS_COMMANDS.reg,
+      args: scriptKey === 'power-plan' ? `/import ${staged.tempPath}` : `import ${staged.tempPath}`,
+      ...result
+    })
     return {
       success: result.success,
       message: result.success
-        ? `Đã áp dụng profile ${options.profile}.`
-        : `Không thể áp dụng profile: ${result.stderr}`,
+        ? scriptKey === 'power-plan'
+          ? `Đã áp dụng Power Plan ${options.profile}.`
+          : `Đã áp dụng profile ${options.profile}.`
+        : scriptKey === 'power-plan'
+          ? `Không thể áp dụng Power Plan: ${result.stderr}`
+          : `Không thể áp dụng profile: ${result.stderr}`,
       stepResults: outputs
     }
   }
@@ -1511,12 +1179,37 @@ export async function runDawaScript(scriptKey, options = {}) {
   }
 
   for (const [file, args, cmdOptions = {}] of script.commands) {
-    const result = await runWhitelistedCommand(file, args)
-    outputs.push({ file, args: args.join(' '), ...result })
+    const resolvedArgs = [...args]
+    const cleanups = []
+    let result
+    try {
+      for (let i = 0; i < resolvedArgs.length; i++) {
+        const a = resolvedArgs[i]
+        if (
+          typeof a === 'string' &&
+          /\.(reg|bat|cmd|pow|txt|ini|nip)$/i.test(a) &&
+          !/^[A-Za-z]:\\/.test(a)
+        ) {
+          const staged = await decryptAndStageScript(a)
+          cleanups.push(staged.cleanup)
+          resolvedArgs[i] = staged.tempPath
+        }
+      }
+      result = await runWhitelistedCommand(file, resolvedArgs)
+    } finally {
+      for (const c of cleanups) {
+        try {
+          c()
+        } catch {
+          /* noop */
+        }
+      }
+    }
+    outputs.push({ file, args: resolvedArgs.join(' '), ...result })
     if (!result.success && !cmdOptions.optional)
       return {
         success: false,
-        message: `Lỗi khi thực thi bước ${file} ${args.join(' ')}: ${result.stderr}`,
+        message: `Lỗi khi thực thi bước ${file} ${resolvedArgs.join(' ')}: ${result.stderr}`,
         stepResults: outputs
       }
   }

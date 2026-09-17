@@ -110,7 +110,7 @@ import {
   verifyLocalLicense,
   isTokenExpiringSoon
 } from './services/licenseService'
-import { ALLOWED_DAWA_SCRIPTS, runDawaScript } from './services/dawaScripts'
+import { ALLOWED_DAWA_SCRIPTS, runDawaScript, setLicenseValidator } from './services/dawaScripts'
 
 // Function to check if running as admin
 function isAdmin() {
@@ -250,6 +250,19 @@ const WINDOWS_SHUTDOWN_PATH = path.join(
 )
 const licenseStore = createLicenseStore(LICENSE_FILE_PATH)
 const activateAttempts = []
+
+setLicenseValidator(async () => {
+  try {
+    const stored = licenseStore.get()
+    if (!stored?.keyCode) return false
+    const deviceHash = await getHardwareHash()
+    const verified = verifyLocalLicense(stored, deviceHash)
+    return Boolean(verified?.valid)
+  } catch (err) {
+    console.warn('[license-gate] runtime check error:', err.message)
+    return false
+  }
+})
 
 // ==========================================================
 //  INSTALLER LICENSE MIGRATION (fix "double key entry" race)

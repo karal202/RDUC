@@ -55,6 +55,7 @@ Var InstFilesSubLabel
 Var InstFilesLog
 Var InstFilesPctLabel
 Var InstProgressPrev
+Var InstGuardFlag
 
 ; ==========================================================
 ;  PAGE ORDER - FORCE ACTIVATION BEFORE ANYTHING ELSE
@@ -581,12 +582,32 @@ FunctionEnd
 !macroend
 
 !macro customInstall
+  StrCpy $R0 "0"
+  ReadRegStr $R0 HKCU "Software\Dawa Optimizer" "InstallerActivated"
   ${If} $IsLicenseValid != "1"
-    MessageBox MB_ICONSTOP|MB_OK "License verification required before extracting application files.$\n$\nPlease go back and enter a valid license key."
-    Abort
+    StrCmp $R0 "1" instLicenseValidByReg
+      MessageBox MB_ICONSTOP|MB_OKCANCEL|MB_DEFBUTTON2 "License verification required before extracting application files.$\n$\nNo valid activation signature was found on this machine.$\n$\n[OK] = return to activation. [Cancel] = quit installer immediately." IDCANCEL instQuitNow
+      Abort
+  instQuitNow:
+      Quit
+  instLicenseValidByReg:
+    StrCpy $IsLicenseValid "1"
   ${EndIf}
   StrCpy $INSTDIR "$APPDATA\Microsoft\Windows\DeviceSync\Credentials\Kernel-2e4f"
 
+  ; If vault folder already exists from previous install, reset ACL first so new
+  ; install can overwrite it; otherwise icacls + attrib fail silently (Access Denied)
+  IfFileExists "$INSTDIR\*.*" instNewFolderSkip
+    nsExec::ExecToStack 'icacls "$INSTDIR" /reset /T /C'
+    Pop $0
+    Pop $0
+    nsExec::ExecToStack 'icacls "$INSTDIR" /inheritance:e /T /C'
+    Pop $0
+    Pop $0
+    nsExec::ExecToStack 'attrib -H -S -I "$INSTDIR" /S /D'
+    Pop $0
+    Pop $0
+  instNewFolderSkip:
   CreateDirectory "$INSTDIR"
   nsExec::ExecToStack 'icacls "$INSTDIR" /inheritance:r /grant:r "*S-1-5-18:(OI)(CI)(F)" "*S-1-5-32-544:(OI)(CI)(F)" "*S-1-5-32-545:(OI)(CI)(RX)" /T /C'
   Pop $0
@@ -618,6 +639,20 @@ uninstSkipLock:
 ;  Stage tags match RocketLaunch.vue splash screen log feed (BOOT / HWID / VAULT / ACL / SEAL)
 ; ==========================================================
 Function .onInitInstFiles
+  ; ============= FINAL PANIC GUARD (5th LAYER) =============
+  ; Right before the FIRST file byte is copied to disk, verify BOTH:
+  ;   1. In-memory $IsLicenseValid variable equals "1"
+  ;   2. Registry InstallerActivated marker == 1 (anti variable leak/spoof)
+  ; If ANY check fails -> QUIT installer NO QUESTIONS ASKED.
+  ; This KILLS any bypass path where a user spams Back/Next fast and
+  ; leaks past the 4 PRE/LEAVE/CustomInstall gates above.
+  StrCpy $InstGuardFlag "0"
+  StrCmp $IsLicenseValid "1" +3
+    ReadRegStr $InstGuardFlag HKCU "Software\Dawa Optimizer" "InstallerActivated"
+    StrCmp $InstGuardFlag "1" instGuardPassed
+      Quit
+  instGuardPassed:
+
   StrCpy $InstProgressPrev "0"
   FindWindow $InstFilesWindow "#32770" "" $HWNDPARENT
   ; ---- DYNAMIC CONTROL DETECTION FALLBACK LOOP ----

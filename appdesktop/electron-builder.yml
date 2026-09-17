@@ -25,6 +25,7 @@ asarUnpack:
   - '**/scripts/Tool&cache/**/*'
   - '**/scripts/Tool&cache/**/*.exe'
   - '**/resources/**/*.ps1'
+  - '**/scripts-enc/**/*.dat'
 compression: maximum
 generateUpdatesFilesForAllChannels: true
 artifactName: ${productName}-Setup-${version}-${arch}.${ext}
@@ -44,6 +45,21 @@ files:
 extraResources:
   - from: 'resources/scripts'
     to: 'scripts'
+    filter:
+      - '**/*.exe'
+      - '**/*.dll'
+      - '**/*.msi'
+      - '**/*.zip'
+      - '**/*.lnk'
+      - '**/*.url'
+      - '**/*.mp4'
+      - '**/*.png'
+      - '**/*.jpg'
+      - '**/*.jpeg'
+      - '**/*.pdb'
+      - '**/*.config'
+  - from: 'build/encrypted-scripts'
+    to: 'scripts-enc'
 win:
   icon: build/icon.ico
   target:
