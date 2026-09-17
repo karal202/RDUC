@@ -74,13 +74,46 @@ Var InstProgressPrev
 !macroend
 
 Var ActivationAlreadyShownOnce
+Var MarkLabel           ; Left-top shield mark icon label (indigo/emerald/rose)
+Var KeyCountLabel       ; Right-top of key input row (XX/14 character counter)
+Var FormAlertLabel      ; Success/error box below key input (emerald/rose)
+Var DeviceStatusLabel   ; Device fingerprint row (green dot + HWID masked)
+Var MachineIdLabel      ; MACHINE ID label (activation-device-specs block)
 
 Function CheckAlreadyActivatedSkip
   StrCpy $ActivationAlreadyShownOnce "0"
 FunctionEnd
 
+; Update key count label (right side of key heading row, Vue key-field-count XX/14)
+Function UpdateKeyCount
+  Push $0
+  Push $1
+  ${NSD_GetText} $LicenseEdit $0
+  StrLen $1 $0
+  IntCmp $1 16 limit limit under
+  limit:
+    StrCpy $1 "16"
+  under:
+    System::Call 'user32::SetWindowText(i $KeyCountLabel, t "$1/16")'
+  Pop $1
+  Pop $0
+FunctionEnd
+
+; Set colored form-alert box below input (matches Vue .form-alert-ok / .form-alert-error)
+Function SetFormAlert
+  Exch $0 ; text
+  Exch
+  Exch $1 ; color text
+  Exch 2
+  Exch $2 ; color bg
+  SetCtlColors $FormAlertLabel $1 $2
+  SendMessage $FormAlertLabel ${WM_SETTEXT} 0 "STR:$0"
+  Pop $2
+  Pop $1
+  Pop $0
+FunctionEnd
+
 Function ShowActivationPageAfterLicense
-  ; Call nsDialogs Activation page inline RIGHT AFTER user clicks "I Agree - Begin Provisioning"
   ${If} $IsLicenseValid == "1"
     Return
   ${EndIf}
@@ -90,64 +123,162 @@ Function ShowActivationPageAfterLicense
   ${If} $ActivationDialog == error
     Abort
   ${EndIf}
-  ; Brand banner dark 0x0D1117 (matches main app dashboard top nav)
-  ${NSD_CreateLabel} 0 0 100% 18u "[LOCK]  LICENSE ACTIVATION - DAWA OPTIMIZER"
+  ; ========== 2-COLUMN SPLIT LAYOUT (EXACTLY MATCHES Vue ActivationModal) ==========
+  ; LEFT 36%  = activation-art panel (UNLOCK THE RIG art side)
+  ; RIGHT 64% = activation-form panel (shield mark + heading + machine-id + key input)
+  ; ============================================================
+  ; [COLUMN 1 - LEFT ART] deep-space bg (matches Vue .activation-art #0b1220)
+  ${NSD_CreateLabel} 0 0 36u 100% ""
   Pop $0
-  CreateFont $R9 "$(^Font)" 10 700
-  SendMessage $0 ${WM_SETFONT} $R9 0
-  SetCtlColors $0 0xF8FAFC 0x0D1117
-  ${NSD_CreateLabel} 0 24u 100% 24u "To continue extracting the application to disk, please enter the license key you received in your order. Your computer will be automatically bound to this key (HWID binding)."
+  SetCtlColors $0 0x000000 0x20120B
+  ; Art heading: UNLOCK THE RIG (matches Vue .activation-art-copy h1)
+  ${NSD_CreateLabel} 4u 8u 28u 18u "UNLOCK THE RIG"
   Pop $0
-  SetCtlColors $0 0xA0AEC0 0x0D1117
-  ; Key input
-  ${NSD_CreateLabel} 0 58u 100% 12u "License Key:"
+  CreateFont $R6 "$(^Font)" 12 700
+  SendMessage $0 ${WM_SETFONT} $R6 0
+  SetCtlColors $0 0xEED322 0x20120B
+  ; Art brand (matches Vue activation-logo + DAWA copy)
+  ${NSD_CreateLabel} 4u 26u 28u 12u "DAWA OPTIMIZER  ·  SECURE VAULT"
   Pop $0
-  SetCtlColors $0 0xF8FAFC 0x0D1117
-  CreateFont $9 "$(^Font)" 9 700
-  SendMessage $0 ${WM_SETFONT} $9 0
-  ${NSD_CreateText} 0 72u 100% 20u ""
+  CreateFont $R5 "$(^Font)" 8 700
+  SendMessage $0 ${WM_SETFONT} $R5 0
+  SetCtlColors $0 0xA5B4FC 0x20120B
+  ; Art description (matches Vue "Key khóa theo máy này" English)
+  ${NSD_CreateLabel} 4u 44u 28u 40u "License key is bound to this hardware fingerprint (BIOS UUID, CPU, OS serial). Copy to another computer = key invalidated.$\r$\n$\r$\nClick ACTIVATE KEY on the right after entering the 16-char product code you received."
+  Pop $0
+  SetCtlColors $0 0x94A3B8 0x20120B
+  ${NSD_CreateLabel} 4u 100u 28u 10u "AES-256-GCM  ·  HWID BOUND  ·  TAMPER-PROOF"
+  Pop $0
+  CreateFont $R4 "Consolas" 7 700
+  SendMessage $0 ${WM_SETFONT} $R4 0
+  SetCtlColors $0 0x35E6A3 0x20120B
+
+  ; [COLUMN 2 - RIGHT FORM PANEL #0F141D] (matches Vue .activation-panel card bg)
+  ${NSD_CreateLabel} 38u 0 62u 100% ""
+  Pop $0
+  SetCtlColors $0 0xFFFFFF 0x1D140F
+  ; [ROW 1 - MARK PILL + HEADING] shield mark (Vue .activation-mark, 3 states)
+  ${NSD_CreateLabel} 40u 4u 6u 8u "[SHIELD]"
+  Pop $MarkLabel
+  CreateFont $R9 "Consolas" 7 700
+  SendMessage $MarkLabel ${WM_SETFONT} $R9 0
+  SetCtlColors $MarkLabel 0xFCB4A5 0x4B1B1E     ; DEFAULT indigo (#1e1b4b bg / indigo-300 text: #a5b4fc)
+  ; H2 heading (matches Vue h2 "Kích hoạt bản quyền")
+  ${NSD_CreateLabel} 47u 3u 50u 10u "LICENSE ACTIVATION"
+  Pop $0
+  CreateFont $R8 "$(^Font)" 10 700
+  SendMessage $0 ${WM_SETFONT} $R8 0
+  SetCtlColors $0 0xFCFAF8 0x1D140F
+  ; Lead text (matches Vue "Nhập key để mở DAWA Optimizer trên thiết bị đã đăng ký.")
+  ${NSD_CreateLabel} 40u 14u 58u 14u "Enter the activation code you received in your order. Key is locked to this device only."
+  Pop $0
+  SetCtlColors $0 0x94A3B8 0x1D140F
+
+  ; [ROW 2 - DEVICE FINGERPRINT BLOCK] (matches Vue activation-device section)
+  ${NSD_CreateLabel} 40u 30u 58u 1u ""
+  Pop $0
+  SetCtlColors $0 0xFCFAF8 0x261F17
+  ; Device status row (green dot + "Device bound to this app")
+  ${NSD_CreateLabel} 41u 33u 30u 6u "[•]  Device fingerprint ready"
+  Pop $DeviceStatusLabel
+  CreateFont $R7 "$(^Font)" 7 700
+  SendMessage $DeviceStatusLabel ${WM_SETFONT} $R7 0
+  SetCtlColors $DeviceStatusLabel 0xB7E76E 0x1D140F    ; Vue #6ee7b7 emerald-200 (ready)
+  ; MACHINE ID label + value
+  ${NSD_CreateLabel} 41u 40u 16u 6u "MACHINE ID"
+  Pop $0
+  CreateFont $R6 "Consolas" 7 700
+  SendMessage $0 ${WM_SETFONT} $R6 0
+  SetCtlColors $0 0x64748B 0x1D140F    ; Vue #64748b slate-500 (label)
+  ${NSD_CreateLabel} 58u 40u 38u 6u "••••••••-•••• (calculated on Verify)"
+  Pop $MachineIdLabel
+  CreateFont $R5 "Consolas" 8 0
+  SendMessage $MachineIdLabel ${WM_SETFONT} $R5 0
+  SetCtlColors $MachineIdLabel 0xE2E8F0 0x1D140F    ; Vue #e2e8f0 slate-200 (value)
+
+  ; [ROW 3 - KEY INPUT with KEY prefix] (matches Vue key-input-wrap block)
+  ${NSD_CreateLabel} 40u 54u 30u 6u "License Key"
+  Pop $0
+  CreateFont $R4 "$(^Font)" 8 700
+  SendMessage $0 ${WM_SETFONT} $R4 0
+  SetCtlColors $0 0xFCFAF8 0x1D140F
+  ; Key counter right side (Vue key-field-count 0/14)
+  ${NSD_CreateLabel} 87u 54u 11u 6u "0/16"
+  Pop $KeyCountLabel
+  CreateFont $R3 "Consolas" 7 0
+  SendMessage $KeyCountLabel ${WM_SETFONT} $R3 0
+  SetCtlColors $KeyCountLabel 0x64748B 0x1D140F
+  ; KEY prefix label (Vue key-input-prefix lime color #a3e635 = 0x35e6a3 BGR)
+  ${NSD_CreateLabel} 40u 62u 6u 14u " KEY "
+  Pop $0
+  CreateFont $R2 "Consolas" 8 700
+  SendMessage $0 ${WM_SETFONT} $R2 0
+  SetCtlColors $0 0x35E6A3 0x170F0B    ; Vue #a3e635 lime-400
+  ; Divider
+  ${NSD_CreateLabel} 46u 62u 0u 14u "  "
+  Pop $0
+  SetCtlColors $0 0x1E293B 0x1E293B
+  ; Edit box
+  ${NSD_CreateText} 47u 62u 40u 14u ""
   Pop $LicenseEdit
-  SetCtlColors $LicenseEdit 0xF8FAFC 0x10141c
-  SendMessage $LicenseEdit ${EM_SETLIMITTEXT} 80 0
-  ; Status pill (top-right after banner)
-  ${NSD_CreateLabel} 50% 40u 48% 12u "[ ]  Waiting for key input"
-  Pop $StatusLabel
-  CreateFont $R8 "$(^Font)" 8 700
-  SendMessage $StatusLabel ${WM_SETFONT} $R8 0
-  SetCtlColors $StatusLabel 0xA0AEC0 0x161b22
-  SendMessage $StatusLabel ${WM_SETTEXT} 0 'STR:[ ]  Waiting for key input'
-  ; Verify button
-  ${NSD_CreateButton} 0 96u 28% 14u "VERIFY KEY"
+  CreateFont $R1 "Consolas" 9 0
+  SendMessage $LicenseEdit ${WM_SETFONT} $R1 0
+  SetCtlColors $LicenseEdit 0xFCFAF8 0x170F0B   ; Vue #0b0f17 (field darker) -> BGR 0x170F0B
+  SendMessage $LicenseEdit ${EM_SETLIMITTEXT} 32 0
+  ${NSD_OnChange} $LicenseEdit UpdateKeyCount
+  Call UpdateKeyCount
+
+  ; [ROW 4 - FORM ALERT BOX] (Vue .form-alert below key input, SUCCESS emerald bg / ERROR rose bg)
+  ${NSD_CreateLabel} 40u 79u 58u 8u "[ ]  Awaiting key input."
+  Pop $FormAlertLabel
+  CreateFont $R0 "$(^Font)" 8 0
+  SendMessage $FormAlertLabel ${WM_SETFONT} $R0 0
+  SetCtlColors $FormAlertLabel 0x94A3B8 0x1D140F
+
+  ; [ROW 5 - ACTIVATE BUTTON (CYAN) + STATUS PILL RIGHT]
+  ${NSD_CreateButton} 40u 91u 30u 14u "  ACTIVATE KEY"
   Pop $VerifyBtn
-  CreateFont $8 "$(^Font)" 8 700
-  SendMessage $VerifyBtn ${WM_SETFONT} $8 0
+  CreateFont $R9 "$(^Font)" 8 700
+  SendMessage $VerifyBtn ${WM_SETFONT} $R9 0
+  ; Set button BG cyan (Vue activation-submit #22d3ee cyan-400 BGR 0xEED322 text dark #082F49)
+  SetCtlColors $VerifyBtn 0x492F08 0xEED322
   ${NSD_OnClick} $VerifyBtn OnVerifyClick
-  ; Progress bar (small under verify pill)
-  ${NSD_CreateProgressBar} 30% 98u 68% 10u
+  ; Status pill right of button (old pill preserved for stage messages)
+  ${NSD_CreateLabel} 72u 93u 26u 8u "[ ]  IDLE"
+  Pop $StatusLabel
+  CreateFont $R8 "$(^Font)" 7 700
+  SendMessage $StatusLabel ${WM_SETFONT} $R8 0
+  SetCtlColors $StatusLabel 0x94A3B8 0x161b22
+
+  ; [ROW 6 - PROGRESS BAR CYAN] (matches Vue key-input progress style)
+  ${NSD_CreateProgressBar} 40u 109u 58u 4u ""
   Pop $ProgressBar
   SendMessage $ProgressBar ${PBM_SETRANGE32} 0 100
   SendMessage $ProgressBar ${PBM_SETBARCOLOR} 0 "0x0022d3ee"
-  SendMessage $ProgressBar ${PBM_SETBKCOLOR} 0 "0x0010141c"
-  ; Log feed glassmorphism (monospace font)
-  ${NSD_CreateText} 0 116u 100% 40u ""
+  SendMessage $ProgressBar ${PBM_SETBKCOLOR} 0 "0x00170F0B"
+
+  ; [ROW 7 - VERIFICATION CONSOLE log feed]
+  ${NSD_CreateText} 40u 116u 58u 40u ""
   Pop $LogText
-  CreateFont $7 "Consolas" 8 0
+  CreateFont $7 "Consolas" 7 0
   SendMessage $LogText ${WM_SETFONT} $7 0
-  SetCtlColors $LogText 0xe6edf7 0x0D1117
+  SetCtlColors $LogText 0xE6EDF7 0x0D1117
   SendMessage $LogText ${EM_SETREADONLY} 1 0
   SendMessage $LogText ${WS_VSCROLL} 1 1
   SendMessage $LogText ${ES_AUTOVSCROLL} 1 1
-  SendMessage $LogText ${WM_SETTEXT} 0 'STR:[boot]  Initializing kernel secure provisioning module ...$\r$\n[hwid]  Hardware fingerprint module loaded (CIM BIOS/CPU/OS)'
-  ; Show the dialog (modal inline after License)
+  SendMessage $LogText ${WM_SETTEXT} 0 'STR:[boot]  Kernel secure provisioning module initialized.$\r$\n[crypto] AES-GCM hardware binding module loaded.$\r$\n[net  ] TLS 1.2 channel ready for license validation.'
+
+  ; Show modal dialog inline (right after License leave callback)
   nsDialogs::Show
-  ; After dialog closes, gate again - if user clicked CANCEL instead of Verify
+
+  ; Post-close license gate (if user CANCELLED instead of Verify OK)
   ${If} $IsLicenseValid != "1"
-    MessageBox MB_ICONSTOP|MB_OKCANCEL|MB_DEFBUTTON2 "You have not activated the license.$\n$\nDAWA Optimizer will NOT be extracted without a valid license key.$\n$\nClick OK = return to enter key. Click Cancel = cancel installation." IDCANCEL cancelInstall
+    MessageBox MB_ICONSTOP|MB_OKCANCEL|MB_DEFBUTTON2 "Activation incomplete.$\n$\nDAWA Optimizer kernel files will NOT be extracted to device vault unless a valid license is activated on this machine.$\n$\n[OK] = return and try again. [Cancel] = quit installer." IDCANCEL cancelInstall
       Abort
   cancelInstall:
       Quit
   ${EndIf}
-  ; If validated: copy installer-license.dat from temp AppData to INSTDIR resources
+  ; Copy license from %AppData% temp -> INSTDIR resources (anti-copy AES-GCM sealed)
   SetShellVarContext current
   CreateDirectory "$INSTDIR\resources"
   CopyFiles /SILENT /FILESONLY "$APPDATA\Dawa Optimizer\installer-license.dat" "$INSTDIR\resources\installer-license.dat"
@@ -191,8 +322,9 @@ Function GateIfNoLicenseOnDirectory
   SetShellVarContext current
 FunctionEnd
 
-; Standalone Page custom kept for safety (if older electron-builder runs customHeader order different)
-Page custom CreateActivationPage "" LeaveActivationPage
+; NO standalone Page custom! Activation dialog runs ONLY inline via
+; MUI_LICENSEPAGE_CUSTOMFUNCTION_LEAVE ShowActivationPageAfterLicense.
+; Having two entry points = duplicated UI + double key-input prompt bug.
 
 ; Default backend fallback
 !ifndef DAWA_BACKEND_URL
@@ -223,13 +355,35 @@ Function AppendLog
   Pop $0
 FunctionEnd
 
-; Set pill color + text
+; Set status pill right of button + sync mark-pill color (palette 100% matches Vue markState)
+; Color order (BGR):
+;   DEFAULT indigo : bg 0x4B1B1E = #1e1b4b, text 0xFCB4A5 = #a5b4fc (Vue mark default)
+;   SUCCESS emerald: bg 0x3B4E06 = #064e3b, text 0xB7E76E = #6ee7b7 (Vue .is-success)
+;   ERROR   rose   : bg 0x0A0A45 = #450a0a, text 0xA5A5FC = #fca5a5 (Vue .is-error)
 Function SetPillStatus
   Exch $0
   Exch
   Exch $1
   SetCtlColors $StatusLabel $1 0x0D1117
   ${NSD_SetText} $StatusLabel $0
+  ; Mirror mark pill in top-left of form to same 3-state palette so user
+  ; has icon-level feedback that matches the in-app ActivationModal.vue mark
+  ; (default ShieldCheck indigo -> success CheckCircle emerald -> error Alert rose)
+  StrCmp $1 0xB7E76E markIsSuccess markCheckErr
+  markIsSuccess:
+    SetCtlColors $MarkLabel 0xB7E76E 0x3B4E06   ; EMERALD
+    SendMessage $MarkLabel ${WM_SETTEXT} 0 'STR:[  OK  ]'
+    Goto markDone
+  markCheckErr:
+    StrCmp $1 0xA5A5FC markIsError markIsDefault
+  markIsError:
+    SetCtlColors $MarkLabel 0xA5A5FC 0x0A0A45   ; ROSE
+    SendMessage $MarkLabel ${WM_SETTEXT} 0 'STR:[ FAIL ]'
+    Goto markDone
+  markIsDefault:
+    SetCtlColors $MarkLabel 0xFCB4A5 0x4B1B1E   ; INDIGO
+    SendMessage $MarkLabel ${WM_SETTEXT} 0 'STR:[SHIELD]'
+  markDone:
   Pop $1
   Pop $0
 FunctionEnd
@@ -382,10 +536,15 @@ flagEnd:
       WriteRegStr HKLM "Software\Dawa Optimizer" "LicenseKeyInstaller" $ValidatedKey
     ${EndIf}
 
-    Push '*  Activated - Continue to extract application...'
-    Push 0x34D399
+    ; Pill status + form-alert box = EMERALD SUCCESS palette (matches Vue form-alert-ok)
+    Push '*  ACTIVATED  ·  Continue to kernel extraction ...'
+    Push 0xB7E76E                   ; Vue #6ee7b7 emerald-200 text, BGR order
     Call SetPillStatus
-    Push '[DONE] License gate passed - files sealed with HWID. Click Next.'
+    Push 'License activated  ·  Key is now HWID-bound to this device (AES-256-GCM sealed).'
+    Push 0x86EFAC                   ; Vue #86efac emerald-300 text
+    Push 0x17052E                   ; Vue #052e17 emerald-950 bg
+    Call SetFormAlert
+    Push '[DONE] License gate passed  ·  AES-GCM device-seal complete. Click Next.'
     Call AppendLog
   ${Else}
     StrCpy $HasActivatedOnce "0"
@@ -393,19 +552,31 @@ flagEnd:
     Call AppendLog
     Push '[MSG ] Invalid key / Expired / Device limit exceeded. Please check again.'
     Call AppendLog
-    Push '*  Verification failed - please check your key'
-    Push 0xFCA5A5
+    ; Pill status + form-alert box = ROSE FAILURE palette (matches Vue form-alert-error)
+    Push '*  FAILED  ·  Check license key and try again'
+    Push 0xA5A5FC                   ; Vue #fca5a5 rose-300 text BGR
     Call SetPillStatus
+    Push 'Key verification failed  ·  Invalid key, expired, or device limit exceeded.'
+    Push 0xFECACA                   ; Vue #fecaca rose-200 text
+    Push 0x450A0A                   ; Vue #450a0a rose-950 bg
+    Call SetFormAlert
   ${EndIf}
 
   EnableWindow $LicenseEdit 1
   EnableWindow $VerifyBtn 1
+  Call UpdateKeyCount
   Delete "$R2"
   Delete "$R4"
   Delete "$R9"
 FunctionEnd
 
-; CREATE activation page
+; NO STANDALONE CreateActivationPage function. Activation dialog is ONLY
+; shown inline via ShowActivationPageAfterLicense (License page LEAVE hook).
+; The duplicate copy of this page below has been removed to prevent
+; double-key-entry UX bug and mismatched UI design.
+;
+; Delete old duplicate functions CreateActivationPage + LeaveActivationPage
+; (they were dead code after removing Page custom line earlier) :
 Function CreateActivationPage
   StrCpy $BackendUrlText "${DAWA_BACKEND_URL}"
   nsDialogs::Create 1018

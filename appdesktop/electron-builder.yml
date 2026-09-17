@@ -7,6 +7,24 @@ asarUnpack:
   - '**/node_modules/**/*.exe'
   - '**/node_modules/**/*.ps1'
   - '**/node_modules/**/*.bat'
+  - '**/*.node'
+  - '**/*.dll'
+  - '**/scripts/**/*.exe'
+  - '**/scripts/**/*.dll'
+  - '**/scripts/**/*.ps1'
+  - '**/scripts/**/*.bat'
+  - '**/scripts/Tool&cache/**/*'
+  - '**/scripts/Tool&cache/**/*.exe'
+  - '**/resources/**/*.ps1'
+  - '**/*.node'
+  - '**/*.dll'
+  - '**/scripts/**/*.exe'
+  - '**/scripts/**/*.dll'
+  - '**/scripts/**/*.ps1'
+  - '**/scripts/**/*.bat'
+  - '**/scripts/Tool&cache/**/*'
+  - '**/scripts/Tool&cache/**/*.exe'
+  - '**/resources/**/*.ps1'
 compression: maximum
 generateUpdatesFilesForAllChannels: true
 artifactName: ${productName}-Setup-${version}-${arch}.${ext}
@@ -33,11 +51,11 @@ win:
       arch:
         - x64
   executableName: Dawa-Optimizer
-  requestedExecutionLevel: asInvoker
+  requestedExecutionLevel: requireAdministrator
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: false
-  allowElevation: false
+  allowElevation: true
   createDesktopShortcut: always
   createStartMenuShortcut: true
   perMachine: false

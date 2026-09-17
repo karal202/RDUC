@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { app, shell, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage, crashReporter } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -11,6 +11,60 @@ import { execFile, spawn } from 'child_process'
 import { deflateSync } from 'zlib'
 import si from 'systeminformation'
 import fs from 'fs'
+
+// ==========================================================
+//  ANTI-SILENT-CRASH GUARDS (prevent "cursor blink then nothing")
+//  If app crashes in first 500ms before BrowserWindow shows,
+//  pop up a native Windows MessageBox with error instead of exit silently.
+// ==========================================================
+try {
+  crashReporter.start({
+    productName: 'DAWA Optimizer',
+    companyName: 'DAWA Team',
+    submitURL: 'https://rduc.onrender.com/api/crash-report',
+    uploadToServer: false,
+    compress: true
+  })
+} catch {
+  /* crashReporter already started on relaunch - ignore */
+}
+
+const fatalBox = (title, body) => {
+  try {
+    dialog.showErrorBox(`DAWA Optimizer  ·  ${title}`, String(body))
+  } catch {
+    // Absolute last-resort: write to disk so user can inspect failure cause
+    try {
+      const logp = path.join(app.getPath ? app.getPath('temp') : os.tmpdir(), 'dawa-fatal.log')
+      fs.appendFileSync(logp, `[${new Date().toISOString()}] ${title}\n${String(body)}\n---\n`, 'utf-8')
+    } catch {
+      /* nothing else we can do */
+    }
+  }
+}
+
+process.on('uncaughtException', (err) => {
+  fatalBox('Fatal Startup Error (uncaughtException)', `${(err && err.message) || String(err)}\n\nStack trace:\n${(err && err.stack) || 'n/a'}`)
+  try { app.exit(1) } catch { process.exit(1) }
+})
+
+process.on('unhandledRejection', (reason) => {
+  const msg = reason instanceof Error ? `${reason.message}\n\nStack trace:\n${reason.stack || 'n/a'}` : String(reason)
+  fatalBox('Fatal Startup Error (unhandledRejection)', msg)
+  /* do not hard-exit here - UI promises often fail after user dismiss; log only */
+})
+
+process.on('exit', (code) => {
+  if (code !== 0) {
+    // Non-zero exit codes without a popup yet - surface to user
+    try {
+      const logp = path.join(app.getPath ? app.getPath('temp') : os.tmpdir(), 'dawa-exit.log')
+      fs.appendFileSync(logp, `[${new Date().toISOString()}] Exit code=${code}\n`, 'utf-8')
+    } catch {
+      /* ignore */
+    }
+  }
+})
 import {
   detectDeviceType,
   formatGpuVram,
@@ -46,27 +100,62 @@ function isAdmin() {
   }
 }
 
-// Function to restart as admin
+// Function to restart as admin (robust for paths with spaces like "Dawa Optimizer.exe")
 function restartAsAdmin() {
   const exePath = process.execPath
-  const args = process.argv.slice(1).join(' ')
+  const args = process.argv.slice(1)
 
-  spawn(
-    'powershell.exe',
-    [
-      '-NoProfile',
-      '-ExecutionPolicy',
-      'Bypass',
-      '-Command',
-      `Start-Process -FilePath "${exePath}" -ArgumentList "${args}" -Verb RunAs`
-    ],
-    {
-      detached: true,
-      stdio: 'ignore'
+  // PowerShell SINGLE-QUOTE escape rule: replace ' with '' inside quoted literals.
+  // This is 100% safe for filenames with spaces, ampersands, parens, unicode chars
+  // and avoids ALL syntax-break issues of the old double-quote Start-Process pattern.
+  const psEscape = (s) => String(s || '').replace(/'/g, "''")
+  const escapedExe = psEscape(exePath)
+  // Build @() array syntax for ArgumentList so individual args with spaces never break
+  const argArrayLiteral =
+    args.length === 0
+      ? "@()"
+      : `@(${args.map((a) => `'${psEscape(a)}'`).join(',')})`
+  const psCmd =
+    `$ErrorActionPreference = 'Stop'; ` +
+    `$proc = Start-Process -FilePath '${escapedExe}' -ArgumentList ${argArrayLiteral} -Verb RunAs -PassThru; ` +
+    `if ($proc) { Start-Sleep -Milliseconds 350; exit 0 } else { exit 1 }`
+
+  let relaunchSucceeded = false
+  try {
+    const child = spawn(
+      'powershell.exe',
+      [
+        '-NoLogo',
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-Command',
+        psCmd
+      ],
+      { detached: true, stdio: 'ignore', windowsHide: true }
+    )
+    child.unref()
+    relaunchSucceeded = true
+  } catch (spawnErr) {
+    console.warn('[RESTART-AS-ADMIN] PowerShell spawn failed, falling back to electron relaunch:', spawnErr && spawnErr.message)
+    // Last-resort fallback: use electron native relaunch API. On Windows this does NOT
+    // automatically elevate but it keeps the app alive instead of silent-exiting, and
+    // next call with requireAdministrator manifest in future builds will cover this.
+    try {
+      app.relaunch({ args: process.argv.slice(1).concat(['--relaunch-as-admin-fallback']) })
+      relaunchSucceeded = true
+    } catch (relaunchErr) {
+      console.warn('[RESTART-AS-ADMIN] Electron relaunch fallback also failed:', relaunchErr && relaunchErr.message)
     }
-  ).unref()
+  }
 
-  app.exit(0)
+  // Delay exit just enough for UAC prompt / relaunch to appear (350-500ms).
+  // Without this delay, the current process exits before UAC prompt has a chance to
+  // render, so the user only sees a cursor reload blink.
+  setTimeout(() => {
+    app.exit(relaunchSucceeded ? 0 : 774)
+  }, relaunchSucceeded ? 500 : 200)
 }
 
 const GITHUB_RELEASE_API = 'https://api.github.com/repos/karal202/RDUC/releases/latest'
@@ -138,6 +227,53 @@ const WINDOWS_SHUTDOWN_PATH = path.join(
 )
 const licenseStore = createLicenseStore(LICENSE_FILE_PATH)
 const activateAttempts = []
+
+// ==========================================================
+//  INSTALLER LICENSE MIGRATION (fix "double key entry" race)
+//  Reusable: call this ANYWHERE before returning license status
+//  to UI so key entered in NSIS Activation Page is migrated
+//  BEFORE App.vue has a chance to show ActivationModal again.
+// ==========================================================
+async function runInstallerLicenseMigration() {
+  try {
+    const alreadyStored = licenseStore.get()
+    if (alreadyStored?.keyCode) return { migrated: false, reason: 'license-already-stored' }
+    for (const candidate of INSTALLER_LICENSE_CANDIDATES) {
+      if (!fs.existsSync(candidate)) continue
+      try {
+        const raw = fs.readFileSync(candidate, 'utf-8')
+        if (!raw || raw.trim().length < 10) continue
+        const hwid = await getHardwareHash()
+        const parsed = await decryptInstallerLicenseFile(raw, hwid)
+        if (!parsed || !parsed.valid || !parsed.keyCode) continue
+        if (parsed.deviceHash && parsed.deviceHash !== hwid) {
+          console.warn('[LICENSE-MIGRATE] Installer marker HWID mismatch — skip.')
+          continue
+        }
+        const saved = licenseStore.save(
+          parsed.keyCode,
+          parsed.deviceHash || hwid,
+          parsed.expiresAt || null
+        )
+        if (parsed.accessToken || parsed.refreshToken) {
+          licenseStore.saveTokens({
+            accessToken: parsed.accessToken,
+            refreshToken: parsed.refreshToken
+          })
+        }
+        console.log('[LICENSE-MIGRATE] OK — migrated key', maskLicenseKey(saved.keyCode), 'from installer marker')
+        try { fs.unlinkSync(candidate) } catch { /* file locked by installer, ignore */ }
+        return { migrated: true, keyCode: saved.keyCode }
+      } catch (innerErr) {
+        console.warn('[LICENSE-MIGRATE] candidate failed:', candidate, innerErr.message)
+      }
+    }
+    return { migrated: false, reason: 'no-valid-candidate' }
+  } catch (err) {
+    console.warn('[LICENSE-MIGRATE] top-level failed:', err && err.message)
+    return { migrated: false, reason: 'error', error: err && err.message }
+  }
+}
 
 // Performance optimization: Cache for system stats to reduce CPU usage
 let systemStatsCache = null
@@ -693,26 +829,34 @@ function createWindow() {
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.dawa.optimizer')
 
-  // Check admin privileges
+  // Check admin privileges  [SYNC-FIRST gate - prevents blink-and-exit]
   if (!isAdmin()) {
     console.warn('[SECURITY] Application is not running with Administrator privileges')
-    dialog
-      .showMessageBox({
+    try {
+      // Use synchronous message box to block boot until user decides.
+      // Async showMessageBox in per-user asInvoker context can get lost/never show.
+      const choice = dialog.showMessageBoxSync({
         type: 'warning',
-        title: 'DAWA Optimizer - Cảnh báo quyền Admin',
-        message: 'Ứng dụng cần quyền Administrator để áp dụng tối ưu.',
+        title: 'DAWA Optimizer - Quyền Admin bắt buộc',
+        message: 'Ứng dụng cần quyền Administrator để áp dụng tối ưu hệ thống.',
         detail:
-          'Các tính năng tinh chỉnh Windows Services (Telemetry, SysMain) và Registry hệ thống (Win32Priority HKLM) bắt buộc phải có quyền Administrator.',
-        buttons: ['Tiếp tục chạy', 'Khởi động lại với quyền Admin'],
+          'Các tính năng tinh chỉnh Windows Services (Telemetry, SysMain) và Registry hệ thống (Win32Priority HKLM) bắt buộc phải có quyền Administrator.\n\nDAWA Optimizer sẽ tự động khởi động lại với quyền Administrator sau khi bạn bấm nút bên phải.',
+        buttons: ['Tiếp tục chạy (không khuyến nghị)', 'Khởi động lại với quyền Admin'],
         defaultId: 1,
         cancelId: 0
       })
-      .then(({ response }) => {
-        if (response === 1) {
-          restartAsAdmin()
-        }
-      })
-      .catch(() => {})
+      if (choice === 1) {
+        restartAsAdmin()
+        return // stop boot immediately - restartAsAdmin calls app.exit(0)
+      }
+    } catch (mbErr) {
+      // If even dialog.showMessageBoxSync fails (headless, non-interactive) →
+      // auto restart as admin without asking because this is the only way
+      // the user will ever see UI in this context.
+      console.warn('[ADMIN] dialog.showMessageBoxSync failed, auto-elevating:', mbErr && mbErr.message)
+      restartAsAdmin()
+      return
+    }
   }
 
   // Create tray BEFORE main window so tray icon is available when window hides to it
@@ -726,60 +870,11 @@ app.whenReady().then(() => {
   // → khi user vào Dashboard, CPU/GPU info đã sẵn, không cần fetch lại
   getStaticInfo().catch(() => {})
 
-  // ---------------------------------------------------------
-  // [INSTALLER LICENSE MIGRATION]
-  // If user entered key during NSIS setup, installer-license.dat written by
-  // license-check.ps1 exists. Migrate to canonical vault here so app boots
-  // pre-activated and ActivationModal is skipped.
-  // ---------------------------------------------------------
-  ;(async () => {
-    try {
-      const alreadyStored = licenseStore.get()
-      if (alreadyStored?.keyCode) return
-
-      for (const candidate of INSTALLER_LICENSE_CANDIDATES) {
-        if (!fs.existsSync(candidate)) continue
-        try {
-          const raw = fs.readFileSync(candidate, 'utf-8')
-          if (!raw || raw.trim().length < 10) continue
-          const hwid = await getHardwareHash()
-          const parsed = await decryptInstallerLicenseFile(raw, hwid)
-          if (!parsed || !parsed.valid || !parsed.keyCode) continue
-          if (parsed.deviceHash && parsed.deviceHash !== hwid) {
-            console.warn('[LICENSE-MIGRATE] Installer marker HWID mismatch — skip.')
-            continue
-          }
-          const saved = licenseStore.save(
-            parsed.keyCode,
-            parsed.deviceHash || hwid,
-            parsed.expiresAt || null
-          )
-          if (parsed.accessToken || parsed.refreshToken) {
-            licenseStore.saveTokens({
-              accessToken: parsed.accessToken,
-              refreshToken: parsed.refreshToken
-            })
-          }
-          console.log(
-            '[LICENSE-MIGRATE] OK — migrated key',
-            maskLicenseKey(saved.keyCode),
-            'from installer marker'
-          )
-          // Cleanup installer markers after migration to avoid re-migrate
-          try {
-            fs.unlinkSync(candidate)
-          } catch {
-            // ignore locked file
-          }
-          break
-        } catch (innerErr) {
-          console.warn('[LICENSE-MIGRATE] candidate failed:', candidate, innerErr.message)
-        }
-      }
-    } catch (err) {
-      console.warn('[LICENSE-MIGRATE] outer failure:', err.message)
-    }
-  })()
+  // Early-migration layer #2 (fire-and-forget before window loads).
+  // Real non-race guarantee is inside license:check-status IPC handler below.
+  runInstallerLicenseMigration().then((r) => {
+    if (r.migrated) console.log('[LICENSE-MIGRATE] Early-migration completed before window load.')
+  })
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
@@ -946,6 +1041,16 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('license:check-status', async () => {
+    // ========== ANTI-DOUBLE-ENTRY GUARANTEE ==========
+    // Never answer license status to renderer until installer
+    // migration runs. This KILLS the race condition that caused
+    // ActivationModal to appear right after NSIS Activation Page.
+    // =================================================
+    const _migrationResult = await runInstallerLicenseMigration()
+    if (_migrationResult.migrated) {
+      console.log('[LICENSE:check-status] Ran installer migration inside IPC — skipped double ActivationModal.')
+    }
+
     const currentDeviceHash = await getHardwareHash()
     const stored = licenseStore.get()
 
