@@ -5,9 +5,6 @@ import os from 'os'
 import si from 'systeminformation'
 import { safeStorage } from 'electron'
 
-const LEGACY_SIGNATURE_CHECK_ENABLED =
-  process.env.NODE_ENV === 'development' && process.env.ALLOW_LEGACY_SIGNATURE_CHECK === 'true'
-
 const configuredBackendUrl =
   process.env.BACKEND_URL || 'https://rduc.onrender.com/api/license/validate'
 const backendUrl = new URL(configuredBackendUrl)
@@ -26,14 +23,24 @@ export async function getHardwareHash() {
       .update(rawHardwareString || 'fallback_hwid')
       .digest('hex')
   } catch {
-    const fallbackString = `${os.hostname()}-${os.arch()}-${os.platform()}-${os.cpus()[0]?.model || ''}`
+    const is64Bit = os.arch() === 'x64' || process.arch === 'x64'
+    const osVersion = `${os.platform()}-${os.release()}`
+    const procIdent = os.cpus()[0]?.model || process.env.PROCESSOR_IDENTIFIER || ''
+    const fallbackString = `${os.hostname()}-${is64Bit}-${osVersion}-${procIdent}`
     return crypto.createHash('sha256').update(fallbackString).digest('hex')
   }
 }
 
-function calculateSignature() {
-  // Legacy HMAC signatures are never accepted: their previous key was public.
-  return null
+const LICENSE_INTEGRITY_HMAC_PEPPER = 'D4W4_L1C3NS3_1N73GR17Y_HMAC_2026_VAULT_SEAL'
+
+function calculateHmacSignature(keyCode, deviceHash, expiresAt, activatedAt) {
+  const canonical = [
+    String(keyCode || ''),
+    String(deviceHash || ''),
+    String(expiresAt || ''),
+    String(activatedAt || '')
+  ].join('|')
+  return crypto.createHmac('sha256', LICENSE_INTEGRITY_HMAC_PEPPER).update(canonical).digest('hex')
 }
 
 export function verifyLocalLicense(licenseData, currentDeviceHash) {
@@ -41,11 +48,13 @@ export function verifyLocalLicense(licenseData, currentDeviceHash) {
     return { valid: false, message: 'Dữ liệu license không hợp lệ' }
   if (licenseData.deviceHash !== currentDeviceHash)
     return { valid: false, message: 'License không tương thích với thiết bị này (HWID Mismatch)' }
-  if (
-    LEGACY_SIGNATURE_CHECK_ENABLED &&
-    licenseData.signature !==
-      calculateSignature(licenseData.keyCode, licenseData.deviceHash, licenseData.timestamp)
+  const expectedSig = calculateHmacSignature(
+    licenseData.keyCode,
+    licenseData.deviceHash,
+    licenseData.expiresAt,
+    licenseData.activatedAt
   )
+  if (licenseData.signature !== expectedSig)
     return { valid: false, message: 'Phát hiện can thiệp vào file license (Signature Invalid)' }
   if (licenseData.expiresAt && new Date(licenseData.expiresAt).getTime() < Date.now())
     return { valid: false, message: 'Key kích hoạt đã hết hạn' }
@@ -81,8 +90,13 @@ function writeEncryptedJson(filePath, data) {
       'Operating-system secure storage is unavailable; refusing to store a license locally'
     )
   }
-  const encrypted = safeStorage.encryptString(JSON.stringify(data)).toString('base64')
-  fs.writeFileSync(filePath, encrypted, { encoding: 'utf-8', mode: 0o600 })
+  const jsonStr = JSON.stringify(data)
+  const encrypted = safeStorage.encryptString(jsonStr).toString('base64')
+  const hmac = crypto
+    .createHmac('sha256', LICENSE_INTEGRITY_HMAC_PEPPER)
+    .update(encrypted)
+    .digest('hex')
+  fs.writeFileSync(filePath, `${encrypted}.${hmac}`, { encoding: 'utf-8', mode: 0o600 })
 }
 
 function readEncryptedJson(filePath) {
@@ -90,10 +104,19 @@ function readEncryptedJson(filePath) {
   const raw = fs.readFileSync(filePath, 'utf-8')
   if (!safeStorage.isEncryptionAvailable()) return null
   try {
-    return JSON.parse(safeStorage.decryptString(Buffer.from(raw, 'base64')))
+    const dotIndex = raw.lastIndexOf('.')
+    if (dotIndex < 0 || dotIndex === raw.length - 1) return null
+    const encrypted = raw.substring(0, dotIndex)
+    const hmacRead = raw.substring(dotIndex + 1)
+    const expectedHmac = crypto
+      .createHmac('sha256', LICENSE_INTEGRITY_HMAC_PEPPER)
+      .update(encrypted)
+      .digest('hex')
+    if (!crypto.timingSafeEqual(Buffer.from(hmacRead, 'hex'), Buffer.from(expectedHmac, 'hex'))) {
+      return null
+    }
+    return JSON.parse(safeStorage.decryptString(Buffer.from(encrypted, 'base64')))
   } catch {
-    // Do not trust old files signed with a source-code secret. The user must
-    // validate with the backend again after this upgrade.
     return null
   }
 }
@@ -102,12 +125,14 @@ export function createLicenseStore(licenseFilePath) {
   const tokenFilePath = `${licenseFilePath}.tokens`
   return {
     save(keyCode, deviceHash, expiresAt = null) {
+      const activatedAt = new Date().toISOString()
+      const signature = calculateHmacSignature(keyCode, deviceHash, expiresAt, activatedAt)
       const data = {
         keyCode,
         deviceHash,
-        activatedAt: new Date().toISOString(),
-        expiresAt
-        // Authorization is verified online; no signing secret is shipped in the app.
+        activatedAt,
+        expiresAt,
+        signature
       }
       writeEncryptedJson(licenseFilePath, data)
       return data
@@ -232,7 +257,6 @@ export async function decryptInstallerLicenseFile(rawContent, deviceHash) {
     if (!rawContent) return null
     const trimmed = typeof rawContent === 'string' ? rawContent.trim() : ''
     if (!trimmed || trimmed.length < 64) return null
-    if (trimmed.startsWith('{')) return JSON.parse(trimmed)
     const blob = Buffer.from(trimmed, 'base64')
     if (!blob || blob.length < 12 + 16 + 1) return null
     const keyMaterial = `${deviceHash || (await getHardwareHash())}${INSTALLER_LICENSE_PEPPER}`
@@ -243,7 +267,17 @@ export async function decryptInstallerLicenseFile(rawContent, deviceHash) {
     const decipher = crypto.createDecipheriv('aes-256-gcm', key, nonce)
     decipher.setAuthTag(tag)
     const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()])
-    return JSON.parse(plaintext.toString('utf-8'))
+    const parsed = JSON.parse(plaintext.toString('utf-8'))
+    if (parsed && parsed.keyCode && parsed.deviceHash) {
+      const expectedIntegrity = calculateHmacSignature(
+        parsed.keyCode,
+        parsed.deviceHash,
+        parsed.expiresAt,
+        parsed.activatedAt
+      )
+      if (parsed.signature && parsed.signature !== expectedIntegrity) return null
+    }
+    return parsed
   } catch {
     return null
   }

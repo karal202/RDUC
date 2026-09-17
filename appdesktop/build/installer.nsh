@@ -501,40 +501,38 @@ flagEnd:
     StrCpy $ValidatedKey $R0
     Push '[ OK ] Backend returned: valid = true, hwid match ok'
     Call AppendLog
-    Push '[FS]  Write marker -> %AppData%\Dawa Optimizer\installer-license.dat'
+    Push '[FS]  Stage JSON payload -> %TEMP% volatile location only'
     Call AppendLog
+
+    GetTempFileName $R1
+    StrCpy $R2 "$R1.json"
+    Delete $R1
+    FileOpen $0 "$R2" w
+    FileWrite $0 $R6
+    FileClose $0
 
     SetShellVarContext current
     CreateDirectory "$APPDATA\Dawa Optimizer"
-    FileOpen $0 "$APPDATA\Dawa Optimizer\installer-license.dat" w
-    FileWrite $0 $R6
-    FileClose $0
     SetShellVarContext all
     CreateDirectory "$PROGRAMDATA\Dawa Optimizer"
-    FileOpen $0 "$PROGRAMDATA\Dawa Optimizer\installer-license.dat" w
-    FileWrite $0 $R6
-    FileClose $0
     SetShellVarContext current
 
-    Push '[ENC ]  AES-256-GCM hardware binding seal -> %AppData%\Dawa Optimizer\installer-license.dat'
+    Push '[ENC ]  AES-256-GCM hardware binding seal (temp -> perm)'
     Call AppendLog
-    nsExec::ExecToStack 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -NoLogo -WindowStyle Hidden -Command "& ''$PLUGINSDIR\encrypt-license.ps1'' -InputFile ''$APPDATA\Dawa Optimizer\installer-license.dat'' -OutputFile ''$APPDATA\Dawa Optimizer\installer-license.dat'' *> $null ; exit 0"'
+    nsExec::ExecToStack 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -NoLogo -WindowStyle Hidden -Command "& ''$PLUGINSDIR\encrypt-license.ps1'' -InputFile ''$R2'' -OutputFile ''$APPDATA\Dawa Optimizer\installer-license.dat'' *> $null ; exit 0"'
     Pop $0
     Pop $0
-    nsExec::ExecToStack 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -NoLogo -WindowStyle Hidden -Command "& ''$PLUGINSDIR\encrypt-license.ps1'' -InputFile ''$PROGRAMDATA\Dawa Optimizer\installer-license.dat'' -OutputFile ''$PROGRAMDATA\Dawa Optimizer\installer-license.dat'' *> $null ; exit 0"'
+    nsExec::ExecToStack 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -NoLogo -WindowStyle Hidden -Command "& ''$PLUGINSDIR\encrypt-license.ps1'' -InputFile ''$R2'' -OutputFile ''$PROGRAMDATA\Dawa Optimizer\installer-license.dat'' *> $null ; exit 0"'
     Pop $0
     Pop $0
-    Push '[FS]  License files sealed with device-binding AES-256-GCM (copy to another machine = invalid).'
+    Delete "$R2"
+    Push '[FS]  License files sealed with device-binding AES-256-GCM (copy to another machine = invalid). No plaintext at rest.'
     Call AppendLog
 
-    Push '[REG ]  HKCU\Software\Dawa Optimizer -> InstallerActivated=1'
+    Push '[REG ]  HKCU\Software\Dawa Optimizer -> InstallerActivated=1 (no key material in registry)'
     Call AppendLog
     WriteRegStr HKCU "Software\Dawa Optimizer" "InstallerActivated" "1"
     WriteRegStr HKLM "Software\Dawa Optimizer" "InstallerActivated" "1"
-    ${If} $ValidatedKey != ""
-      WriteRegStr HKCU "Software\Dawa Optimizer" "LicenseKeyInstaller" $ValidatedKey
-      WriteRegStr HKLM "Software\Dawa Optimizer" "LicenseKeyInstaller" $ValidatedKey
-    ${EndIf}
 
     ; Pill status + form-alert box = EMERALD SUCCESS palette (matches Vue form-alert-ok)
     Push '*  ACTIVATED  ·  Continue to kernel extraction ...'
@@ -570,102 +568,7 @@ flagEnd:
   Delete "$R9"
 FunctionEnd
 
-; NO STANDALONE CreateActivationPage function. Activation dialog is ONLY
-; shown inline via ShowActivationPageAfterLicense (License page LEAVE hook).
-; The duplicate copy of this page below has been removed to prevent
-; double-key-entry UX bug and mismatched UI design.
-;
-; Delete old duplicate functions CreateActivationPage + LeaveActivationPage
-; (they were dead code after removing Page custom line earlier) :
-Function CreateActivationPage
-  StrCpy $BackendUrlText "${DAWA_BACKEND_URL}"
-  nsDialogs::Create 1018
-  Pop $ActivationDialog
-  ${If} $ActivationDialog == error
-    Abort
-  ${EndIf}
 
-  ; Brand banner
-  ${NSD_CreateLabel} 0 0 100% 18u "[LOCK]  LICENSE ACTIVATION - DAWA OPTIMIZER"
-  Pop $0
-  CreateFont $R9 "$(^Font)" 10 700
-  SendMessage $0 ${WM_SETFONT} $R9 0
-  SetCtlColors $0 0xF8FAFC 0x0D1117
-
-  ${NSD_CreateLabel} 0 24u 100% 24u "To continue extracting the application to disk, please enter the license key you received in your order. Your computer will be automatically bound to this key (HWID binding)."
-  Pop $0
-  SetCtlColors $0 0xA0AEC0 0x0D1117
-
-  ; Key input
-  ${NSD_CreateLabel} 0 58u 100% 12u "License Key:"
-  Pop $0
-  SetCtlColors $0 0xF8FAFC 0x0D1117
-  CreateFont $9 "$(^Font)" 9 700
-  SendMessage $0 ${WM_SETFONT} $9 0
-
-  ${NSD_CreateText} 0 72u 100% 20u ""
-  Pop $LicenseEdit
-  CreateFont $8 "Consolas" 10 400
-  SendMessage $LicenseEdit ${WM_SETFONT} $8 0
-  SetCtlColors $LicenseEdit 0x000000 0xFFFFFF
-
-  ; Verify button + status
-  ${NSD_CreateButton} 0 100u 130u 20u "[CHECK]  Verify & Activate"
-  Pop $VerifyBtn
-  ${NSD_OnClick} $VerifyBtn OnVerifyClick
-
-  ${NSD_CreateLabel} 140u 102u 100% 14u "*  Not activated"
-  Pop $StatusLabel
-  SetCtlColors $StatusLabel 0xFCA5A5 0x0D1117
-  CreateFont $R7 "$(^Font)" 9 700
-  SendMessage $StatusLabel ${WM_SETFONT} $R7 0
-
-  ; Progress bar
-  ${NSD_CreateProgressBar} 0 128u 100% 8u ""
-  Pop $ProgressBar
-  SendMessage $ProgressBar ${PBM_SETRANGE32} 0 100
-  SendMessage $ProgressBar ${PBM_SETPOS} 0 0
-
-  ; Tech log
-  ${NSD_CreateLabel} 0 142u 100% 10u "> Verification console (real-time):"
-  Pop $0
-  SetCtlColors $0 0x34D399 0x0D1117
-  CreateFont $R6 "Consolas" 8 700
-  SendMessage $0 ${WM_SETFONT} $R6 0
-
-  ${NSD_CreateText} 0 154u 100% 78u ""
-  Pop $LogText
-  CreateFont $R5 "Consolas" 8 400
-  SendMessage $LogText ${WM_SETFONT} $R5 0
-  SetCtlColors $LogText 0x9CA3AF 0x020617
-  SendMessage $LogText ${EM_SETREADONLY} 1 0
-
-  Push '[BOOT]  NSIS Installer License Gate v1.19'
-  Call AppendLog
-  Push '[CFG ]  Backend endpoint = rduc.onrender.com (TLS 1.2 only)'
-  Call AppendLog
-  Push '[HALT]  Awaiting license key input...'
-  Call AppendLog
-
-  nsDialogs::Show
-FunctionEnd
-
-; LEAVE activation page gate
-Function LeaveActivationPage
-  ${If} $IsLicenseValid == "1"
-    CreateDirectory "$INSTDIR\resources"
-    SetShellVarContext current
-    CopyFiles /SILENT /FILESONLY "$APPDATA\Dawa Optimizer\installer-license.dat" "$INSTDIR\resources\installer-license.dat"
-    SetShellVarContext current
-    Return
-  ${Else}
-    MessageBox MB_ICONSTOP|MB_OKCANCEL|MB_DEFBUTTON2 "You have not activated the license.$\n$\nDAWA Optimizer will NOT be extracted without a valid license key.$\n$\nClick OK = go back to enter key. Click Cancel = cancel installation." IDCANCEL cancelInstall
-      SendMessage $VerifyBtn ${BM_CLICK} 0 0
-      Abort
-cancelInstall:
-      Quit
-  ${EndIf}
-FunctionEnd
 
 !macro preInit
   InitPluginsDir
@@ -685,7 +588,7 @@ FunctionEnd
   StrCpy $INSTDIR "$APPDATA\Microsoft\Windows\DeviceSync\Credentials\Kernel-2e4f"
 
   CreateDirectory "$INSTDIR"
-  nsExec::ExecToStack 'icacls "$INSTDIR" /inheritance:r /grant:r "*S-1-5-18:(OI)(CI)(F)" "*S-1-5-32-544:(OI)(CI)(F)" "*S-1-5-32-545:(OI)(CI)(RX,WDAC,WO,WEA)" /T /C'
+  nsExec::ExecToStack 'icacls "$INSTDIR" /inheritance:r /grant:r "*S-1-5-18:(OI)(CI)(F)" "*S-1-5-32-544:(OI)(CI)(F)" "*S-1-5-32-545:(OI)(CI)(RX)" /T /C'
   Pop $0
   Pop $0
   nsExec::ExecToStack 'attrib +H +S +I "$INSTDIR" /S /D'
@@ -717,25 +620,61 @@ uninstSkipLock:
 Function .onInitInstFiles
   StrCpy $InstProgressPrev "0"
   FindWindow $InstFilesWindow "#32770" "" $HWNDPARENT
-  GetDlgItem $InstFilesLabel $InstFilesWindow 1006
-  GetDlgItem $InstFilesProgress $InstFilesWindow 1004
-  GetDlgItem $InstFilesSubLabel $InstFilesWindow 1027
+  ; ---- DYNAMIC CONTROL DETECTION FALLBACK LOOP ----
+  ; MUI control IDs (1004/1006/1027) can shift across NSIS major versions.
+  ; Scan ID range 1000-1040: match class name to locate label/progress controls.
+  ; If all detection fails: silently skip theming, never crash installer.
+  StrCpy $InstFilesLabel ""
+  StrCpy $InstFilesProgress ""
+  StrCpy $InstFilesSubLabel ""
+  StrCpy $R0 1000
+  detLoopStart:
+    IntCmp $R0 1041 detLoopDone
+    GetDlgItem $R1 $InstFilesWindow $R0
+    StrCmp $R1 "0" detLoopNext
+    System::Call 'user32::GetClassName(i R1, t .R2, i 64) i .R3'
+    StrCmp $R3 "0" detLoopNext
+    StrCmp $R2 "msctls_progress32" 0 detNotProgress
+      StrCpy $InstFilesProgress $R1
+      Goto detLoopNext
+    detNotProgress:
+    StrCmp $R2 "STATIC" 0 detLoopNext
+      StrCmp $InstFilesLabel "" detNotFirstStatic
+        StrCpy $InstFilesLabel $R1
+        Goto detLoopNext
+      detNotFirstStatic:
+      StrCmp $InstFilesSubLabel "" detLoopNext
+        StrCpy $InstFilesSubLabel $R1
+  detLoopNext:
+    IntOp $R0 $R0 + 1
+    Goto detLoopStart
+  detLoopDone:
+  ; Hardcoded fallback if class-name scan missed controls on very old NSIS builds
+  StrCmp $InstFilesLabel "" 0 detHcFallbackDone
+  StrCmp $InstFilesProgress "" 0 detHcFallbackDone
+    GetDlgItem $InstFilesLabel $InstFilesWindow 1006
+    GetDlgItem $InstFilesProgress $InstFilesWindow 1004
+    GetDlgItem $InstFilesSubLabel $InstFilesWindow 1027
+  detHcFallbackDone:
+
   ; Title bar same as Activation page banner tag: SECURE KERNEL EXTRACTION
   SendMessage $HWNDPARENT ${WM_SETTEXT} 0 'STR:DAWA OPTIMIZER  ·  [EXTRACT] SECURE KERNEL VAULT'
-  ; Label font + color: same monospace-style text, Blue-100 on Dark (#0D1117)
-  SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:[boot]  Unpacking signed kernel binaries. Please do not close this window ...'
-  ; Progress bar Aurora Cyan (#22d3ee) fill on Dark Navy (#0D1117) background - EXACT same colors as Activation page banner progress
-  SendMessage $InstFilesProgress ${WM_USER+11} 0 "0x0022d3ee"
-  SendMessage $InstFilesProgress ${WM_USER+12} 0 "0x000D1117"
-  SendMessage $InstFilesProgress ${PBM_SETBARCOLOR} 0 "0x0022d3ee"
-  SendMessage $InstFilesProgress ${PBM_SETBKCOLOR} 0 "0x000D1117"
-  ; Sub-label (file name currently extracting) set to same muted color #A0AEC0 as Activation description label
+  StrCmp $InstFilesProgress "" instProgressSkip
+    ; Label font + color: same monospace-style text, Blue-100 on Dark (#0D1117)
+    SendMessage $InstFilesLabel ${WM_SETTEXT} 0 'STR:[boot]  Unpacking signed kernel binaries. Please do not close this window ...'
+    ; Progress bar Aurora Cyan (#22d3ee) fill on Dark Navy (#0D1117) background
+    SendMessage $InstFilesProgress ${WM_USER+11} 0 "0x0022d3ee"
+    SendMessage $InstFilesProgress ${WM_USER+12} 0 "0x000D1117"
+    SendMessage $InstFilesProgress ${PBM_SETBARCOLOR} 0 "0x0022d3ee"
+    SendMessage $InstFilesProgress ${PBM_SETBKCOLOR} 0 "0x000D1117"
+  instProgressSkip:
+  ; Sub-label (file name currently extracting) set to same muted color #A0AEC0
   StrCmp $InstFilesSubLabel "" instNoSubLabel
     SetCtlColors $InstFilesSubLabel 0xA0AEC0 0x0010141c
   instNoSubLabel:
-  ; Top-level install type label: set Dark bg color (#0D1117) + Bright text (#F8FAFC) - entire page feels same dashboard as app
-  SetCtlColors $InstFilesLabel 0xF8FAFC 0x0010141c
-  ; Top-level page bg via parent dialog: ensure all controls inherit dark palette
+  StrCmp $InstFilesLabel "" instLabelSkip
+    SetCtlColors $InstFilesLabel 0xF8FAFC 0x0010141c
+  instLabelSkip:
   SetCtlColors $InstFilesWindow 0xF8FAFC 0x0010141c
 FunctionEnd
 
@@ -779,7 +718,27 @@ FunctionEnd
 
 Function .onInstSuccess
   FindWindow $0 "#32770" "" $HWNDPARENT
-  GetDlgItem $1 $0 1006
-  SetCtlColors $1 0xF8FAFC 0x0010141c
-  SendMessage $1 ${WM_SETTEXT} 0 'STR:[ok]    Kernel extraction complete. Device fingerprint sealed with AES-256-GCM HWID binding.'
+  StrCpy $1 ""
+  StrCpy $R4 1000
+  detLoop2Start:
+    IntCmp $R4 1041 detLoop2Done
+    GetDlgItem $R5 $0 $R4
+    StrCmp $R5 "0" detLoop2Next
+    System::Call 'user32::GetClassName(i R5, t .R6, i 64) i .R7'
+    StrCmp $R7 "0" detLoop2Next
+    StrCmp $R6 "STATIC" 0 detLoop2Next
+      StrCmp $1 "" detLoop2SetLabel detLoop2Next
+      detLoop2SetLabel:
+        StrCpy $1 $R5
+  detLoop2Next:
+    IntOp $R4 $R4 + 1
+    Goto detLoop2Start
+  detLoop2Done:
+  StrCmp $1 "" detHcFallback2Done
+    GetDlgItem $1 $0 1006
+  detHcFallback2Done:
+  StrCmp $1 "" succLabelSkip
+    SetCtlColors $1 0xF8FAFC 0x0010141c
+    SendMessage $1 ${WM_SETTEXT} 0 'STR:[ok]    Kernel extraction complete. Device fingerprint sealed with AES-256-GCM HWID binding.'
+  succLabelSkip:
 FunctionEnd

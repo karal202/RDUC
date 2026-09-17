@@ -1,5 +1,15 @@
 import 'dotenv/config'
-import { app, shell, BrowserWindow, ipcMain, dialog, Tray, Menu, nativeImage, crashReporter } from 'electron'
+import {
+  app,
+  shell,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  Tray,
+  Menu,
+  nativeImage,
+  crashReporter
+} from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -36,7 +46,11 @@ const fatalBox = (title, body) => {
     // Absolute last-resort: write to disk so user can inspect failure cause
     try {
       const logp = path.join(app.getPath ? app.getPath('temp') : os.tmpdir(), 'dawa-fatal.log')
-      fs.appendFileSync(logp, `[${new Date().toISOString()}] ${title}\n${String(body)}\n---\n`, 'utf-8')
+      fs.appendFileSync(
+        logp,
+        `[${new Date().toISOString()}] ${title}\n${String(body)}\n---\n`,
+        'utf-8'
+      )
     } catch {
       /* nothing else we can do */
     }
@@ -44,12 +58,22 @@ const fatalBox = (title, body) => {
 }
 
 process.on('uncaughtException', (err) => {
-  fatalBox('Fatal Startup Error (uncaughtException)', `${(err && err.message) || String(err)}\n\nStack trace:\n${(err && err.stack) || 'n/a'}`)
-  try { app.exit(1) } catch { process.exit(1) }
+  fatalBox(
+    'Fatal Startup Error (uncaughtException)',
+    `${(err && err.message) || String(err)}\n\nStack trace:\n${(err && err.stack) || 'n/a'}`
+  )
+  try {
+    app.exit(1)
+  } catch {
+    process.exit(1)
+  }
 })
 
 process.on('unhandledRejection', (reason) => {
-  const msg = reason instanceof Error ? `${reason.message}\n\nStack trace:\n${reason.stack || 'n/a'}` : String(reason)
+  const msg =
+    reason instanceof Error
+      ? `${reason.message}\n\nStack trace:\n${reason.stack || 'n/a'}`
+      : String(reason)
   fatalBox('Fatal Startup Error (unhandledRejection)', msg)
   /* do not hard-exit here - UI promises often fail after user dismiss; log only */
 })
@@ -112,9 +136,7 @@ function restartAsAdmin() {
   const escapedExe = psEscape(exePath)
   // Build @() array syntax for ArgumentList so individual args with spaces never break
   const argArrayLiteral =
-    args.length === 0
-      ? "@()"
-      : `@(${args.map((a) => `'${psEscape(a)}'`).join(',')})`
+    args.length === 0 ? '@()' : `@(${args.map((a) => `'${psEscape(a)}'`).join(',')})`
   const psCmd =
     `$ErrorActionPreference = 'Stop'; ` +
     `$proc = Start-Process -FilePath '${escapedExe}' -ArgumentList ${argArrayLiteral} -Verb RunAs -PassThru; ` +
@@ -124,21 +146,16 @@ function restartAsAdmin() {
   try {
     const child = spawn(
       'powershell.exe',
-      [
-        '-NoLogo',
-        '-NoProfile',
-        '-NonInteractive',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-Command',
-        psCmd
-      ],
+      ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', psCmd],
       { detached: true, stdio: 'ignore', windowsHide: true }
     )
     child.unref()
     relaunchSucceeded = true
   } catch (spawnErr) {
-    console.warn('[RESTART-AS-ADMIN] PowerShell spawn failed, falling back to electron relaunch:', spawnErr && spawnErr.message)
+    console.warn(
+      '[RESTART-AS-ADMIN] PowerShell spawn failed, falling back to electron relaunch:',
+      spawnErr && spawnErr.message
+    )
     // Last-resort fallback: use electron native relaunch API. On Windows this does NOT
     // automatically elevate but it keeps the app alive instead of silent-exiting, and
     // next call with requireAdministrator manifest in future builds will cover this.
@@ -146,16 +163,22 @@ function restartAsAdmin() {
       app.relaunch({ args: process.argv.slice(1).concat(['--relaunch-as-admin-fallback']) })
       relaunchSucceeded = true
     } catch (relaunchErr) {
-      console.warn('[RESTART-AS-ADMIN] Electron relaunch fallback also failed:', relaunchErr && relaunchErr.message)
+      console.warn(
+        '[RESTART-AS-ADMIN] Electron relaunch fallback also failed:',
+        relaunchErr && relaunchErr.message
+      )
     }
   }
 
   // Delay exit just enough for UAC prompt / relaunch to appear (350-500ms).
   // Without this delay, the current process exits before UAC prompt has a chance to
   // render, so the user only sees a cursor reload blink.
-  setTimeout(() => {
-    app.exit(relaunchSucceeded ? 0 : 774)
-  }, relaunchSucceeded ? 500 : 200)
+  setTimeout(
+    () => {
+      app.exit(relaunchSucceeded ? 0 : 774)
+    },
+    relaunchSucceeded ? 500 : 200
+  )
 }
 
 const GITHUB_RELEASE_API = 'https://api.github.com/repos/karal202/RDUC/releases/latest'
@@ -208,6 +231,9 @@ try {
 }
 
 const LICENSE_FILE_PATH = path.join(app.getPath('userData'), 'dawa_license_vault.dat')
+// NOTE: In packaged Electron builds process.resourcesPath ALWAYS equals
+// dirname(process.execPath)+'/resources', so the last entry is redundant and
+// is intentionally omitted to avoid duplicate stat calls.
 const INSTALLER_LICENSE_CANDIDATES = [
   path.join(app.getPath('appData'), 'Dawa Optimizer', 'installer-license.dat'),
   path.join(
@@ -215,10 +241,7 @@ const INSTALLER_LICENSE_CANDIDATES = [
     'Dawa Optimizer',
     'installer-license.dat'
   ),
-  process.resourcesPath ? path.join(process.resourcesPath, 'installer-license.dat') : null,
-  process.execPath
-    ? path.join(path.dirname(process.execPath), 'resources', 'installer-license.dat')
-    : null
+  process.resourcesPath ? path.join(process.resourcesPath, 'installer-license.dat') : null
 ].filter(Boolean)
 const WINDOWS_SHUTDOWN_PATH = path.join(
   process.env.SystemRoot || 'C:\\Windows',
@@ -261,8 +284,16 @@ async function runInstallerLicenseMigration() {
             refreshToken: parsed.refreshToken
           })
         }
-        console.log('[LICENSE-MIGRATE] OK — migrated key', maskLicenseKey(saved.keyCode), 'from installer marker')
-        try { fs.unlinkSync(candidate) } catch { /* file locked by installer, ignore */ }
+        console.log(
+          '[LICENSE-MIGRATE] OK — migrated key',
+          maskLicenseKey(saved.keyCode),
+          'from installer marker'
+        )
+        try {
+          fs.unlinkSync(candidate)
+        } catch {
+          /* file locked by installer, ignore */
+        }
         return { migrated: true, keyCode: saved.keyCode }
       } catch (innerErr) {
         console.warn('[LICENSE-MIGRATE] candidate failed:', candidate, innerErr.message)
@@ -853,7 +884,10 @@ app.whenReady().then(() => {
       // If even dialog.showMessageBoxSync fails (headless, non-interactive) →
       // auto restart as admin without asking because this is the only way
       // the user will ever see UI in this context.
-      console.warn('[ADMIN] dialog.showMessageBoxSync failed, auto-elevating:', mbErr && mbErr.message)
+      console.warn(
+        '[ADMIN] dialog.showMessageBoxSync failed, auto-elevating:',
+        mbErr && mbErr.message
+      )
       restartAsAdmin()
       return
     }
@@ -1048,7 +1082,9 @@ app.whenReady().then(() => {
     // =================================================
     const _migrationResult = await runInstallerLicenseMigration()
     if (_migrationResult.migrated) {
-      console.log('[LICENSE:check-status] Ran installer migration inside IPC — skipped double ActivationModal.')
+      console.log(
+        '[LICENSE:check-status] Ran installer migration inside IPC — skipped double ActivationModal.'
+      )
     }
 
     const currentDeviceHash = await getHardwareHash()

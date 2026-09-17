@@ -26,7 +26,11 @@ function Get-HardwareId {
         return [BitConverter]::ToString($sha.ComputeHash($bytes)).Replace("-", "").ToLowerInvariant()
     }
     catch {
-        $raw = (@($env:COMPUTERNAME, [System.Environment]::Is64BitOperatingSystem, [System.Environment]::OSVersion.VersionString, [System.Environment]::GetEnvironmentVariable("PROCESSOR_IDENTIFIER")) -join "-")
+        $osPlatform = "win32"
+        $osRelease = [System.Environment]::OSVersion.Version.Major.ToString() + "." + [System.Environment]::OSVersion.Version.Minor.ToString() + "." + [System.Environment]::OSVersion.Version.Build.ToString()
+        $procIdent = [System.Environment]::GetEnvironmentVariable("PROCESSOR_IDENTIFIER")
+        if ([string]::IsNullOrWhiteSpace($procIdent)) { $procIdent = "" }
+        $raw = (@($env:COMPUTERNAME, [System.Environment]::Is64BitOperatingSystem, ($osPlatform + "-" + $osRelease), $procIdent) -join "-")
         $sha = [System.Security.Cryptography.SHA256]::Create()
         $bytes = [System.Text.Encoding]::UTF8.GetBytes($raw)
         return [BitConverter]::ToString($sha.ComputeHash($bytes)).Replace("-", "").ToLowerInvariant()
