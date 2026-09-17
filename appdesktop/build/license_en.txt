@@ -1,0 +1,69 @@
+DAWA OPTIMIZER — SOFTWARE LICENSE AGREEMENT
+=============================================
+
+PLEASE READ THIS SOFTWARE LICENSE AGREEMENT (THE "AGREEMENT") CAREFULLY
+BEFORE INSTALLING OR USING DAWA OPTIMIZER (THE "SOFTWARE"). BY INSTALLING,
+COPYING, OR OTHERWISE USING THE SOFTWARE, YOU AGREE TO BE BOUND BY THE
+TERMS OF THIS AGREEMENT. IF YOU DO NOT AGREE, DISCONTINUE INSTALLATION
+AND DELETE ALL COPIES OF THE SOFTWARE IN YOUR POSSESSION.
+
+1. SINGLE-DEVICE LICENSE. Dawa Optimizer is licensed per activation code
+   and bound to ONE (1) physical hardware device only. The activation
+   code generated for this device (BIOS UUID, CPU signature, and OS
+   serial) cannot be transferred, shared, reused, or resold on another
+   computer. Transfer of the licensed device to a third party is
+   permitted only after notifying the licensor and revoking the prior
+   hardware binding.
+
+2. ANTI-TAMPER PROVISIONS. You may NOT reverse engineer, decompile,
+   disassemble, debug, inspect, extract, bypass, modify, or patch any
+   license module, installer anti-crack guard, AES-256-GCM vault,
+   hardware signature, encrypted script package, or NTFS sealed ACL
+   that forms part of the Software or its installer. Any detected
+   tampering automatically terminates this license and renders the
+   activation key permanently revoked on the backend.
+
+3. NO WARRANTY. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE
+   SOFTWARE IS PROVIDED "AS IS," WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND
+   NON-INFRINGEMENT. THE ENTIRE RISK ARISING OUT OF USE OR PERFORMANCE
+   OF THE SOFTWARE REMAINS WITH YOU.
+
+4. LIMITATION OF LIABILITY. IN NO EVENT SHALL THE LICENSOR, ITS
+   AFFILIATES, SUPPLIERS, OR RESELLERS BE LIABLE FOR ANY CONSEQUENTIAL,
+   INCIDENTAL, INDIRECT, SPECIAL, PUNITIVE, OR OTHER DAMAGES
+   WHATSOEVER (INCLUDING, WITHOUT LIMITATION, DAMAGES FOR LOSS OF
+   BUSINESS PROFITS, BUSINESS INTERRUPTION, LOSS OF BUSINESS
+   INFORMATION, DATA CORRUPTION, HARDWARE FAILURE, OR OTHER PECUNIARY
+   LOSS) ARISING OUT OF THIS AGREEMENT OR OUT OF THE USE OF OR
+   INABILITY TO USE THE SOFTWARE, EVEN IF THE LICENSOR HAS BEEN
+   ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. SOME JURISDICTIONS DO
+   NOT ALLOW THE EXCLUSION OR LIMITATION OF LIABILITY FOR CONSEQUENTIAL
+   OR INCIDENTAL DAMAGES, SO THIS LIMITATION MAY NOT APPLY TO YOU.
+
+5. COMPLIANCE. You agree to comply with all applicable local, state,
+   national, and international laws, rules, and regulations in
+   connection with your use of the Software, including export and
+   re-export control laws.
+
+6. AUTOMATIC UPDATES. The Software includes an automatic update module
+   which may, from time to time, download and install signed updates
+   from the licensed update distribution channel without further
+   notice. You agree that such updates are governed by the terms of
+   this Agreement unless superseded by an updated Agreement bundled
+   with the update itself.
+
+7. TERMINATION. This Agreement is effective until terminated. Your
+   rights under this Agreement will terminate automatically without
+   notice if you fail to comply with any material term(s) of this
+   Agreement. Upon termination, you shall destroy all copies of the
+   Software and its installer-license vault, including encrypted
+   backups stored on removable media or cloud storage.
+
+8. ENTIRE AGREEMENT. This is the entire agreement between you and the
+   Licensor relating to the Software and it supersedes all prior
+   representations, discussions, undertakings, communications, and
+   agreements, whether oral or written, with respect to the Software.
+
+END OF LICENSE AGREEMENT

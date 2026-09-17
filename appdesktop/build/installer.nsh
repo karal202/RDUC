@@ -82,7 +82,30 @@ Var DeviceStatusLabel   ; Device fingerprint row (green dot + HWID masked)
 Var MachineIdLabel      ; MACHINE ID label (activation-device-specs block)
 
 Function CheckAlreadyActivatedSkip
+  ; ===== DEFENSE-IN-DEPTH ACTIVATION FORCE-SHOW =====
+  ; Electron-builder sometimes skips MUI_PAGE_LICENSE when nsis.license
+  ; field is missing or file not found, which silently drops the
+  ; License->ShowActivationPageAfterLicense callback and leaves user at
+  ; InstFiles with only the final guard MessageBox.
+  ; Fix: Check activation state IMMEDIATELY after Welcome page leaves.
+  ; If NOT valid -> show nsDialogs Activation page inline right here.
+  ; This guarantees the user ALWAYS sees the key input screen before
+  ; ANY directory / confirm / instfiles page, regardless of License
+  ; page presence. Double-show avoided via $ActivationAlreadyShownOnce.
   StrCpy $ActivationAlreadyShownOnce "0"
+  StrCpy $R0 "0"
+  ReadRegStr $R0 HKCU "Software\Dawa Optimizer" "InstallerActivated"
+  ${If} $R0 == "1"
+    StrCpy $IsLicenseValid "1"
+    Return
+  ${EndIf}
+  ; Also trust in-memory valid flag if somehow set earlier.
+  ${If} $IsLicenseValid == "1"
+    Return
+  ${EndIf}
+  ; Not activated -> show Activation modal inline NOW instead of waiting
+  ; for License page leave callback.
+  Call ShowActivationPageAfterLicense
 FunctionEnd
 
 ; Update key count label (right side of key heading row, Vue key-field-count XX/14)
@@ -115,6 +138,11 @@ Function SetFormAlert
 FunctionEnd
 
 Function ShowActivationPageAfterLicense
+  ; If WelcomePage leave already showed Activation (CheckAlreadyActivatedSkip
+  ; triggered) -> skip duplicate form; user already went through activation.
+  ${If} $ActivationAlreadyShownOnce == "1"
+    Return
+  ${EndIf}
   ${If} $IsLicenseValid == "1"
     Return
   ${EndIf}
