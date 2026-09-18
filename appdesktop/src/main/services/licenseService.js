@@ -177,8 +177,45 @@ export function createLicenseStore(licenseFilePath) {
   }
 }
 
+// ============================================================
+//  NORMALIZATION HELPERS — byte-for-byte identical to
+//  gate-activation.ps1 on the installer WPF side.
+//  ============================================================
+//  ARCH: mirror WPF PROCESSOR_ARCHITECTURE logic. Node.js os.arch()
+//  returns 'x64' / 'arm64' / 'ia32' but we also check process.arch
+//  for the edge case where 32-bit Node runs on 64-bit Windows OS.
+//  HOSTNAME: always lowercase invariant to match
+//  $hostnameCanonical.ToLowerInvariant() on the PowerShell side.
+//  Without these two normalizations the server sees TWO different
+//  device rows for the same machine and denies HWID-bound license.
+// ============================================================
+function _normalizedArch() {
+  const a = (os.arch() || '').toLowerCase()
+  const pa = (process.arch || '').toLowerCase()
+  const procEnv = (process.env.PROCESSOR_ARCHITECTURE || '').toLowerCase()
+  if (a === 'arm64' || pa === 'arm64' || procEnv === 'arm64') return 'arm64'
+  if (a === 'x64' || pa === 'x64' || procEnv === 'amd64') return 'x64'
+  // Final fallback: any 64-bit platform => x64, else ia32
+  try {
+    return os.arch() === 'x64' ? 'x64' : 'ia32'
+  } catch {
+    return 'x64'
+  }
+}
+function _normalizedHostname() {
+  try {
+    return String(os.hostname() || '').toLowerCase()
+  } catch {
+    return ''
+  }
+}
+function _normalizedOsInfo() {
+  const osType = os.platform() === 'win32' ? 'Windows_NT' : os.type()
+  return `${osType} ${os.release()} (${_normalizedArch()})`
+}
+
 export async function validateWithBackend(keyCode, deviceHash) {
-  const osInfo = `${os.type()} ${os.release()} (${os.arch()})`
+  const osInfo = _normalizedOsInfo()
   try {
     const response = await fetch(BACKEND_URL, {
       method: 'POST',
@@ -188,7 +225,7 @@ export async function validateWithBackend(keyCode, deviceHash) {
         device_hash: deviceHash,
         hardware_id: deviceHash,
         hwid: deviceHash,
-        device_name: os.hostname(),
+        device_name: _normalizedHostname(),
         os_info: osInfo
       })
     })
@@ -258,15 +295,51 @@ export async function decryptInstallerLicenseFile(rawContent, deviceHash) {
     const trimmed = typeof rawContent === 'string' ? rawContent.trim() : ''
     if (!trimmed || trimmed.length < 64) return null
     const blob = Buffer.from(trimmed, 'base64')
-    if (!blob || blob.length < 12 + 16 + 1) return null
-    const keyMaterial = `${deviceHash || (await getHardwareHash())}${INSTALLER_LICENSE_PEPPER}`
+    if (!blob || blob.length < 17) return null
+
+    const hwid = deviceHash || (await getHardwareHash())
+    const keyMaterial = `${hwid}${INSTALLER_LICENSE_PEPPER}`
     const key = crypto.createHash('sha256').update(keyMaterial).digest()
-    const nonce = blob.subarray(0, 12)
-    const tag = blob.subarray(12, 12 + 16)
-    const ciphertext = blob.subarray(12 + 16)
-    const decipher = crypto.createDecipheriv('aes-256-gcm', key, nonce)
-    decipher.setAuthTag(tag)
-    const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()])
+
+    // ============================================================
+    //  DUAL FORMATTER - supports legacy GCM builds + inline-CBC gate seal
+    //  (gate seal PowerShell 5.1 has NO AesGcm class on .NET Framework 4.x,
+    //   so installer activation always writes CBC format. Runtime installer
+    //   migration must accept BOTH formats so old offline license files
+    //   still decrypt and new gate sealed files also decrypt.)
+    //
+    //  FORMAT 1 (legacy GCM):  [12 nonce][16 auth tag][ciphertext]
+    //      => blob.length >= 12 + 16 + 1
+    //  FORMAT 2 (gate seal CBC): [16 IV][ciphertext (PKCS7 padded)]
+    //      => blob.length >= 16 + 1 AND is a multiple of the AES block size (16)
+    // ============================================================
+    let plaintext = null
+
+    if (blob.length >= 12 + 16 + 1) {
+      try {
+        const nonce = blob.subarray(0, 12)
+        const tag = blob.subarray(12, 12 + 16)
+        const ciphertext = blob.subarray(12 + 16)
+        const decipher = crypto.createDecipheriv('aes-256-gcm', key, nonce)
+        decipher.setAuthTag(tag)
+        plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()])
+      } catch {
+        plaintext = null
+      }
+    }
+
+    if (!plaintext && blob.length >= 16 + 1 && blob.length % 16 === 0) {
+      try {
+        const iv = blob.subarray(0, 16)
+        const ciphertext = blob.subarray(16)
+        const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv)
+        plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()])
+      } catch {
+        plaintext = null
+      }
+    }
+
+    if (!plaintext || plaintext.length < 4) return null
     const parsed = JSON.parse(plaintext.toString('utf-8'))
     if (parsed && parsed.keyCode && parsed.deviceHash) {
       const expectedIntegrity = calculateHmacSignature(

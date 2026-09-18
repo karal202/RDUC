@@ -1,5 +1,9 @@
-; DAWA Optimizer - License Activation NSIS Custom Page
-!include nsDialogs.nsh
+; DAWA Optimizer - Standalone WinRAR-style License Activation Gate
+; The activation UI is a SEPARATE WPF modal (gate-activation.ps1) that pops up
+; BEFORE any installer window becomes visible, similar to a WinRAR password prompt.
+; NSIS here is ONLY the enforcement layer - it NEVER draws the key UI itself.
+; This completely avoids the electron-builder page-hook instability (nsDialogs
+; depending on installer HWND being ready at .onInit time).
 !include LogicLib.nsh
 !include WinCore.nsh
 !include FileFunc.nsh
@@ -8,326 +12,141 @@
 !insertmacro GetOptions
 
 ; ============================================================
-;  ZERO-TRUST GATE - ACTIVATION BEFORE ANY VISIBLE INSTALLER UI
+;  ZERO-TRUST GATE - HOOK 3 POINTS TO ENSURE IT ALWAYS RUNS
+;  1) .onInit               (earliest possible NSIS hook)
+;  2) Welcome PAGE SHOW     (if electron-builder skipped .onInit override)
+;  3) License PAGE SHOW     (final fallback if the above two are hijacked)
+;  A guard variable prevents the modal from appearing more than once.
 ; ============================================================
 !macro customHeader
-  ; Hook WELCOME PAGE SHOW = activation dialog pops up BEFORE any UI is rendered.
-  !define MUI_WELCOMEPAGE_CUSTOMFUNCTION_SHOW ShowActivationFirstBoot
-  ; Hook actual file-extract pre-flight = FINAL GUARD before writing 1 byte to disk.
+  !define MUI_WELCOMEPAGE_CUSTOMFUNCTION_SHOW  GateEntryIfNeeded_WelcomeShow
+  !define MUI_LICENSEPAGE_CUSTOMFUNCTION_SHOW  GateEntryIfNeeded_LicenseShow
   !define MUI_INSTFILESPAGE_CUSTOMFUNCTION_PRE .onInitInstFiles
+  !define MUI_CUSTOMFUNCTION_GUIINIT          .onDawaGuiInitGate
 !macroend
 
-; Runtime state variables
-Var ActivationDialog
-Var LicenseEdit
-Var VerifyBtn
-Var StatusLabel
-Var LogText
-Var ProgressBar
+; ============================================================
+;  ZERO-TRUST HOOK POINT 0.5 - GUIINIT (EXTRA FALLBACK)
+;  Runs immediately after installer dialog HWND is created by
+;  MUI, BEFORE any page (Welcome/License) draws its content.
+;  If customInit somehow didn't fire (EB 26.x plugin-extraction
+;  edge case on slow machines), this paints the installer frame
+;  hidden, runs the gate, then only unhides if valid.
+;  Guard variable GateHasBeenAttempted keeps this idempotent.
+; ============================================================
+Function .onDawaGuiInitGate
+  ${If} $GateHasBeenAttempted == "1"
+    Return
+  ${EndIf}
+  Call RunStandaloneActivationGate
+FunctionEnd
+
+; ============================================================
+;  ZERO-TRUST HOOK POINT 0 - CUSTOM INIT (EARLIEST POSSIBLE)
+;  Electron-builder invokes !insertmacro customInit INSIDE its
+;  auto-generated Function .onInit, IMMEDIATELY after plugin
+;  extraction completes and BEFORE the installer dialog frame
+;  calls CreateWindow/ShowWindow. This guarantees our WPF gate
+;  is the FIRST VISIBLE WINDOW the user sees (WinRAR analogy).
+;
+;  If user cancels WPF / invalid key -> Quit() before any NSIS
+;  window is ever created -> no installer frame ever painted.
+;  If gate succeeds -> $IsLicenseValid + $GateHasBeenAttempted = 1
+;  When Welcome/License page_SHOW hooks fire later they detect
+;  GateHasBeenAttempted=1 and simply Return (idempotent no-op).
+; ============================================================
+!macro customInit
+  Call RunStandaloneActivationGate
+!macroend
+
+; Runtime state
 Var IsLicenseValid
 Var ValidatedKey
-Var BackendUrlText
-Var HasActivatedOnce
-Var PowerShellCmd
+Var GateHasBeenAttempted
+Var GateBackendUrl
+Var GateSealedOutput
+Var GateResultJson
+Var GateRegFlagPath
+Var GatePs1Path
+Var GateEncryptPs1Path
+Var GateExe
+Var IsSilentMode
 
 ; Default backend fallback
 !ifndef DAWA_BACKEND_URL
 !define DAWA_BACKEND_URL "https://rduc.onrender.com/api/license/validate"
 !endif
 
-; Append to tech log box
-Function AppendLog
-  Exch $0
-  Push $1
-  Push $2
-  Push $3
-  ${NSD_GetText} $LogText $1
-  StrCmp $1 "" +2
-    StrCpy $1 "$1$\r$\n"
-  System::Call 'kernel32::GetLocalTime(i .R2)'
-  System::Call '*$R2(&i2 .R3, &i2 .R4, &i2 .R5, &i2 .R6, &i2 .R7, &i2 .R8, &i2 .R9)'
-  IntFmt $3 "%02i" $R6
-  IntFmt $4 "%02i" $R7
-  IntFmt $5 "%02i" $R8
-  StrCpy $2 "[$3:$4:$5]  "
-  StrCpy $1 "$1$2$0"
-  ${NSD_SetText} $LogText $1
-  SendMessage $LogText ${EM_LINESCROLL} 0 9999
-  Pop $3
-  Pop $2
-  Pop $1
-  Pop $0
+; ============================================================
+;  COMMON ENFORCER (always idempotent - safe to call from 2 hooks)
+;  If the modal was already shown or license valid -> return fast.
+; ============================================================
+Function GateEntryIfNeeded_WelcomeShow
+  ${If} $GateHasBeenAttempted == "1"
+    Return
+  ${EndIf}
+  Call RunStandaloneActivationGate
 FunctionEnd
 
-; Set pill color + text
-Function SetPillStatus
-  Exch $0
-  Exch
-  Exch $1
-  SetCtlColors $StatusLabel $1 0x0D1117
-  ${NSD_SetText} $StatusLabel $0
-  Pop $1
-  Pop $0
+Function GateEntryIfNeeded_LicenseShow
+  ${If} $GateHasBeenAttempted == "1"
+    Return
+  ${EndIf}
+  Call RunStandaloneActivationGate
 FunctionEnd
 
-; Fake progress bar step
-Function FakeProgress
-  Pop $0
-  SendMessage $ProgressBar ${PBM_SETRANGE32} 0 100
-  SendMessage $ProgressBar ${PBM_SETPOS} $0 0
-  Sleep 45
-FunctionEnd
+; ============================================================
+;  STANDALONE WINRAR-STYLE ACTIVATION MODAL
+;  Spawns a completely independent WPF window (separate HWND)
+;  via PowerShell. The WPF window owns the UI, HWID calc,
+;  TLS call, signature sealing, and registry flag writing.
+;  NSIS only inspects the exit code + side-effect files.
+;  exit 0 = activated    exit 1 = user cancel / invalid
+;  IMPORTANT: In SILENT mode (/S) this function is a NO-OP.
+;    - electron-builder sanity-tests Setup.exe with /S post-build
+;    - attacker can't bypass by passing /S alone: Final Guard
+;      (.onInitInstFiles) checks $IsLicenseValid before disk write,
+;      so a silent unattended run without pre-activated flag ABORTS.
+; ============================================================
+Function RunStandaloneActivationGate
+  StrCpy $GateHasBeenAttempted "1"
 
-; Verify button click handler
-Function OnVerifyClick
-  ${NSD_GetText} $LicenseEdit $R0
-  ${If} $R0 == ""
-    Push '*  Please enter license key'
-    Push 0xFCA5A5
-    Call SetPillStatus
-    Push '[ERR] Empty license key rejected'
-    Call AppendLog
+  ; SILENT MODE (/S or /SILENT) - BYPASS UI GATE (no-op).
+  ; This is required:
+  ;   - electron-builder sanity-tests Setup.exe headlessly with /S; the
+  ;     machine has no interactive window station so ShowDialog() would hang.
+  ;   - enterprise deployments that pre-burn the registry activation flag.
+  ; SECURITY: Final Guard STILL ABORTS in silent mode if InstallerActivated
+  ; flag isn't present in HKCU/HKLM. Passing /S to skip the UI gate does NOT
+  ; allow unattended installation without prior activation.
+  ${GetParameters} $R9
+  ClearErrors
+  ${GetOptions} $R9 "/S" $R8
+  ${IfNot} ${Errors}
+    StrCpy $R0 "0"
+    ReadRegStr $R0 HKCU "Software\Dawa Optimizer" "InstallerActivated"
+    ${If} $R0 == "1"
+      StrCpy $IsLicenseValid "1"
+    ${EndIf}
+    StrCpy $R0 "0"
+    ReadRegStr $R0 HKLM "Software\Dawa Optimizer" "InstallerActivated"
+    ${If} $R0 == "1"
+      StrCpy $IsLicenseValid "1"
+    ${EndIf}
+    Return
+  ${EndIf}
+  ClearErrors
+  ${GetOptions} $R9 "/SILENT" $R8
+  ${IfNot} ${Errors}
+    StrCpy $R0 "0"
+    ReadRegStr $R0 HKCU "Software\Dawa Optimizer" "InstallerActivated"
+    ${If} $R0 == "1"
+      StrCpy $IsLicenseValid "1"
+    ${EndIf}
     Return
   ${EndIf}
 
-  EnableWindow $VerifyBtn 0
-  EnableWindow $LicenseEdit 0
-  Push '*  Verifying with DAWA server...'
-  Push 0xFBBF24
-  Call SetPillStatus
-
-  Push '[HWID] Querying Win32_ComputerSystemProduct (UUID)...'
-  Call AppendLog
-  Push 10
-  Call FakeProgress
-  Push '[HWID] Querying Win32_BIOS (SerialNumber)...'
-  Call AppendLog
-  Push 20
-  Call FakeProgress
-  Push '[HASH] Compute SHA256 hwid = SHA256(uuid,serial,cpu,os,hostname)...'
-  Call AppendLog
-  Push 32
-  Call FakeProgress
-  Push '[NET ]  Negotiate TLS 1.2 -> ServerHello...'
-  Call AppendLog
-  Push 46
-  Call FakeProgress
-
-  ; Prepare paths
-  GetTempFileName $R1
-  StrCpy $R2 "$R1.json"
-  Delete $R1
-  GetTempFileName $R3
-  StrCpy $R4 "$R3.log"
-  Delete $R3
-  GetTempFileName $R8
-  StrCpy $R9 "$R8.ok"
-  Delete $R8
-
-  StrCpy $PowerShellCmd '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe"'
-  StrCpy $PowerShellCmd '$PowerShellCmd -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass'
-  StrCpy $PowerShellCmd '$PowerShellCmd -File "$PLUGINSDIR\license-check.ps1"'
-  StrCpy $PowerShellCmd '$PowerShellCmd -LicenseKey "$R0"'
-  StrCpy $PowerShellCmd '$PowerShellCmd -BackendUrl "$BackendUrlText"'
-  StrCpy $PowerShellCmd '$PowerShellCmd -OutputFile "$R2"'
-  StrCpy $PowerShellCmd '$PowerShellCmd -ValidFlagFile "$R9"'
-  StrCpy $PowerShellCmd '$PowerShellCmd *> "$R4"'
-
-  Push '[NET ]  POST /api/license/validate (Content-Length ~ 1.2 KB)...'
-  Call AppendLog
-  Push 58
-  Call FakeProgress
-
-  ; Execute PowerShell verifier
-  nsExec::ExecToLog $PowerShellCmd
-  Pop $R5
-
-  Push '[NET ]  Response received - validating JSON...'
-  Call AppendLog
-  Push 74
-  Call FakeProgress
-
-  ; Read result JSON
-  StrCpy $R6 "{}"
-  IfFileExists $R2 +1 fileMissing
-    FileOpen $0 $R2 r
-    FileRead $0 $R6
-    FileClose $0
-    Goto fileReadDone
-fileMissing:
-    StrCpy $R6 '{"success":false,"valid":false,"message":"File read error","isOffline":true}'
-fileReadDone:
-
-  Push '[PIPE] JSON payload captured to memory - parsing field map...'
-  Call AppendLog
-  Push 88
-  Call FakeProgress
-
-  StrCpy $IsLicenseValid "0"
-  StrCpy $R7 "0"
-  IfFileExists $R9 flagOk
-    Goto flagEnd
-flagOk:
-  FileOpen $0 $R9 r
-  FileRead $0 $R7
-  FileClose $0
-flagEnd:
-  ${If} $R7 == "1"
-    StrCpy $IsLicenseValid "1"
-  ${EndIf}
-  Push 100
-  Call FakeProgress
-
-  ${If} $IsLicenseValid == "1"
-    StrCpy $HasActivatedOnce "1"
-    StrCpy $ValidatedKey $R0
-    Push '[ OK ] Backend returned: valid = true, hwid match ok'
-    Call AppendLog
-    Push '[FS]  Stage JSON payload -> %TEMP% volatile location only'
-    Call AppendLog
-
-    GetTempFileName $R1
-    StrCpy $R2 "$R1.json"
-    Delete $R1
-    FileOpen $0 "$R2" w
-    FileWrite $0 $R6
-    FileClose $0
-
-    SetShellVarContext current
-    CreateDirectory "$APPDATA\Dawa Optimizer"
-
-    Push '[ENC ]  AES-256-GCM hardware binding seal (temp -> perm)'
-    Call AppendLog
-    nsExec::ExecToStack 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -NoLogo -WindowStyle Hidden -Command "& ''$PLUGINSDIR\encrypt-license.ps1'' -InputFile ''$R2'' -OutputFile ''$APPDATA\Dawa Optimizer\installer-license.dat'' *> $null ; exit 0"'
-    Pop $0
-    Pop $0
-    Delete "$R2"
-    Push '[FS]  License files sealed with device-binding AES-256-GCM (copy to another machine = invalid). No plaintext at rest.'
-    Call AppendLog
-
-    Push '[REG ]  HKCU\Software\Dawa Optimizer -> InstallerActivated=1 (no key material in registry)'
-    Call AppendLog
-    WriteRegStr HKCU "Software\Dawa Optimizer" "InstallerActivated" "1"
-    WriteRegStr HKLM "Software\Dawa Optimizer" "InstallerActivated" "1"
-
-    Push '*  ACTIVATED  ·  Continue to kernel extraction ...'
-    Push 0xB7E76E
-    Call SetPillStatus
-    Push '[DONE] License gate passed  ·  AES-GCM device-seal complete.'
-    Call AppendLog
-    Push '[AUTO] Closing activation gate - entering installer core in 0.8s ...'
-    Call AppendLog
-    Sleep 800
-    SendMessage $HWNDPARENT ${WM_CLOSE} 0 0
-  ${Else}
-    StrCpy $HasActivatedOnce "0"
-    Push '[FAIL] validation failed. Backend refused this key.'
-    Call AppendLog
-    Push '[MSG ] Invalid key / Expired / Device limit exceeded. Please check again.'
-    Call AppendLog
-    Push '*  FAILED  ·  Check license key and try again'
-    Push 0xA5A5FC
-    Call SetPillStatus
-  ${EndIf}
-
-  EnableWindow $LicenseEdit 1
-  EnableWindow $VerifyBtn 1
-  Delete "$R2"
-  Delete "$R4"
-  Delete "$R9"
-FunctionEnd
-
-; CREATE activation page
-Function CreateActivationPage
-  StrCpy $BackendUrlText "${DAWA_BACKEND_URL}"
-  nsDialogs::Create 1018
-  Pop $ActivationDialog
-  ${If} $ActivationDialog == error
-    Abort
-  ${EndIf}
-
-  ; Brand banner
-  ${NSD_CreateLabel} 0 0 100% 18u "[LOCK]  LICENSE ACTIVATION - DAWA OPTIMIZER"
-  Pop $0
-  CreateFont $R9 "$(^Font)" 10 700
-  SendMessage $0 ${WM_SETFONT} $R9 0
-  SetCtlColors $0 0xF8FAFC 0x0D1117
-
-  ${NSD_CreateLabel} 0 24u 100% 24u "To continue extracting the application to disk, please enter the license key you received in your order. Your computer will be automatically bound to this key (HWID binding)."
-  Pop $0
-  SetCtlColors $0 0xA0AEC0 0x0D1117
-
-  ; Key input
-  ${NSD_CreateLabel} 0 58u 100% 12u "License Key:"
-  Pop $0
-  SetCtlColors $0 0xF8FAFC 0x0D1117
-  CreateFont $9 "$(^Font)" 9 700
-  SendMessage $0 ${WM_SETFONT} $9 0
-
-  ${NSD_CreateText} 0 72u 100% 20u ""
-  Pop $LicenseEdit
-  CreateFont $8 "Consolas" 10 400
-  SendMessage $LicenseEdit ${WM_SETFONT} $8 0
-  SetCtlColors $LicenseEdit 0x000000 0xFFFFFF
-
-  ; Verify button + status
-  ${NSD_CreateButton} 0 100u 130u 20u "[CHECK]  Verify & Activate"
-  Pop $VerifyBtn
-  ${NSD_OnClick} $VerifyBtn OnVerifyClick
-
-  ${NSD_CreateLabel} 140u 102u 100% 14u "*  Not activated"
-  Pop $StatusLabel
-  SetCtlColors $StatusLabel 0xFCA5A5 0x0D1117
-  CreateFont $R7 "$(^Font)" 9 700
-  SendMessage $StatusLabel ${WM_SETFONT} $R7 0
-
-  ; Progress bar
-  ${NSD_CreateProgressBar} 0 128u 100% 8u ""
-  Pop $ProgressBar
-  SendMessage $ProgressBar ${PBM_SETRANGE32} 0 100
-  SendMessage $ProgressBar ${PBM_SETPOS} 0 0
-
-  ; Tech log
-  ${NSD_CreateLabel} 0 142u 100% 10u "> Verification console (real-time):"
-  Pop $0
-  SetCtlColors $0 0x34D399 0x0D1117
-  CreateFont $R6 "Consolas" 8 700
-  SendMessage $0 ${WM_SETFONT} $R6 0
-
-  ${NSD_CreateText} 0 154u 100% 78u ""
-  Pop $LogText
-  CreateFont $R5 "Consolas" 8 400
-  SendMessage $LogText ${WM_SETFONT} $5 0
-  SetCtlColors $LogText 0x9CA3AF 0x020617
-  SendMessage $LogText ${EM_SETREADONLY} 1 0
-
-  Push '[BOOT]  NSIS Installer License Gate v1.19'
-  Call AppendLog
-  Push '[CFG ]  Backend endpoint = rduc.onrender.com (TLS 1.2 only)'
-  Call AppendLog
-  Push '[HALT]  Awaiting license key input...'
-  Call AppendLog
-
-  nsDialogs::Show
-FunctionEnd
-
-
-; INIT
-!macro preInit
-  InitPluginsDir
-  SetOutPath $PLUGINSDIR
-  File /oname=license-check.ps1 "${BUILD_RESOURCES_DIR}\license-check.ps1"
-  File /oname=encrypt-license.ps1 "${BUILD_RESOURCES_DIR}\encrypt-license.ps1"
-  StrCpy $IsLicenseValid "0"
-  StrCpy $HasActivatedOnce "0"
-!macroend
-
-; ============================================================
-;  FIRST-BOOT ZERO-TRUST ACTIVATION GATE
-;  Runs BEFORE the installer paints any window.
-; ============================================================
-Function ShowActivationFirstBoot
-  ; Fast-path: already activated on this machine (skip gate)
+  ; Fast-path: already activated on this machine (skip gate entirely)
   StrCpy $R0 "0"
   ReadRegStr $R0 HKCU "Software\Dawa Optimizer" "InstallerActivated"
   ${If} $R0 == "1"
@@ -335,32 +154,206 @@ Function ShowActivationFirstBoot
     Return
   ${EndIf}
 
-  ; Open the standalone activation modal.
-  ; Control returns here ONLY when the user closes the dialog.
-  Call CreateActivationPage
+  ; -----------------------------------------------------------------------
+  ; NSIS MAIN DIALOG VISIBILITY WRAPPER - defense-in-depth for page hooks.
+  ; When this gate is invoked from Welcome_SHOW / License_SHOW fallback
+  ; hooks (not from customInit), the installer dialog #32770 has already
+  ; been painted visible. Hide it INSTANTLY so user only sees the WPF gate.
+  ; Stack discipline: push 2 values -> pop 2 values in ALL exit branches.
+  ;   [1] = restore flag  (1 = we hid it, need SW_SHOW restore)
+  ;   [2] = saved R9 scratch register
+  ; -----------------------------------------------------------------------
+  Push $R9
+  System::Call 'user32::IsWindowVisible(i $HWNDPARENT) i .r9'
+  ${If} $R9 != 0
+    System::Call 'user32::ShowWindow(i $HWNDPARENT, i 0)'   ; SW_HIDE
+    Push "1"
+  ${Else}
+    Push "0"
+  ${EndIf}
 
-  ; POST-GATE ENFORCEMENT: if user closed dialog without valid license -> KILL INSTALLER
+  ; Prepare volatile side-effect paths for the WPF modal to write
+  GetTempFileName $R1
+  StrCpy $GateResultJson "$R1.json"
+  Delete "$R1"
+
+  GetTempFileName $R2
+  StrCpy $GateRegFlagPath "$R2.flg"
+  Delete "$R2"
+
+  SetShellVarContext current
+  CreateDirectory "$APPDATA\Dawa Optimizer"
+  StrCpy $GateSealedOutput "$APPDATA\Dawa Optimizer\installer-license.dat"
+
+  ; Compose the full PowerShell command. The WPF script accepts:
+  ;   -BackendUrl         : TLS endpoint to POST key+hwid to
+  ;   -OutputJson         : raw validation payload path for NSIS to inspect
+  ;   -SealedLicenseOutput: path for the HWID-bound AES-256-GCM .dat file
+  ;   -RegFlagFile        : path for a simple '1' flag file (NSIS reads it)
+  ;   -EncryptPs1Path     : path to companion encrypt-license.ps1 (seal util)
+  StrCpy $GatePs1Path         '"$PLUGINSDIR\gate-activation.ps1"'
+  StrCpy $GateEncryptPs1Path  '"$PLUGINSDIR\encrypt-license.ps1"'
+  StrCpy $GateExe             '"$SYSDIR\WindowsPowerShell\v1.0\powershell.exe"'
+  StrCpy $0 '$GateExe -NoLogo -NoProfile -ExecutionPolicy Bypass -STA -WindowStyle Normal -MTA:$false'
+  StrCpy $0 '$0 -File $GatePs1Path'
+  StrCpy $0 '$0 -BackendUrl "$GateBackendUrl"'
+  StrCpy $0 '$0 -OutputJson "$GateResultJson"'
+  StrCpy $0 '$0 -SealedLicenseOutput "$GateSealedOutput"'
+  StrCpy $0 '$0 -RegFlagFile "$GateRegFlagPath"'
+  StrCpy $0 '$0 -EncryptPs1Path $GateEncryptPs1Path'
+
+  ; BLOCKING EXEC - installer main thread waits HERE until user closes WPF modal.
+  ; NOTE: DO NOT use -NonInteractive. That flag suppresses WPF ShowDialog() on
+  ; some PS5.1 .NET FX configurations and causes the gate to fail SILENTLY,
+  ; letting the installer frame paint and later crash on Final Guard with
+  ; "Dawa Optimizer cannot be closed / installer tamper detected".
+  ; Interactive + STA thread = mandatory for WPF modal HWND.
+  nsExec::ExecToStack '$0'
+  Pop $1
+  Pop $2
+
+  StrCpy $R7 "0"
+  IfFileExists $GateRegFlagPath gateFlagOk gateFlagEnd
+gateFlagOk:
+  FileOpen $3 $GateRegFlagPath r
+  FileRead $3 $R7
+  FileClose $3
+gateFlagEnd:
+
+  ${If} $R7 == "1"
+    StrCpy $IsLicenseValid "1"
+  ${Else}
+    StrCpy $IsLicenseValid "0"
+  ${EndIf}
+
+  ; The WPF modal also writes HKCU flag if valid, but HKLM requires elevation
+  ; which the installer context already has - write it here for robustness.
+  ${If} $IsLicenseValid == "1"
+    WriteRegStr HKCU "Software\Dawa Optimizer" "InstallerActivated" "1"
+    WriteRegStr HKLM "Software\Dawa Optimizer" "InstallerActivated" "1"
+
+    ; Stash entered key for downstream debug if enabled
+    ClearErrors
+    IfFileExists $GateResultJson 0 +3
+      FileOpen $4 $GateResultJson r
+      FileRead $4 $ValidatedKey
+      FileClose $4
+  ${EndIf}
+
+  Delete "$GateResultJson"
+  Delete "$GateRegFlagPath"
+
+  ; -----------------------------------------------------------------------
+  ; Stack balance restore (mirror of hide wrapper above).
+  ; Pop in LIFO order: (1) restore-flag, (2) saved R9 scratch.
+  ; NSIS installer dialog is ONLY unhidden if gate PASSED.
+  ; On failure/cancel the installer exits (Quit) below, so the NSIS
+  ; window should never become visible.
+  ; -----------------------------------------------------------------------
+  Pop $R8
+  Pop $R9
+  ${If} $IsLicenseValid == "1"
+    ${If} $R8 == "1"
+      System::Call 'user32::ShowWindow(i $HWNDPARENT, i 5)'  ; SW_SHOW
+    ${EndIf}
+  ${EndIf}
+
   ${If} $IsLicenseValid != "1"
-    MessageBox MB_ICONSTOP "License activation is required to run this installer.$\n$\nNo valid key = no files extracted. Setup will now exit."
+    MessageBox MB_ICONSTOP|MB_OK "License activation is required to run this installer.$\n$\nNo valid key = no files extracted. Setup will now exit."
     Quit
   ${EndIf}
 FunctionEnd
 
 ; ============================================================
-;  FINAL GUARD - LAST CHANCE TO ABORT BEFORE DISK WRITE
-;  electron-builder calls this immediately before the InstFiles page.
-;  Even if a cracker bypassed the UI gate, this will abort.
+;  FINAL GUARD - LAST CHANCE TO ABORT BEFORE ANY DISK WRITE
+;  electron-builder invokes this immediately before InstFiles.
+;  Even if an attacker tampered with the two entry hooks above,
+;  this will Abort before a single byte is written to $INSTDIR.
+;
+;  Interactive mode = red error MessageBox + Abort
+;  Silent mode      = silent SetErrorLevel + Abort (avoid MessageBox
+;                     hang in headless / windowstation-less invocations)
 ; ============================================================
 Function .onInitInstFiles
-  ${If} $IsLicenseValid != "1"
+  ; Fast-track if gate already set valid (normal interactive path)
+  ${If} $IsLicenseValid == "1"
+    ; Proceed to file copy below
+    Goto finalGuardCopyLicense
+  ${EndIf}
+
+  ; Not-yet valid. Check command line for SILENT mode.
+  ${GetParameters} $R9
+  StrCpy $IsSilentMode "0"
+  ClearErrors
+  ${GetOptions} $R9 "/S" $R8
+  ${IfNot} ${Errors}
+    StrCpy $IsSilentMode "1"
+  ${EndIf}
+  ClearErrors
+  ${GetOptions} $R9 "/SILENT" $R8
+  ${IfNot} ${Errors}
+    StrCpy $IsSilentMode "1"
+  ${EndIf}
+
+  ; In SILENT mode ONLY: check if registry activation flag exists.
+  ; This covers the electron-builder self-test case AND real unattended
+  ; corporate deployments where IT pre-stages InstallerActivated=1.
+  ${If} $IsSilentMode == "1"
+    StrCpy $R0 "0"
+    ReadRegStr $R0 HKCU "Software\Dawa Optimizer" "InstallerActivated"
+    ${If} $R0 == "1"
+      StrCpy $IsLicenseValid "1"
+      Goto finalGuardCopyLicense
+    ${EndIf}
+    StrCpy $R0 "0"
+    ReadRegStr $R0 HKLM "Software\Dawa Optimizer" "InstallerActivated"
+    ${If} $R0 == "1"
+      StrCpy $IsLicenseValid "1"
+      Goto finalGuardCopyLicense
+    ${EndIf}
+  ${EndIf}
+
+  ; License is not valid. Harden the response depending on interactivity.
+  ${If} $IsSilentMode == "1"
+    ; Silent mode: NO MessageBox — it would hang a headless/session-0
+    ; window station. Exit non-zero so the caller (electron-builder or
+    ; SCCM) can handle failure cleanly.
+    SetErrorLevel 1603
+    Abort
+  ${Else}
     MessageBox MB_ICONSTOP "[Fatal] Installer tamper detected.$\n$\nLicense gate was bypassed. Setup will self-terminate."
     SetErrorLevel 1603
     Abort
   ${EndIf}
 
-  ; Validated: copy sealed license payload into the install tree.
+finalGuardCopyLicense:
+  ; Validated: copy sealed HWID-bound license payload into the install tree
+  ; so the runtime (src/main/index.js) can load it from process.resourcesPath.
   CreateDirectory "$INSTDIR\resources"
   SetShellVarContext current
   CopyFiles /SILENT /FILESONLY "$APPDATA\Dawa Optimizer\installer-license.dat" "$INSTDIR\resources\installer-license.dat"
   SetShellVarContext current
 FunctionEnd
+
+; ============================================================
+;  PRE-INIT - RUNS BEFORE ELECTRON-BUILDER'S .onInit
+;  DO NOT launch the activation gate HERE — $PLUGINSDIR isn't fully
+;  extracted yet and nsExec::ExecToStack can crash silent self-tests.
+;  This macro only:
+;    1) Stages payload scripts into $PLUGINSDIR
+;    2) Initializes guard variables.
+;  Gate execution (the standalone WPF modal) is launched from:
+;    -> MUI_WELCOMEPAGE_CUSTOMFUNCTION_SHOW (primary)
+;    -> MUI_LICENSEPAGE_CUSTOMFUNCTION_SHOW  (fallback if Welcome is skipped)
+;  Both hooks fire AFTER installer HWND exists and plugins are extracted.
+; ============================================================
+!macro preInit
+  InitPluginsDir
+  SetOutPath $PLUGINSDIR
+  File /oname=license-check.ps1     "${BUILD_RESOURCES_DIR}\license-check.ps1"
+  File /oname=encrypt-license.ps1   "${BUILD_RESOURCES_DIR}\encrypt-license.ps1"
+  File /oname=gate-activation.ps1   "${BUILD_RESOURCES_DIR}\gate-activation.ps1"
+  StrCpy $GateBackendUrl "${DAWA_BACKEND_URL}"
+  StrCpy $IsLicenseValid "0"
+  StrCpy $GateHasBeenAttempted "0"
+!macroend

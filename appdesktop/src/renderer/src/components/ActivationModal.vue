@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
-import { KeyRound, ShieldCheck, ShieldAlert, CheckCircle2 } from 'lucide-vue-next'
+import { KeyRound, ShieldCheck, ShieldAlert, CheckCircle2, Copy, Check } from 'lucide-vue-next'
 import { landscapeBanners } from '../assets/banners'
 import logo from '../assets/logo.png'
 
@@ -8,6 +8,9 @@ const emit = defineEmits(['activated'])
 
 const keyCode = ref('')
 const fingerprint = ref('')
+const hardwareId = ref('')
+const osInfo = ref('')
+const deviceName = ref('')
 const isLoading = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
@@ -15,18 +18,20 @@ const artSrc = landscapeBanners[0].src
 const inputRef = ref(null)
 const justErrored = ref(false)
 const justSucceeded = ref(false)
+const copied = ref(false)
+let copyTimer = null
 
 const TYPING_FRAMES = [
   'XXXX-XXXX-XXXX',
-  'DXXX-XXXX-XXXX',
-  'DAXX-XXXX-XXXX',
-  'DAWX-XXXX-XXXX',
-  'DAWA-XXXX-XXXX',
-  'DAWA-SXXX-XXXX',
-  'DAWA-SEXX-XXXX',
-  'DAWA-SECX-XXXX',
-  'DAWA-SECR-XXXX',
-  'DAWA-SECRET-KEY'
+  'KXXX-XXXX-XXXX',
+  'KEXX-XXXX-XXXX',
+  'KEYX-XXXX-XXXX',
+  'KEY-XXXX-XXXX',
+  'KEY-RXXX-XXXX',
+  'KEY-REXX-XXXX',
+  'KEY-REGX-XXXX',
+  'KEY-REGI-XXXX',
+  'KEY-REG-SECRET'
 ]
 const typingIndex = ref(0)
 let typingTimer = null
@@ -73,6 +78,18 @@ const stopTyping = () => {
   }
 }
 
+const copyHardwareId = async () => {
+  if (!hardwareId.value) return
+  try {
+    await navigator.clipboard.writeText(hardwareId.value)
+    copied.value = true
+    if (copyTimer) clearTimeout(copyTimer)
+    copyTimer = setTimeout(() => (copied.value = false), 1400)
+  } catch {
+    /* clipboard denied — silent fallback */
+  }
+}
+
 const triggerErrorShake = () => {
   justErrored.value = true
   if (erroTimer) clearTimeout(erroTimer)
@@ -102,6 +119,9 @@ onMounted(async () => {
     if (window.api?.getDeviceHash) {
       const res = await window.api.getDeviceHash()
       fingerprint.value = res?.fingerprint || ''
+      hardwareId.value = res?.hardwareId || res?.deviceHash || ''
+      deviceName.value = res?.deviceName || ''
+      osInfo.value = res?.osInfo || ''
     }
   } catch (err) {
     console.error('Failed to get device info:', err)
@@ -113,6 +133,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   stopTyping()
+  if (copyTimer) clearTimeout(copyTimer)
   if (erroTimer) clearTimeout(erroTimer)
   if (succeTimer) clearTimeout(succeTimer)
   if (focusTimer) clearTimeout(focusTimer)
@@ -163,6 +184,10 @@ const handleActivate = async () => {
           <img class="activation-logo" :src="logo" alt="DAWA" />
           <h1>Unlock the rig</h1>
           <p>Kích hoạt xong mới vào khu tối ưu FPS. Key khóa theo máy này.</p>
+          <div v-if="deviceName || osInfo" class="activation-art-meta">
+            <span v-if="deviceName" class="art-meta-item art-meta-hostname">{{ deviceName }}</span>
+            <span v-if="osInfo" class="art-meta-item">{{ osInfo }}</span>
+          </div>
         </div>
       </aside>
 
@@ -186,13 +211,31 @@ const handleActivate = async () => {
 
         <div class="activation-device">
           <div class="activation-device-status">
-            <span class="activation-device-dot" :class="{ 'is-ready': !!fingerprint }"></span>
+            <span class="activation-device-dot" :class="{ 'is-ready': !!hardwareId }"></span>
             {{ fingerprint ? 'Thiết bị đã khóa với app' : 'Đang nhận diện thiết bị...' }}
           </div>
           <dl class="activation-device-specs">
             <div>
               <dt>MACHINE ID</dt>
-              <dd>{{ fingerprint || '••••' }}</dd>
+              <dd>
+                <button
+                  v-if="hardwareId"
+                  class="hwid-pill"
+                  type="button"
+                  :title="copied ? 'Đã copy vào clipboard' : 'Bấm để copy Machine ID'"
+                  @click="copyHardwareId"
+                >
+                  <span class="hwid-pill-text">{{ fingerprint }}</span>
+                  <Check
+                    v-if="copied"
+                    class="hwid-pill-icon is-copied"
+                    :size="14"
+                    aria-hidden="true"
+                  />
+                  <Copy v-else class="hwid-pill-icon" :size="14" aria-hidden="true" />
+                </button>
+                <span v-else>{{ fingerprint || '••••' }}</span>
+              </dd>
             </div>
           </dl>
         </div>
@@ -245,10 +288,71 @@ const handleActivate = async () => {
             type="submit"
           >
             <KeyRound v-if="!isLoading" :size="16" :stroke-width="2" />
-            {{ isLoading ? 'Đang xác thực...' : 'Kích hoạt' }}
+            {{ isLoading ? 'Đang xác thực...' : 'KÍCH HOẠT & TIẾP TỤC' }}
           </button>
         </form>
       </section>
     </div>
   </Transition>
 </template>
+
+<style scoped>
+.hwid-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: #67e8f9;
+  background: rgba(34, 211, 238, 0.1);
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+.hwid-pill:hover {
+  background: rgba(34, 211, 238, 0.18);
+  border-color: rgba(34, 211, 238, 0.55);
+  color: #a5f3fc;
+}
+.hwid-pill-text {
+  color: inherit;
+}
+.hwid-pill-icon {
+  color: #22d3ee;
+  transition: all 180ms ease;
+}
+.hwid-pill-icon.is-copied {
+  color: #10b981;
+}
+.activation-art-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.art-meta-item {
+  display: inline-block;
+  padding: 5px 11px;
+  width: fit-content;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+}
+.art-meta-hostname {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.2px;
+  background: rgba(22, 119, 255, 0.15);
+  border-color: rgba(22, 119, 255, 0.32);
+}
+</style>

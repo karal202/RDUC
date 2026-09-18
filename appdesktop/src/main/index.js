@@ -1084,7 +1084,18 @@ app.whenReady().then(() => {
 
   ipcMain.handle('license:get-device-hash', async () => {
     const hwid = await getHardwareHash()
-    return { ready: true, fingerprint: maskHardwareId(hwid) }
+    const arch = os.arch() === 'x64' || process.arch === 'x64' ? 'x64' : os.arch() || 'x86'
+    const osRelease = `${os.platform() === 'win32' ? 'Windows_NT' : os.platform()} ${os.release()} (${arch})`
+    const host = os.hostname()
+    return {
+      ready: true,
+      fingerprint: maskHardwareId(hwid),
+      deviceHash: hwid,
+      hardwareId: hwid,
+      deviceName: host,
+      hostname: host,
+      osInfo: osRelease
+    }
   })
 
   ipcMain.handle('license:check-status', async () => {
@@ -1218,6 +1229,21 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('license:activate', async (_, keyCode) => {
+    // ========== ZERO-TRUST GATE IPC ENFORCEMENT ==========
+    // In-app ActivationModal is ONLY a RE-ACTIVATION surface.
+    // If the InstallerActivated registry flag is missing, block EVERY
+    // attempt to use the in-app activation IPC. The user MUST re-run
+    // Setup.exe and pass the WPF standalone gate first.
+    const gatePassed = hasInstallerGateFlagViaRegExe()
+    if (!gatePassed) {
+      return {
+        success: false,
+        gateBlocked: true,
+        message:
+          'Bạn chưa qua màn hình kích hoạt của bộ cài. VUI LÒNG CHẠY LẠI DAWA-OPTIMIZER-SETUP.EXE để nhập key ở cửa sổ WPF (WinRAR-style) trước khi mở app.'
+      }
+    }
+
     if (isActivateRateLimited()) {
       return { success: false, message: 'Quá nhiều lần thử. Đợi 1 phút rồi thử lại.' }
     }
@@ -1455,14 +1481,27 @@ app.whenReady().then(() => {
 
   // License window IPC handlers
   ipcMain.handle('license:activate-from-window', async (event, keyCode) => {
+    // ========== ZERO-TRUST GATE: Block first-time activation from license window ==========
+    const gatePassed = hasInstallerGateFlagViaRegExe()
+    if (!gatePassed) {
+      return {
+        success: false,
+        gateBlocked: true,
+        message:
+          'Bạn chưa qua màn hình kích hoạt của bộ cài. VUI LÒNG CHẠY LẠI DAWA-OPTIMIZER-SETUP.EXE để nhập key ở cửa sổ WPF trước.'
+      }
+    }
+
     const currentDeviceHash = await getHardwareHash()
-    const activation = await validateWithBackend(keyCode, currentDeviceHash)
+    const cleanKey = normalizeLicenseKey(keyCode)
+    if (!cleanKey) {
+      return { success: false, message: 'Định dạng key không hợp lệ.' }
+    }
+    const activation = await validateWithBackend(cleanKey, currentDeviceHash)
     if (activation.success && activation.valid) {
-      licenseStore.save({
-        keyCode,
-        deviceHash: currentDeviceHash,
-        activatedAt: Date.now()
-      })
+      // IMPORTANT: save() signature is save(keyCode, deviceHash, expiresAt)
+      // Previous code incorrectly passed a single object — fixed here.
+      licenseStore.save(cleanKey, currentDeviceHash, activation.expiresAt || null)
       licenseStore.saveTokens({
         accessToken: activation.accessToken,
         refreshToken: activation.refreshToken
@@ -1488,17 +1527,121 @@ app.whenReady().then(() => {
     return { isActivated: localCheck.valid }
   })
 
+  // ==========================================================
+  //  ZERO-TRUST INSTALLER-GATE ENFORCEMENT (RUNTIME SIDE)
+  //  Reads HKCU\Software\Dawa Optimizer\InstallerActivated.
+  //  If the flag is MISSING and we have no valid installer-license.dat
+  //  to migrate → the user NEVER ran the WPF gate. In that case the
+  //  app must refuse to show ANY activation UI (not even ActivationModal).
+  //  Zero-Trust rule: ALL first-time activation flows MUST go through
+  //  the NSIS WPF standalone gate. In-app ActivationModal is ONLY a
+  //  re-activation surface for users who *previously* passed the gate.
+  // ==========================================================
+  // ==========================================================
+  //  REGISTRY FLAG HELPER — "Installer WPF gate was passed?"
+  //  Uses reg.exe execFileSync which is TRULY synchronous (no promise /
+  //  no callback), ideal for early startup before windows are created.
+  //  Checks HKCU first (current user scope written by WPF modal), then
+  //  HKLM fallback (elevated installer writes HKLM copy for robustness).
+  //  DEV BYPASS: If ALLOW_OFFLINE_LICENSE=true + NODE_ENV=development,
+  //  returns true so local devs don't need to run Setup.exe every run.
+  // ==========================================================
+  function hasInstallerGateFlagViaRegExe() {
+    // DEV BYPASS (very explicit — never active in packaged builds).
+    // Equivalent to allowOfflineLicense: allows local dev to skip the
+    // "re-run Setup.exe" block if they have NO installer on this machine.
+    if (allowOfflineLicense) return true
+    try {
+      const { execFileSync } = require('child_process')
+      // HKCU first
+      try {
+        const out = execFileSync(
+          'reg.exe',
+          ['query', 'HKCU\\Software\\Dawa Optimizer', '/v', 'InstallerActivated'],
+          { encoding: 'ascii', timeout: 1500, windowsHide: true }
+        )
+        if (/InstallerActivated\s+REG_SZ\s+1/i.test(out)) return true
+      } catch {
+        /* HKCU missing */
+      }
+      // HKLM fallback (installer running elevated writes HKLM copy too)
+      try {
+        const out2 = execFileSync(
+          'reg.exe',
+          ['query', 'HKLM\\Software\\Dawa Optimizer', '/v', 'InstallerActivated'],
+          { encoding: 'ascii', timeout: 1500, windowsHide: true }
+        )
+        if (/InstallerActivated\s+REG_SZ\s+1/i.test(out2)) return true
+      } catch {
+        /* HKLM missing */
+      }
+      return false
+    } catch {
+      return false
+    }
+  }
+
   // Check license on startup and show appropriate window
   const checkLicenseOnStartup = async () => {
+    // ========== CRITICAL ANTI-BYPASS: RUN MIGRATION FIRST ==========
+    // Await the installer-license.dat migration BEFORE checking store,
+    // otherwise checkLicenseOnStartup races with the fire-and-forget
+    // migration above and shows ActivationModal for 1 frame before
+    // migration finally copies the key.
+    const _migrationStartupResult = await runInstallerLicenseMigration()
+    if (_migrationStartupResult.migrated) {
+      console.log(
+        '[LICENSE:startup] Installer license migrated DURING startup check — skipped gate bypass.'
+      )
+    }
+
     const currentDeviceHash = await getHardwareHash()
     const stored = licenseStore.get()
     const localCheck = stored ? verifyLocalLicense(stored, currentDeviceHash) : { valid: false }
 
-    if (!localCheck.valid) {
-      createLicenseWindow()
-    } else {
+    if (localCheck.valid) {
+      // Normal happy path: already activated (either via migration or prior run)
       createWindow()
+      return
     }
+
+    // ========== ZERO-TRUST GATE: NO ACTIVATION → NO ACTIVATIONMODAL ==========
+    // If there is NO stored valid license:
+    //   - First check if user EVER passed the installer WPF gate (InstallerActivated=1 in registry).
+    //   - If the flag exists: user previously passed the gate but key got revoked/expired →
+    //     it's safe to show the in-app ActivationModal as a RE-ACTIVATION surface.
+    //   - If the flag is MISSING → user bypassed the WPF gate entirely (e.g., manually copied
+    //     app files, installer gate crashed, or tampered setup). Block EVERY activation path,
+    //     show a fatal "re-run the official installer" box and refuse to proceed.
+    const passedGate = hasInstallerGateFlagViaRegExe()
+    if (!passedGate) {
+      console.error(
+        '[GATE-BLOCK] InstallerActivated registry flag absent — ActivationModal blocked by Zero-Trust policy.'
+      )
+      // Show the fatal block box synchronously BEFORE any window is created.
+      try {
+        dialog.showErrorBox(
+          'DAWA OPTIMIZER  ·  ZERO-TRUST GATE',
+          'Không tìm thấy dấu hiệu đã kích hoạt qua bộ cài Setup.exe.\r\n\r\n' +
+            'Chính sách bảo mật Zero-Trust của DAWA yêu cầu tất cả người dùng phải nhập key kích hoạt ' +
+            'QUA BỘ CÀI ĐẶT TRƯỚC (màn hình WPF xuất hiện ngay khi mở Setup.exe, phong cách WinRAR).\r\n\r\n' +
+            'Giao diện kích hoạt trong ứng dụng (ActivationModal) KHÔNG được phép sử dụng cho lần kích hoạt đầu tiên.\r\n\r\n' +
+            'VUI LÒNG CHẠY LẠI FILE DAWA-OPTIMIZER-SETUP.EXE CHÍNH THỨC ĐỂ KÍCH HOẠT BẢN QUYỀN.'
+        )
+      } catch {
+        /* noop */
+      }
+      // Refuse to open ANY window. Tray is already created above so user can quit from tray.
+      app.isQuiting = true
+      setTimeout(() => app.quit(), 200)
+      return
+    }
+
+    // ========== PASSED-GATE BUT KEY INVALID = RE-ACTIVATION MODE ==========
+    // User DID pass the installer gate before (InstallerActivated=1 exists), but
+    // the current license is expired/revoked/cleared. In-app ActivationModal is
+    // allowed here as a convenience re-activation surface.
+    createLicenseWindow()
   }
 
   checkLicenseOnStartup()
