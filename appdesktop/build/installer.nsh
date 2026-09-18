@@ -6,6 +6,16 @@
 ; exists" fatal. Our earliest hook is MyGUIINIT (GUIINIT custom fn),
 ; followed by Welcome/License page pre-functions, final guard in
 ; .onInstProgress.
+;
+; CRITICAL NSIS LABEL RULE (enforced in this rewrite):
+;   All NSIS labels are GLOBAL scope — can only be declared ONCE.
+;   !insertmacro TEXTUALLY PASTES the macro body into each call site.
+;   Therefore:
+;     • NO labels allowed inside !macro bodies (they would duplicate).
+;     • All code that needs labels MUST live inside a standalone
+;       Function DawaFn_* declared ONCE. Macro wrappers only Call it.
+;     • Exception: DawaPurgeStaleActivationFlag has ZERO labels →
+;       perfectly safe to !insertmacro anywhere.
 ; ====================================================================
 
 ; --------------------------------------------------------------------
@@ -22,174 +32,278 @@ Var /GLOBAL ProgramDataDir
 Var /GLOBAL ProgramDataLicenseDir
 Var /GLOBAL ProgramDataLicensePath
 
-; --------------------------------------------------------------------
-; Macro: DawaActivationGate
-;   Fast-path exit if (HKCU or HKLM) Software\Dawa Optimizer\
-;   InstallerActivated = "1" already set — user passed gate during
-;   an earlier hook so subsequent page-hooks are ~2 registry reads,
-;   no PowerShell child spawn.
-;   Otherwise: spawn gate-activation.ps1 via nsExec::ExecToStack
-;   (STA mode, NonInteractive flag OMITTED — required for PS5.1 to
-;   paint STA WPF toplevel). Exit 0 = copy sealed license mirror,
-;   any other exit = immediate Quit installer (Zero-Trust hard fail,
-;   NEVER fall back to in-app ActivationModal as substitute —
-;   runtime startup gate will crash-to-quit anyway if flag absent).
-; --------------------------------------------------------------------
-!macro DawaActivationGate
+; ====================================================================
+; PURGE MACRO (SAFE — ZERO LABELS):
+;   Deletes stale InstallerActivated cross-session flags BEFORE any
+;   gate logic runs on a fresh Setup.exe launch. Zero-Trust rule:
+;   new Setup launch = user MUST re-pass WPF gate; registry flag is
+;   only trusted for (.onInstProgress pre-extract guard + runtime
+;   app startup check), NOT for skipping the install-time gate.
+; ====================================================================
+!macro DawaPurgeStaleActivationFlag
+  StrCpy $InstallerDirName "Dawa Optimizer"
+  DeleteRegValue HKCU "Software\$InstallerDirName" "InstallerActivated"
+  DeleteRegValue HKLM "Software\$InstallerDirName" "InstallerActivated"
+  StrCpy $0 "$APPDATA\$InstallerDirName\.InstallerActivated"
+  Delete $0
+!macroend
+
+; ====================================================================
+; FUNCTION 1 of 3 (DECL ONCE, LABELS SAFE INSIDE):
+;   DawaFn_EnsureGatePs1InPluginsdir
+;   electron-builder only auto-copies icon/license/DLL plugins into
+;   $PLUGINSDIR during makensis; loose build/*.ps1 are silently
+;   ignored so gate-activation.ps1 was missing at runtime → WPF
+;   never painted. We File-copy both ps1s explicitly from
+;   BUILD_RESOURCES_DIR (electron-builder passes this via /D).
+; ====================================================================
+Function DawaFn_EnsureGatePs1InPluginsdir
+  SetOutPath $PLUGINSDIR
+  File /oname=$PLUGINSDIR\gate-activation.ps1  "${BUILD_RESOURCES_DIR}\gate-activation.ps1"
+  ; encrypt-license.ps1 is side-by-side required by gate-activation.ps1
+  ; when its EncryptPs1Path param is empty (the default).
+  IfFileExists "${BUILD_RESOURCES_DIR}\encrypt-license.ps1" 0 DawaPsCopyDone
+  File /oname=$PLUGINSDIR\encrypt-license.ps1 "${BUILD_RESOURCES_DIR}\encrypt-license.ps1"
+DawaPsCopyDone:
+FunctionEnd
+!macro DawaEnsureGatePs1InPluginsdir
+  Call DawaFn_EnsureGatePs1InPluginsdir
+!macroend
+
+; ====================================================================
+; FUNCTION 2 of 3 (DECL ONCE, LABELS SAFE INSIDE):
+;   DawaFn_BlockUnattendedSilent
+;   Repack/crack wrappers often run "Setup.exe /S" to skip every
+;   interactive page entirely (including the WPF activation window).
+;   Zero-Trust hard-stop: walk $CMDLINE char-by-char for /S -S /silent
+;   /SILENT /VERYSILENT /verysilent variations (case-insensitive);
+;   if anything matches → IMMEDIATE Quit (0 bytes extracted).
+; ====================================================================
+Function DawaFn_BlockUnattendedSilent
+  Push $R0
+  Push $R1
+  StrCpy $R0 $CMDLINE
+  StrCmp $R0 "" DawaSilentCheckDone DawaSilentLoop
+DawaSilentLoop:
+  StrCmp $R0 "" DawaSilentCheckDone
+  StrCpy $R1 $R0 1 ""
+  StrCmp $R1 "/" DawaSilentMaybeFlag DawaSilentNotSlash1
+  Goto DawaSilentMaybeFlag
+DawaSilentNotSlash1:
+  StrCmp $R1 "-" DawaSilentMaybeFlag DawaSilentCharNext
+DawaSilentMaybeFlag:
+  ; First: 2-char short forms /S /s -S -s
+  StrCpy $R1 $R0 2 ""
+  StrCmp $R1 "/S" DawaSilentAbort DawaSilentMaybeShort2
+DawaSilentMaybeShort2:
+  StrCmp $R1 "/s" DawaSilentAbort DawaSilentMaybeShort3
+DawaSilentMaybeShort3:
+  StrCmp $R1 "-S" DawaSilentAbort DawaSilentMaybeShort4
+DawaSilentMaybeShort4:
+  StrCmp $R1 "-s" DawaSilentAbort DawaSilentMaybeLong1
+DawaSilentMaybeLong1:
+  ; 7-char: /SILENT /silent
+  StrCpy $R1 $R0 7 ""
+  StrCmp $R1 "/SILENT" DawaSilentAbort DawaSilentMaybeLong2
+DawaSilentMaybeLong2:
+  StrCmp $R1 "/silent" DawaSilentAbort DawaSilentMaybeLong3
+DawaSilentMaybeLong3:
+  ; 11-char: /VERYSILENT /verysilent
+  StrCpy $R1 $R0 11 ""
+  StrCmp $R1 "/VERYSILENT" DawaSilentAbort DawaSilentMaybeLong4
+DawaSilentMaybeLong4:
+  StrCmp $R1 "/verysilent" DawaSilentAbort DawaSilentCharNext
+DawaSilentCharNext:
+  StrCpy $R0 $R0 "" 1
+  Goto DawaSilentLoop
+DawaSilentAbort:
+  Pop $R1
+  Pop $R0
+  Quit
+DawaSilentCheckDone:
+  Pop $R1
+  Pop $R0
+FunctionEnd
+!macro DawaBlockUnattendedSilent
+  Call DawaFn_BlockUnattendedSilent
+!macroend
+
+; ====================================================================
+; FUNCTION 3 of 3 (DECL ONCE, LABELS SAFE INSIDE):
+;   DawaFn_ActivationGate
+;   Per-session fast-path only (cross-session registry skip removed).
+;   Spawns gate-activation.ps1 via nsExec::ExecToStack using explicit
+;   powershell.exe flags: -NoLogo -NoProfile -STA -ExecutionPolicy Bypass.
+;   CRITICALLY: -NonInteractive is OMITTED (PS5.1 suppresses STA WPF
+;   toplevels under that flag — documented session-1 hard blocker).
+;   Exit 0 → copy SSO license 2 mirrors.
+;   Any other exit → Quit (no ActivationModal fallback later).
+; ====================================================================
+Function DawaFn_ActivationGate
   StrCpy $InstallerDirName "Dawa Optimizer"
 
-  ; Fast-path layer 1: $GateAlreadyRan (script-level, set on pass)
-  StrCmp $GateAlreadyRan "1" GatePassed GateFastRegHKCU
+  ; Per-session fast-path only (never skip cross-session via registry)
+  StrCmp $GateAlreadyRan "1" DawaGatePassed DawaGateRunWPF
 
-  ; Fast-path layer 2: HKCU registry (per-user, written by WPF)
-GateFastRegHKCU:
-  ReadRegStr $0 HKCU "Software\$InstallerDirName" "InstallerActivated"
-  StrCmp $0 "1" GatePassed GateFastRegHKLM
+DawaGateRunWPF:
+  ; Silent/unattended wrapper hard-stop (re-checked inside every
+  ; layered hook — even if a repacker somehow bypasses GUIINIT).
+  Call DawaFn_BlockUnattendedSilent
+  ; Ensure ps1 files definitely exist in $PLUGINSDIR. Idempotent:
+  ; first GUIINIT hook stages them; later hooks also Call just in
+  ; case a repacker mangles init order.
+  Call DawaFn_EnsureGatePs1InPluginsdir
 
-  ; Fast-path layer 3: HKLM registry mirror (per-machine, WPF tries best-effort)
-GateFastRegHKLM:
-  ReadRegStr $0 HKLM "Software\$InstallerDirName" "InstallerActivated"
-  StrCmp $0 "1" GatePassed GateRunWPF
-
-GateRunWPF:
-  ; Resolve PROGRAMDATA from environment (not a NSIS built-in var).
+  ; Resolve PROGRAMDATA from environment (NSIS has no built-in var).
   ReadEnvStr $ProgramDataDir "PROGRAMDATA"
-  StrCmp $ProgramDataDir "" GateRunWPFUseFallback GateRunWPFHaveProgramData
-GateRunWPFUseFallback:
+  StrCmp $ProgramDataDir "" DawaGateUseFallbackProgramData DawaGateHaveProgramData
+DawaGateUseFallbackProgramData:
   StrCpy $ProgramDataDir "C:\ProgramData"
-GateRunWPFHaveProgramData:
+DawaGateHaveProgramData:
 
-  ; Build 3 SSO candidate paths (order = INSTALLER_LICENSE_CANDIDATES
-  ; in src/main/index.js: 1. $APPDATA, 2. $PROGRAMDATA,
-  ; 3. $INSTDIR\resources — written both here AND in .onInstProgress
-  ; as last-resort safeguard).
+  ; Build the 2 install-time SSO license mirror paths. Order exactly
+  ; matches Electron runtime INSTALLER_LICENSE_CANDIDATES in
+  ; src/main/index.js: (1) $APPDATA primary (2) $PROGRAMDATA fallback
+  ; (3) $INSTDIR\resources (staged later inside .onInstProgress only
+  ; after extract actually begins — we don't have $INSTDIR here yet).
   StrCpy $AppDataLicenseDir      "$APPDATA\$InstallerDirName"
   StrCpy $AppDataLicensePath     "$AppDataLicenseDir\installer-license.dat"
   StrCpy $ProgramDataLicenseDir  "$ProgramDataDir\$InstallerDirName"
   StrCpy $ProgramDataLicensePath "$ProgramDataLicenseDir\installer-license.dat"
 
-  ; $PLUGINSDIR = electron-builder copies everything under
-  ; directories.buildResources ("build/") into this temp dir when
-  ; makensis.exe assembles the installer — confirmed: gate-activation.ps1
-  ; lives at build/gate-activation.ps1 on disk.
+  ; IMPORTANT: gate-activation.ps1 top param() block declares BackendUrl
+  ; Mandatory=$false with 2-layer default ($env:BACKEND_URL → hardcoded
+  ; https://rduc.onrender.com/api/license/validate) so installer does NOT
+  ; pass a long URL on the command line — only the 3 mandatory positional
+  ; args that PS1 requires: OutputJson SealedLicenseOutput RegFlagFile.
+  InitPluginsDir
   nsExec::ExecToStack 'powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -File "$PLUGINSDIR\gate-activation.ps1" -OutputJson "$PLUGINSDIR\dawa-activation-result.json" -SealedLicenseOutput "$PLUGINSDIR\installer-license.dat" -RegFlagFile "$APPDATA\Dawa Optimizer\.InstallerActivated"'
-  Pop $0   ; nsExec stdout tail (discarded — OutputJson already on disk)
-  Pop $1   ; exit code
+  Pop $0   ; nsExec stdout tail (discarded — PS1 already wrote JSON/dat to disk)
+  Pop $1   ; powershell child exit code
 
-  StrCmp $1 "0" GateCopyLicense GateAbort
+  StrCmp $1 "0" DawaGateCopyLicense DawaGateAbort
 
-GateCopyLicense:
-  ; Mirror 1/3: $APPDATA (primary Electron SSO candidate).
+DawaGateCopyLicense:
+  ; SSO mirror 1/2: $APPDATA (primary Electron SSO candidate)
   CreateDirectory "$AppDataLicenseDir"
   SetOverwrite on
   CopyFiles /SILENT "$PLUGINSDIR\installer-license.dat" "$AppDataLicensePath"
-  ; Mirror 2/3: $PROGRAMDATA (cross-user fallback when same machine).
+  ; SSO mirror 2/2: $PROGRAMDATA (cross-user fallback — even if a
+  ; different Windows user launches the app later on this same box)
   CreateDirectory "$ProgramDataLicenseDir"
   CopyFiles /SILENT "$PLUGINSDIR\installer-license.dat" "$ProgramDataLicensePath"
   SetOverwrite off
-  Goto GatePassed
+  Goto DawaGatePassed
 
-GateAbort:
-  ; User hit Escape/titlebar-X or validate returned non-zero.
-  ; Zero-Trust = no second chances. Quit NOW.
+DawaGateAbort:
+  ; Non-zero exit = user Escape, titlebar X, key invalid, server offline,
+  ; or PS1 crash. Zero-Trust: NO second chances, NO Welcome page fallback.
   Quit
 
-GatePassed:
+DawaGatePassed:
   StrCpy $GateAlreadyRan "1"
+FunctionEnd
+!macro DawaActivationGate
+  Call DawaFn_ActivationGate
 !macroend
 
-; --------------------------------------------------------------------
-; Hook #1 of 5 (EARLIEST POSSIBLE — first real paint opportunity
-; because electron-builder owns .onInit exclusively):
-; MUI_CUSTOMFUNCTION_GUIINIT fires BEFORE NSIS draws its first pixel.
-; --------------------------------------------------------------------
-Function MyGUIInit
-  !insertmacro DawaActivationGate
+; ====================================================================
+; Hook #1 of 5 — EARLIEST CUSTOM HOOK POSSIBLE:
+;   GUIINIT fires immediately after electron-builder's internal
+;   .onInit returns, BEFORE the first pixel of NSIS chrome paints.
+;   4-pass strict order:
+;     (a) Purge stale cross-session InstallerActivated flags first
+;     (b) Stage PS1 into $PLUGINSDIR (definitely available next)
+;     (c) Block unattended silent wrappers if present
+;     (d) RUN WPF ACTIVATION GATE → paints TOPMOST with
+;         AttachThreadInput foreground steal right after user
+;         dismisses SmartScreen "Run anyway".
+; ====================================================================
+Function MyGUIINIT
+  !insertmacro DawaPurgeStaleActivationFlag
+  Call DawaFn_EnsureGatePs1InPluginsdir
+  Call DawaFn_BlockUnattendedSilent
+  Call DawaFn_ActivationGate
 FunctionEnd
-!define MUI_CUSTOMFUNCTION_GUIINIT MyGUIInit
+!define MUI_CUSTOMFUNCTION_GUIINIT MyGUIINIT
 
-; --------------------------------------------------------------------
-; Hook #2 of 5: Welcome page PRE function
-;   Runs BEFORE Welcome page is shown — catches wrapper flows where
-;   GUIINIT is patched around. GUIINIT already sets $GateAlreadyRan=1
-;   so cost is a fast macro nop.
-;   NOTE: electron-builder auto-inserts MUI_PAGE_WELCOME for
-;   oneClick=false installs; we hook CUSTOMFUNCTION_PRE for that page.
-; --------------------------------------------------------------------
+; ====================================================================
+; Hook #2 of 5 — Welcome page PRE + SHOW + LEAVE:
+;   Catches wrapper flows where a repacker nulls GUIINIT but leaves
+;   Welcome intact. If GUIINIT already passed → $GateAlreadyRan=1 →
+;   3-instruction NOP (no delay, no PS respawn, user sees nothing).
+; ====================================================================
 Function DawaPreWelcomePage
-  !insertmacro DawaActivationGate
+  Call DawaFn_ActivationGate
 FunctionEnd
-!define MUI_WELCOMEPAGE_CUSTOMFUNCTION_PRE DawaPreWelcomePage
-!define MUI_WELCOMEPAGE_CUSTOMFUNCTION_SHOW DawaPreWelcomePage
+!define MUI_WELCOMEPAGE_CUSTOMFUNCTION_PRE   DawaPreWelcomePage
+!define MUI_WELCOMEPAGE_CUSTOMFUNCTION_SHOW  DawaPreWelcomePage
+!define MUI_WELCOMEPAGE_CUSTOMFUNCTION_LEAVE DawaPreWelcomePage
 
-; --------------------------------------------------------------------
-; Hook #3 of 5: License page PRE (for classic EULA screen users)
-;   electron-builder emits MUI_PAGE_LICENSE because
-;   nsis.license=build/license_en.txt in electron-builder.yml.
-;   Re-running gate here is cheap (fast-path registry nop).
-; --------------------------------------------------------------------
+; ====================================================================
+; Hook #3 of 5 — License page PRE + SHOW + LEAVE:
+;   electron-builder emits MUI_PAGE_LICENSE because electron-builder.yml
+;   nsis.license = build/license_en.txt. Re-entrant cheap guard.
+; ====================================================================
 Function DawaPreLicensePage
-  !insertmacro DawaActivationGate
+  Call DawaFn_ActivationGate
 FunctionEnd
-!define MUI_LICENSEPAGE_CUSTOMFUNCTION_PRE DawaPreLicensePage
-!define MUI_LICENSEPAGE_CUSTOMFUNCTION_SHOW DawaPreLicensePage
+!define MUI_LICENSEPAGE_CUSTOMFUNCTION_PRE   DawaPreLicensePage
+!define MUI_LICENSEPAGE_CUSTOMFUNCTION_SHOW  DawaPreLicensePage
+!define MUI_LICENSEPAGE_CUSTOMFUNCTION_LEAVE DawaPreLicensePage
 
-; --------------------------------------------------------------------
-; Hook #4 of 5: Directory page PRE (install location confirm step).
-;   Some wrappers can patch-out Welcome/License UI entirely — an
-;   extra guard before the user gets to click "Install" button keeps
-;   Zero-Trust intact.
-; --------------------------------------------------------------------
+; ====================================================================
+; Hook #4 of 5 — Directory page PRE (install folder confirm screen):
+;   Some crafty wrappers strip Welcome/License entirely but still let
+;   Directory render. This guard catches the gap.
+; ====================================================================
 Function DawaPreDirectoryPage
-  !insertmacro DawaActivationGate
+  Call DawaFn_ActivationGate
 FunctionEnd
 !define MUI_DIRECTORYPAGE_CUSTOMFUNCTION_PRE DawaPreDirectoryPage
 
-; --------------------------------------------------------------------
-; Hook #5 of 5 (FINAL GUARD — ABSOLUTE LAST CHANCE BEFORE DISK IO):
-; .onInstProgress fires once BEFORE the first byte is actually
-; extracted to $INSTDIR. Even if every prior hook was bypassed
-; (e.g. a custom repacker deleted them), this function ABORTs the
-; install immediately if InstallerActivated flag absent in EITHER
-; registry hive. Also re-seeds installer-license.dat to
-; $INSTDIR\resources (candidate #3 last resort) in case user wiped
-; %APPDATA% between Setup launch and first app run.
-; --------------------------------------------------------------------
+; ====================================================================
+; Hook #5 of 5 — FINAL NUCLEAR GUARD (.onInstProgress):
+;   Fires ONCE immediately BEFORE the FIRST byte is extracted to
+;   $INSTDIR. Even if hooks 1-4 were all nopped out by a repacker,
+;   this nukes: InstallerActivated flag MUST exist HKCU OR HKLM or
+;   → MessageBox STOP + Abort → 0 bytes land on disk.
+;   Also re-seeds SSO candidate #3 ($INSTDIR\resources\) in case
+;   user wiped %APPDATA% between Setup close + first app launch.
+; ====================================================================
 Function .onInstProgress
   ReadRegStr $0 HKCU "Software\Dawa Optimizer" "InstallerActivated"
-  StrCmp $0 "1" FinalGuardPassed FinalGuardHKLM
-FinalGuardHKLM:
+  StrCmp $0 "1" DawaFinalPassed DawaFinalHKLM
+DawaFinalHKLM:
   ReadRegStr $0 HKLM "Software\Dawa Optimizer" "InstallerActivated"
-  StrCmp $0 "1" FinalGuardPassed FinalGuardAbort
-FinalGuardPassed:
-  ; Candidate #3 of the Electron SSO: also drop license into the
-  ; unpacked resources folder. Useful for corporate installs where
-  ; the user launching the app != the user running the installer.
-  IfFileExists "$INSTDIR\resources\installer-license.dat" FinalGuardDone FinalGuardReplant
-FinalGuardReplant:
+  StrCmp $0 "1" DawaFinalPassed DawaFinalAbort
+DawaFinalPassed:
+  ; SSO candidate #3 replant into $INSTDIR\resources\installer-license.dat
+  IfFileExists "$INSTDIR\resources\installer-license.dat" DawaFinalDone DawaFinalReplant
+DawaFinalReplant:
   ReadEnvStr $ProgramDataDir "PROGRAMDATA"
-  StrCmp $ProgramDataDir "" FinalGuardAltEnv FinalGuardHaveEnv
-FinalGuardAltEnv:
+  StrCmp $ProgramDataDir "" DawaFinalAltProgramData DawaFinalHaveProgramData
+DawaFinalAltProgramData:
   StrCpy $ProgramDataDir "C:\ProgramData"
-FinalGuardHaveEnv:
+DawaFinalHaveProgramData:
   StrCpy $SealedLicenseSrcPath "$APPDATA\Dawa Optimizer\installer-license.dat"
-  IfFileExists $SealedLicenseSrcPath 0 FinalGuardTryProgramData
+  IfFileExists $SealedLicenseSrcPath 0 DawaFinalTryProgramData
   CreateDirectory "$INSTDIR\resources"
   SetOverwrite on
   CopyFiles /SILENT $SealedLicenseSrcPath "$INSTDIR\resources\installer-license.dat"
   SetOverwrite off
-  Goto FinalGuardDone
-FinalGuardTryProgramData:
+  Goto DawaFinalDone
+DawaFinalTryProgramData:
   StrCpy $SealedLicenseSrcPath "$ProgramDataDir\Dawa Optimizer\installer-license.dat"
-  IfFileExists $SealedLicenseSrcPath 0 FinalGuardDone
+  IfFileExists $SealedLicenseSrcPath 0 DawaFinalDone
   CreateDirectory "$INSTDIR\resources"
   SetOverwrite on
   CopyFiles /SILENT $SealedLicenseSrcPath "$INSTDIR\resources\installer-license.dat"
   SetOverwrite off
-FinalGuardDone:
-  Goto FinalGuardEnd
-FinalGuardAbort:
+DawaFinalDone:
+  Goto DawaFinalEnd
+DawaFinalAbort:
   MessageBox MB_ICONSTOP|MB_OK "Zero-Trust Gate: InstallerActivated flag missing.$\r$\nSetup was NOT run through the official activation window.$\r$\nPlease re-launch Dawa-Optimizer-Setup.exe and complete the activation step.$\r$\nNo files were extracted." /SD IDOK
   Abort "Bypassed Zero-Trust activation — no files extracted."
-FinalGuardEnd:
+DawaFinalEnd:
 FunctionEnd
