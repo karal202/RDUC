@@ -1,6 +1,6 @@
 {
   "name": "dawa-optimizer",
-  "version": "1.3.20",
+  "version": "1.3.21",
   "description": "DAWA Optimizer - System optimization tool, hardware diagnostics and license manager",
   "main": "./out/main/index.js",
   "author": "DAWA Team <support@dawa.vn>",

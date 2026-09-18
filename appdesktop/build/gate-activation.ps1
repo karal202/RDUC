@@ -1,10 +1,17 @@
 param(
-  [Parameter(Mandatory = $true)][string]$BackendUrl,
+  [Parameter(Mandatory = $false)][string]$BackendUrl = '',
   [Parameter(Mandatory = $true)][string]$OutputJson,
   [Parameter(Mandatory = $true)][string]$SealedLicenseOutput,
   [Parameter(Mandatory = $true)][string]$RegFlagFile,
   [Parameter(Mandatory = $false)][string]$EncryptPs1Path = ''
 )
+
+if ([string]::IsNullOrWhiteSpace($BackendUrl)) {
+  $BackendUrl = $env:BACKEND_URL
+}
+if ([string]::IsNullOrWhiteSpace($BackendUrl)) {
+  $BackendUrl = 'https://rduc.onrender.com/api/license/validate'
+}
 
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -203,7 +210,10 @@ $hwid = Get-HardwareHash
 $procArch = if ("$env:PROCESSOR_ARCHITECTURE") { ("$env:PROCESSOR_ARCHITECTURE").ToLowerInvariant() } else { '' }
 if ($procArch -eq 'arm64') { $arch = 'arm64' }
 elseif ($procArch -eq 'amd64' -or $procArch -eq 'x64') { $arch = 'x64' }
-elseif ([Environment]::Is64BitOperatingSystem) { $arch = 'x64' }
+elseif ($procArch -eq 'x86') {
+  if ([Environment]::Is64BitProcess) { $arch = 'x64' } else { $arch = 'ia32' }
+}
+elseif ([Environment]::Is64BitProcess) { $arch = 'x64' }
 else { $arch = 'ia32' }
 $osType = 'Windows_NT'
 $osRelease = [Environment]::OSVersion.Version.Major.ToString() + '.' +
@@ -236,7 +246,10 @@ $xamlClean = @"
         TextOptions.TextFormattingMode="Display">
   <Window.Resources>
     <ControlTemplate x:Key="AccentButtonTemplate" TargetType="Button">
-      <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}" BorderThickness="{TemplateBinding BorderThickness}" BorderBrush="{TemplateBinding BorderBrush}" Padding="{TemplateBinding Padding}">
+      <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}" BorderThickness="{TemplateBinding BorderThickness}" BorderBrush="{TemplateBinding BorderBrush}" Padding="{TemplateBinding Padding}" RenderTransformOrigin="0.5,0.5">
+        <Border.RenderTransform>
+          <TranslateTransform x:Name="btnTranslate" Y="0"/>
+        </Border.RenderTransform>
         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" TextBlock.Foreground="{TemplateBinding Foreground}" TextBlock.FontWeight="{TemplateBinding FontWeight}" TextBlock.FontSize="{TemplateBinding FontSize}" TextBlock.LetterSpacing="{TemplateBinding Tag}"/>
       </Border>
       <ControlTemplate.Triggers>
@@ -249,14 +262,14 @@ $xamlClean = @"
               </LinearGradientBrush>
             </Setter.Value>
           </Setter>
+          <Setter TargetName="btnTranslate" Property="Y" Value="-1"/>
         </Trigger>
         <Trigger Property="IsPressed" Value="True">
-          <Setter TargetName="border" Property="RenderTransform">
-            <Setter.Value><TranslateTransform Y="1"/></Setter.Value>
-          </Setter>
+          <Setter TargetName="btnTranslate" Property="Y" Value="1"/>
         </Trigger>
         <Trigger Property="IsEnabled" Value="False">
           <Setter TargetName="border" Property="Opacity" Value="0.55"/>
+          <Setter TargetName="btnTranslate" Property="Y" Value="0"/>
         </Trigger>
       </ControlTemplate.Triggers>
     </ControlTemplate>
@@ -425,7 +438,7 @@ $xamlClean = @"
         </Rectangle.Fill>
       </Rectangle>
 
-      <!-- .activation-art-copy : brand + unlock rig + device meta pills -->
+      <!-- .activation-art-copy : brand + unlock rig (NO meta pills per design) -->
       <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,36,40" Width="360">
         <!-- logo DAWA 132px width -->
         <TextBlock FontFamily="Segoe UI, Inter" FontWeight="900" Foreground="#ffffff"
@@ -434,45 +447,41 @@ $xamlClean = @"
                    FontSize="40" LineHeight="1.08" TextWrapping="Wrap">Unlock the rig</TextBlock>
         <TextBlock Foreground="#d4d4d8" FontSize="14" LineHeight="1.5"
                    TextWrapping="Wrap" Margin="0,10,0,0">Kích hoạt xong mới vào khu tối ưu FPS. Key khóa theo máy này.</TextBlock>
-
-        <!-- Art meta pills: hostname + os -->
-        <StackPanel Orientation="Vertical" Margin="0,14,0,0">
-          <Border CornerRadius="8" BorderThickness="1" Padding="5,5"
-                  HorizontalAlignment="Left"
-                  Background="#1677ff26" BorderBrush="#1677ff52">
-            <TextBlock x:Name="HostNamePill" FontFamily="Consolas" FontSize="13" FontWeight="700" Foreground="#ffffff" Padding="6,1" Text="$hostname"/>
-          </Border>
-          <Border CornerRadius="8" BorderThickness="1" Padding="5,5"
-                  HorizontalAlignment="Left" Margin="0,4,0,0"
-                  Background="#ffffff0d" BorderBrush="#ffffff15">
-            <TextBlock x:Name="OsPill" FontFamily="Consolas" FontSize="11.5" Foreground="#cbd5e1" Padding="6,1" Text="$osInfo"/>
-          </Border>
-        </StackPanel>
       </StackPanel>
     </Grid>
 
     <!-- =========================================================
          .activation-panel = floating glass center-left overlay
+         clip-path polygon(12px 0,100% 0,100% calc(100%-12px),calc(100%-12px)100%,0 100%,0 12px)
+         exact match for Vue activation-panel CSS
          ========================================================= -->
     <Border x:Name="PanelBorder"
             HorizontalAlignment="Left" VerticalAlignment="Center"
             Margin="36,0,0,0" Width="420"
-            CornerRadius="1" Background="#0e0e13f0"
+            CornerRadius="0" Background="#0c0c10db"
             BorderBrush="#1677ff52" BorderThickness="1"
             SnapsToDevicePixels="True" ClipToBounds="True">
+      <Border.Clip>
+        <PathGeometry>
+          <PathGeometry.Figures>
+            <PathFigure StartPoint="12,0" IsClosed="True" IsFilled="True">
+              <LineSegment Point="420,0"/>
+              <LineSegment Point="420,488"/>
+              <LineSegment Point="408,500"/>
+              <LineSegment Point="0,500"/>
+              <LineSegment Point="0,12"/>
+            </PathFigure>
+          </PathGeometry.Figures>
+        </PathGeometry>
+      </Border.Clip>
       <Border.Effect>
         <DropShadowEffect Color="#000000" BlurRadius="50" ShadowDepth="10" Opacity="0.55"/>
       </Border.Effect>
       <Border.Resources>
         <Style TargetType="Border">
-          <Setter Property="CornerRadius" Value="1"/>
+          <Setter Property="CornerRadius" Value="0"/>
         </Style>
       </Border.Resources>
-
-      <!-- Animated gradient border travel -->
-      <Border.OpacityMask>
-        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1"/>
-      </Border.OpacityMask>
 
       <!-- scan-sweep animated horizontal line on top of panel (8%-8%) -->
       <Canvas IsHitTestVisible="False">
@@ -490,12 +499,14 @@ $xamlClean = @"
         </Line>
       </Canvas>
 
-      <!-- Corner TL accent blue 2px (TL) + corner BR accent cyan 2px (BR) -->
+      <!-- Corner TL accent blue 2px (matches Vue ::before 16x16 @ TL bevel clip)
+           + corner BR accent cyan 2px (matches Vue ::after 16x16 @ BR bevel clip)
+           Clip-path 12px bevel clips x<12 y<12 / x>408 y>488 → 4px of each bar visible. -->
       <Canvas IsHitTestVisible="False">
-        <Line X1="0" Y1="0" X2="18" Y2="0" Stroke="#1677ff" StrokeThickness="2"/>
-        <Line X1="0" Y1="0" X2="0" Y2="18" Stroke="#1677ff" StrokeThickness="2"/>
-        <Line X1="402" Y1="496" X2="420" Y2="496" Stroke="#22d3ee" StrokeThickness="2"/>
-        <Line X1="420" Y1="478" X2="420" Y2="496" Stroke="#22d3ee" StrokeThickness="2"/>
+        <Line X1="0" Y1="0" X2="16" Y2="0" Stroke="#1677ff" StrokeThickness="2"/>
+        <Line X1="0" Y1="0" X2="0" Y2="16" Stroke="#1677ff" StrokeThickness="2"/>
+        <Line X1="404" Y1="500" X2="420" Y2="500" Stroke="#22d3ee" StrokeThickness="2"/>
+        <Line X1="420" Y1="484" X2="420" Y2="500" Stroke="#22d3ee" StrokeThickness="2"/>
       </Canvas>
 
       <Grid Margin="28,28,28,26">
@@ -510,12 +521,14 @@ $xamlClean = @"
           <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- .activation-mark 40x40 rounded TL blue 12 BL 12  (shield + state colors) -->
+        <!-- .activation-mark 40x40 FLAT SQUARE CORNERS (match Vue - no radius)
+             Vue CSS: background rgba(22,119,255,0.14) / border rgba(22,119,255,0.28)
+             ShieldCheck / ShieldAlert / CheckCircle2 state: flat square corners -->
         <Grid Grid.Row="0" HorizontalAlignment="Left" Width="40" Height="40">
           <Grid.Clip>
-            <RectangleGeometry Rect="0,0,40,40" RadiusX="10" RadiusY="10"/>
+            <RectangleGeometry Rect="0,0,40,40" RadiusX="0" RadiusY="0"/>
           </Grid.Clip>
-          <Border x:Name="MarkBorder" BorderBrush="#1677ff47" BorderThickness="1" Background="#1677ff17" CornerRadius="10"/>
+          <Border x:Name="MarkBorder" BorderBrush="#1677ff47" BorderThickness="1" Background="#1677ff24" CornerRadius="0"/>
           <Viewbox Width="22" Height="22" Stretch="Uniform" Margin="9">
             <Grid>
               <Path x:Name="ShieldPath" Stroke="#22d3ee" StrokeThickness="2" Fill="Transparent"
@@ -533,7 +546,7 @@ $xamlClean = @"
         <TextBlock Grid.Row="1" FontSize="24" FontWeight="800" Foreground="#ffffff" Margin="0,16,0,0" FontFamily="Segoe UI, Inter">Kích hoạt bản quyền</TextBlock>
         <TextBlock Grid.Row="2" Foreground="#a1a1aa" FontSize="13" LineHeight="21" Margin="0,8,0,18" TextWrapping="Wrap">Nhập key để mở DAWA Optimizer trên thiết bị đã đăng ký.</TextBlock>
 
-        <!-- activation-device block: ready dot + MACHINE ID pill mask 8…4 copy -->
+        <!-- activation-device block: ready dot + MACHINE ID TEXT only (no copy button per design) -->
         <Grid Grid.Row="3">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -560,15 +573,7 @@ $xamlClean = @"
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal">
               <TextBlock Foreground="#71717a" FontSize="10" FontWeight="700" LetterSpacing="1.2" VerticalAlignment="Center" Margin="0,0,10,0">MACHINE ID</TextBlock>
-              <!-- hwid-pill clickable copy mask 8…4 cyan pill -->
-              <Button x:Name="FingerprintBtn" Template="{StaticResource GhostButtonTemplate}" Padding="10,4" BorderThickness="1"
-                      CornerRadius="999"
-                      Background="#22d3ee1a" BorderBrush="#22d3ee47" Cursor="Hand" HorizontalAlignment="Left">
-                <StackPanel Orientation="Horizontal">
-                  <TextBlock x:Name="FingerprintText" FontFamily="Consolas" Foreground="#67e8f9" FontSize="12" VerticalAlignment="Center" Text="$displayFingerprint"/>
-                  <TextBlock x:Name="FingerprintIcon" FontSize="12" Foreground="#22d3ee" Margin="8,0,0,0" VerticalAlignment="Center">⎘</TextBlock>
-                </StackPanel>
-              </Button>
+              <TextBlock x:Name="FingerprintText" FontFamily="Consolas" Foreground="#67e8f9" FontSize="12" VerticalAlignment="Center" Text="$displayFingerprint"/>
             </StackPanel>
           </Grid>
         </Grid>
@@ -600,7 +605,8 @@ $xamlClean = @"
                        Background="Transparent" Foreground="#ffffff" BorderThickness="0" Padding="16,0,4,0"
                        VerticalContentAlignment="Center" CaretBrush="#22d3ee"
                        VerticalAlignment="Stretch" HorizontalContentAlignment="Stretch"
-                       SpellCheck.IsEnabled="False" AutoWordSelection="False"/>
+                       SpellCheck.IsEnabled="False" AutoWordSelection="False"
+                       CharacterSpacing="156"/>
               <!-- KeyRound simple icon on right -->
               <TextBlock Grid.Column="3" Foreground="#a1a1aa" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,0,14,0">🗝</TextBlock>
             </Grid>
@@ -616,9 +622,8 @@ $xamlClean = @"
         <Grid Grid.Row="7" Margin="0,18,0,0">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="Auto"/>
           </Grid.ColumnDefinitions>
-          <Button x:Name="SubmitBtn" Grid.Column="0" Height="50"
+          <Button x:Name="SubmitBtn" Height="50"
                   Background="{x:Null}"
                   Foreground="#ffffff" FontWeight="700" FontSize="14"
                   BorderThickness="0" Cursor="Hand" CornerRadius="10"
@@ -636,13 +641,9 @@ $xamlClean = @"
             </Button.Effect>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
               <TextBlock x:Name="SubmitIcon" VerticalAlignment="Center" FontSize="14" Margin="0,0,8,0">🔑</TextBlock>
-              <TextBlock x:Name="SubmitText" VerticalAlignment="Center" LetterSpacing="0.8">KÍCH HOẠT &amp; TIẾP TỤC</TextBlock>
+              <TextBlock x:Name="SubmitText" VerticalAlignment="Center" LetterSpacing="0.8">Kích hoạt</TextBlock>
             </StackPanel>
           </Button>
-          <Button x:Name="CancelBtn" Grid.Column="1" Margin="14,0,0,0" Width="110" Height="50"
-                  Background="Transparent" Foreground="#d4d4d8" FontWeight="600" FontSize="13"
-                  BorderBrush="#27272a" BorderThickness="1" Cursor="Hand" CornerRadius="10"
-                  Template="{StaticResource GhostButtonTemplate}">Hủy bỏ</Button>
         </Grid>
       </Grid>
     </Border>
@@ -658,16 +659,11 @@ $LicenseEdit    = $window.FindName('LicenseEdit')
 $SubmitBtn      = $window.FindName('SubmitBtn')
 $SubmitText     = $window.FindName('SubmitText')
 $SubmitIcon     = $window.FindName('SubmitIcon')
-$CancelBtn      = $window.FindName('CancelBtn')
 $KeyCounter     = $window.FindName('KeyCounter')
 $KeyBorder      = $window.FindName('KeyBorder')
 $FormAlert      = $window.FindName('FormAlert')
 $FormAlertText  = $window.FindName('FormAlertText')
 $FingerprintText= $window.FindName('FingerprintText')
-$FingerprintBtn = $window.FindName('FingerprintBtn')
-$FingerprintIcon= $window.FindName('FingerprintIcon')
-$HostNamePill   = $window.FindName('HostNamePill')
-$OsPill         = $window.FindName('OsPill')
 $PanelBorder    = $window.FindName('PanelBorder')
 $ShieldPath     = $window.FindName('ShieldPath')
 $ShieldCheck    = $window.FindName('ShieldCheck')
@@ -742,47 +738,67 @@ function Format-KeyInput {
 }
 
 # Populate device info + trigger dot green ready
-# HostNamePill shows DISPLAY case (user expects DESKTOP-XXX uppercase as in System
-# Properties). The canonical lowercase hostname is only used for server POST.
-$HostNamePill.Text = $hostnameDisplay
-$OsPill.Text       = $osInfo
 $FingerprintText.Text = $displayFingerprint
 if ($PanelBorder) { $PanelBorder.Tag = 'ready' }
 Set-MarkState 'default'
 Set-KeyBorderState 'default'
 Hide-Alert
 
-# Fingerprint pill click = copy hwid full to clipboard
-if ($FingerprintBtn) {
-  $FingerprintBtn.Add_Click({
-    try {
-      [System.Windows.Clipboard]::SetText($hwid)
-      $FingerprintIcon.Text = '✓'
-      $FingerprintIcon.Foreground = $brushConv.ConvertFromString('#10b981')
-      $FingerprintBtn.Background = $brushConv.ConvertFromString('#10b9811a')
-      $FingerprintBtn.BorderBrush = $brushConv.ConvertFromString('#10b98147')
-      $timer = New-Object System.Windows.Threading.DispatcherTimer
-      $timer.Interval = [TimeSpan]::FromMilliseconds(1400)
-      $timer.Add_Tick({
-        $timer.Stop()
-        $FingerprintIcon.Text = '⎘'
-        $FingerprintIcon.Foreground = $brushConv.ConvertFromString('#22d3ee')
-        $FingerprintBtn.Background = $brushConv.ConvertFromString('#22d3ee1a')
-        $FingerprintBtn.BorderBrush = $brushConv.ConvertFromString('#22d3ee47')
-      })
-      $timer.Start()
-    } catch { /* clipboard deny - ignore */ }
-  })
+$TYPING_FRAMES = @(
+  'XXXX-XXXX-XXXX',
+  'DXXX-XXXX-XXXX',
+  'DAXX-XXXX-XXXX',
+  'DAWX-XXXX-XXXX',
+  'DAWA-XXXX-XXXX',
+  'DAWA-SXXX-XXXX',
+  'DAWA-SEXX-XXXX',
+  'DAWA-SECX-XXXX',
+  'DAWA-SECR-XXXX',
+  'DAWA-SECRET-KEY'
+)
+$script:TypingIndex = 0
+$script:TypingActive = $true
+$LicenseEdit.Foreground = $brushConv.ConvertFromString('#52525b')
+$LicenseEdit.Text = $TYPING_FRAMES[0]
+
+$script:TypingTimer = New-Object System.Windows.Threading.DispatcherTimer
+$script:TypingTimer.Interval = [TimeSpan]::FromMilliseconds(720)
+$script:TypingTimer.Add_Tick({
+  $script:TypingIndex = ($script:TypingIndex + 1) % $TYPING_FRAMES.Length
+  if ($script:TypingActive) { $LicenseEdit.Text = $TYPING_FRAMES[$script:TypingIndex] }
+})
+$script:TypingTimer.Start()
+
+function Stop-TypingCycle {
+  if ($script:TypingTimer) {
+    $script:TypingTimer.Stop()
+    $script:TypingTimer = $null
+  }
+  $script:TypingActive = $false
 }
+
+$LicenseEdit.Add_GotFocus({
+  if ($script:TypingActive) {
+    Stop-TypingCycle
+    $LicenseEdit.Text = ''
+    $LicenseEdit.Foreground = $brushConv.ConvertFromString('#ffffff')
+  }
+})
 
 $LicenseEdit.Add_TextChanged({
   $caret = $LicenseEdit.CaretIndex
   $formatted = Format-KeyInput $LicenseEdit.Text
-  if ($LicenseEdit.Text -cne $formatted) {
-    $LicenseEdit.Text = $formatted
-    $LicenseEdit.CaretIndex = [Math]::Min($caret + 1, $formatted.Length)
+  if ($script:TypingActive -or $LicenseEdit.Text -cne $formatted) {
+    if (-not $script:TypingActive) {
+      $LicenseEdit.Text = $formatted
+      $LicenseEdit.CaretIndex = [Math]::Min($caret + 1, $formatted.Length)
+    }
   }
-  $KeyCounter.Text = "$($formatted.Replace('-','').Length)/14"
+  if ($script:TypingActive) {
+    $KeyCounter.Text = '0/14'
+  } else {
+    $KeyCounter.Text = "$($formatted.Replace('-','').Length)/14"
+  }
   Hide-Alert
   Set-KeyBorderState 'default'
   Set-MarkState 'default'
@@ -795,19 +811,27 @@ function Set-Busy {
   $script:Busy = $State
   $SubmitBtn.IsEnabled = -not $State
   $LicenseEdit.IsEnabled = -not $State
-  $CancelBtn.IsEnabled = -not $State
-  if ($FingerprintBtn) { $FingerprintBtn.IsEnabled = -not $State }
   if ($State) {
     $SubmitText.Text = 'Đang xác thực...'
     $SubmitIcon.Text = '⏳'
   } else {
-    $SubmitText.Text = 'KÍCH HOẠT & TIẾP TỤC'
+    $SubmitText.Text = 'Kích hoạt'
     $SubmitIcon.Text = '🔑'
   }
 }
 
 $SubmitBtn.Add_Click({
   if ($script:Busy -or $script:Validated) { return }
+  if ($script:TypingActive) {
+    Stop-TypingCycle
+    $LicenseEdit.Text = ''
+    $LicenseEdit.Foreground = $brushConv.ConvertFromString('#ffffff')
+    $LicenseEdit.Focus() | Out-Null
+    Show-Alert 'error' 'Vui lòng nhập mã key kích hoạt.'
+    Set-MarkState 'error'
+    Set-KeyBorderState 'error'
+    return
+  }
   $__keyText = [string]$LicenseEdit.Text
   $__keyClean = $__keyText -replace '[^A-Za-z0-9]',''
   $keyRaw = $__keyClean.ToUpper()
@@ -946,23 +970,15 @@ $SubmitBtn.Add_Click({
   Set-Busy $false
 })
 
-$CancelBtn.Add_Click({
-  if ($script:Validated -ne $true) {
-    $res = [System.Windows.MessageBox]::Show(
-      "License activation is required to run this installer.`r`n`r`nNo valid key = no files extracted. Are you sure you want to cancel setup?",
-      'Confirm Cancel', 'YesNo', 'Warning', 'No')
-    if ($res -ne 'Yes') { return }
-  }
-  $window.DialogResult = $false
-  $window.Close()
-})
-
 $window.Add_KeyDown({
   param($s, $e)
   if ($e.Key -eq 'Return' -and $SubmitBtn.IsEnabled -and -not $script:Validated) {
     $SubmitBtn.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
   } elseif ($e.Key -eq 'Escape') {
-    $CancelBtn.RaiseEvent([System.Windows.RoutedEventArgs]::new([System.Windows.Controls.Primitives.ButtonBase]::ClickEvent))
+    if ($script:Validated -ne $true) {
+      $window.DialogResult = $false
+      $window.Close()
+    }
   }
 })
 
