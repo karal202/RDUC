@@ -231,6 +231,7 @@ $xamlClean = @"
         Background="#07070a" Foreground="#F8FAFC"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
         WindowStyle="SingleBorderWindow" Topmost="True"
+        ShowInTaskbar="True" ShowActivated="True"
         FontFamily="Segoe UI, Inter, sans-serif"
         TextOptions.TextFormattingMode="Display">
   <Window.Resources>
@@ -966,8 +967,56 @@ $window.Add_KeyDown({
 })
 
 # Focus key input after window loaded (smooth UX)
+# Also aggressively STEAL foreground since we run during NSIS
+# preInit, immediately after user dismisses the SmartScreen
+# "Run anyway" warning; Windows often gives foreground lock
+# to the Explorer.exe process that spawned Setup.exe. This
+# hack (AttachThreadInput + AllowSetForegroundWindow +
+# SetForegroundWindow) reliably bypasses the 30-second lock.
+$window.Add_SourceInitialized({
+  try {
+    $hwndSrc = New-Object System.Windows.Interop.WindowInteropHelper($window)
+    $hwndVal = $hwndSrc.EnsureHandle()
+    if ($hwndVal -ne [IntPtr]::Zero) {
+      $typeUser32 = Add-Type -MemberDefinition @'
+[DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+[DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr lpProcessId);
+[DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
+[DllImport("user32.dll")] public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach);
+[DllImport("user32.dll")] public static extern bool AllowSetForegroundWindow(uint dwProcessId);
+[DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+[DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
+[DllImport("user32.dll")] public static extern IntPtr SetActiveWindow(IntPtr hWnd);
+'@ -Name 'DawaGateWin32' -Namespace 'Dawa' -PassThru
+      if ($typeUser32) {
+        $foreHwnd  = $typeUser32::GetForegroundWindow()
+        $foreTid   = $typeUser32::GetWindowThreadProcessId($foreHwnd, [IntPtr]::Zero)
+        $thisTid   = $typeUser32::GetCurrentThreadId()
+        if ($foreTid -ne 0 -and $foreTid -ne $thisTid) {
+          $null = $typeUser32::AttachThreadInput($thisTid, $foreTid, $true)
+        }
+        $procId    = [System.Diagnostics.Process]::GetCurrentProcess().Id
+        $null      = $typeUser32::AllowSetForegroundWindow($procId)
+        $null      = $typeUser32::ShowWindowAsync($hwndVal, 9)   ; # SW_RESTORE = 9 (pull from minimized if any)
+        $null      = $typeUser32::SetForegroundWindow($hwndVal)
+        $null      = $typeUser32::SetActiveWindow($hwndVal)
+        if ($foreTid -ne 0 -and $foreTid -ne $thisTid) {
+          $null = $typeUser32::AttachThreadInput($thisTid, $foreTid, $false)
+        }
+      }
+    }
+  } catch {
+    # Fallback: Activate() if the native pinvoke chain fails silently
+    try { $window.Activate() | Out-Null } catch {}
+  }
+})
 $window.Add_Loaded({
-  $window.Dispatcher.Invoke([action]{ $LicenseEdit.Focus() | Out-Null }, [System.Windows.Threading.DispatcherPriority]::Background) | Out-Null
+  $window.Dispatcher.Invoke([action]{
+    try { $window.Activate() | Out-Null } catch {}
+    try { $window.Topmost = $true } catch {}
+    $LicenseEdit.Focus() | Out-Null
+    $LicenseEdit.Select($LicenseEdit.Text.Length, 0) | Out-Null
+  }, [System.Windows.Threading.DispatcherPriority]::Background) | Out-Null
 })
 
 $result = $window.ShowDialog()
