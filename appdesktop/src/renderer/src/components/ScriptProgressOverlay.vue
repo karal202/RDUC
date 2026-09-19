@@ -1,11 +1,9 @@
 <script setup>
-import { computed, ref, watch, nextTick } from 'vue'
-import { Loader2, CheckCircle2, XCircle, X, Terminal, Activity, Zap } from 'lucide-vue-next'
+import { computed } from 'vue'
+import { Loader2, CheckCircle2, XCircle, X, Activity, Zap } from 'lucide-vue-next'
 import { useScriptRunner } from '../composables/useScriptRunner'
 
 const { state, closeOverlay, isRunning } = useScriptRunner()
-
-const logRef = ref(null)
 
 const statusMeta = computed(() => {
   switch (state.status) {
@@ -37,16 +35,6 @@ const progressColor = computed(() => {
   if (state.status === 'success') return '#22c55e'
   return state.accent || '#06b6d4'
 })
-
-watch(
-  () => state.logLines.length,
-  async () => {
-    await nextTick()
-    if (logRef.value) {
-      logRef.value.scrollTop = logRef.value.scrollHeight
-    }
-  }
-)
 </script>
 
 <template>
@@ -120,24 +108,6 @@ watch(
                 <div class="sp-progress-shine" />
               </div>
             </div>
-          </section>
-
-          <section class="sp-log-section">
-            <div class="sp-log-head">
-              <Terminal :size="12" class="text-cyan-400" />
-              <span>EXECUTION LOG</span>
-              <span class="sp-log-dot" :class="{ pulse: state.status === 'running' }" />
-            </div>
-            <pre ref="logRef" class="sp-log-view">
-<span
-  v-for="(line, i) in state.logLines"
-  :key="i"
-  class="sp-log-line"
-  :class="{
-    success: line.includes('✅') || line.includes('[DONE]') || line.includes('Hoàn tất'),
-    error: line.includes('❌') || line.includes('FATAL') || line.includes('Lỗi')
-  }"
->{{ line }}</span><span v-if="state.status === 'running' && !state.logLines.length" class="sp-log-placeholder">Đang khởi tạo subsystems...</span></pre>
           </section>
 
           <footer class="sp-footer">
@@ -437,88 +407,6 @@ watch(
   100% {
     transform: translateX(60%);
   }
-}
-
-.sp-log-section {
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  overflow: hidden;
-  background: #02040a;
-}
-
-.sp-log-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(255, 255, 255, 0.02);
-  font: 700 10px/1 var(--font-mono);
-  color: #64748b;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.sp-log-dot {
-  margin-left: auto;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #4ade80;
-}
-
-.sp-log-dot.pulse {
-  animation: logPulse 1s ease-in-out infinite;
-}
-
-@keyframes logPulse {
-  0%,
-  100% {
-    opacity: 0.4;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-.sp-log-view {
-  margin: 0;
-  padding: 12px 14px;
-  height: 160px;
-  overflow-y: auto;
-  font: 500 11.5px/1.65 var(--font-mono);
-  color: #94a3b8;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.sp-log-line {
-  display: block;
-  animation: logLineIn 0.25s ease-out;
-}
-
-@keyframes logLineIn {
-  from {
-    opacity: 0;
-    transform: translateY(-3px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.sp-log-line.success {
-  color: #4ade80;
-}
-
-.sp-log-line.error {
-  color: #f87171;
-}
-
-.sp-log-placeholder {
-  color: #475569;
-  font-style: italic;
 }
 
 .sp-footer {

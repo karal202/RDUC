@@ -134,8 +134,20 @@ function App() {
 
   useEffect(() => {
     const handleAuthExpired = () => {
-      localStorage.removeItem("accessToken");
+      try {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+      } catch {
+        /* ignore */
+      }
       setAuthenticated(false);
+      try {
+        setTimeout(() => {
+          window.location.replace(window.location.pathname + window.location.search);
+        }, 0);
+      } catch {
+        /* ignore */
+      }
     };
 
     window.addEventListener("auth-expired", handleAuthExpired);

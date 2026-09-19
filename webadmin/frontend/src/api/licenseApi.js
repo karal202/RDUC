@@ -42,8 +42,35 @@ export async function uploadScriptFile(url, file) {
   body.append("file", file);
   const res = await fetch(url, { method: "POST", headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}, body });
   const json = await res.json().catch(() => ({}));
+  if (
+    res.status === 401 ||
+    res.status === 403 ||
+    String(json?.message || "").toLowerCase().includes("jwt") ||
+    String(json?.message || "").toLowerCase().includes("token") ||
+    String(json?.message || "").toLowerCase().includes("hết hạn") ||
+    String(json?.message || "").toLowerCase().includes("đăng nhập")
+  ) {
+    window.dispatchEvent(new Event("auth-expired"));
+  }
   if (!res.ok) throw new Error(json?.message || "Upload failed");
   return json;
+}
+
+function _isAuthLikeError(error) {
+  if (!error) return false;
+  const causeText = error.cause ? String(error.cause?.message || error.cause || "") : "";
+  const text = String(error?.message || "") + " " + causeText;
+  const lower = text.toLowerCase();
+  return (
+    lower.includes("jwt") ||
+    lower.includes("token") ||
+    lower.includes("unauthorized") ||
+    lower.includes("401") ||
+    lower.includes("403") ||
+    lower.includes("hết hạn") ||
+    lower.includes("không có quyền") ||
+    lower.includes("đăng nhập")
+  );
 }
 
 export async function loadLicenseData() {
@@ -51,10 +78,21 @@ export async function loadLicenseData() {
   try {
     healthRes = await fetchJson(`${API_BASE}/health`);
   } catch (error) {
+    if (_isAuthLikeError(error)) {
+      window.dispatchEvent(new Event("auth-expired"));
+    }
     throw new Error("Không kết nối được với backend/database. Vui lòng kiểm tra máy chủ.", { cause: error });
   }
 
   if (!healthRes.success || healthRes.database !== "connected") {
+    if (
+      String(healthRes?.message || "").toLowerCase().includes("jwt") ||
+      String(healthRes?.message || "").toLowerCase().includes("token") ||
+      String(healthRes?.message || "").toLowerCase().includes("hết hạn") ||
+      String(healthRes?.message || "").toLowerCase().includes("đăng nhập")
+    ) {
+      window.dispatchEvent(new Event("auth-expired"));
+    }
     throw new Error(`Không kết nối được với database${healthRes.message ? `: ${healthRes.message}` : "."}`);
   }
 
@@ -70,6 +108,9 @@ export async function loadLicenseData() {
       fetchJson(`${API_BASE}/devices`),
     ]);
   } catch (error) {
+    if (_isAuthLikeError(error)) {
+      window.dispatchEvent(new Event("auth-expired"));
+    }
     throw new Error(`Không tải được dữ liệu từ backend/database: ${error.message}`, { cause: error });
   }
 

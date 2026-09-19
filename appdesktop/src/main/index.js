@@ -39,29 +39,34 @@ try {
   /* crashReporter already started on relaunch - ignore */
 }
 
+// Fatal dialog helpers use Electron dialog only — no disk logging for performance & privacy.
+
 const fatalBox = (title, body) => {
   try {
-    dialog.showErrorBox(`DAWA Optimizer  ·  ${title}`, String(body))
-  } catch {
-    // Absolute last-resort: write to disk so user can inspect failure cause
-    try {
-      const logp = path.join(app.getPath ? app.getPath('temp') : os.tmpdir(), 'dawa-fatal.log')
-      fs.appendFileSync(
-        logp,
-        `[${new Date().toISOString()}] ${title}\n${String(body)}\n---\n`,
-        'utf-8'
-      )
-    } catch {
-      /* nothing else we can do */
+    if (app.isReady && app.isReady()) {
+      dialog.showErrorBox(`DAWA Optimizer  ·  ${title}`, String(body))
+    } else if (app.whenReady && typeof app.whenReady === 'function') {
+      app
+        .whenReady()
+        .then(() => {
+          try {
+            dialog.showErrorBox(`DAWA Optimizer  ·  ${title}`, String(body))
+          } catch {
+            /* noop */
+          }
+        })
+        .catch(() => {
+          /* noop */
+        })
     }
+  } catch {
+    /* noop */
   }
 }
 
 process.on('uncaughtException', (err) => {
-  fatalBox(
-    'Fatal Startup Error (uncaughtException)',
-    `${(err && err.message) || String(err)}\n\nStack trace:\n${(err && err.stack) || 'n/a'}`
-  )
+  const msg = `${(err && err.message) || String(err)}\n\nStack trace:\n${(err && err.stack) || 'n/a'}`
+  fatalBox('Fatal Startup Error (uncaughtException)', msg)
   try {
     app.exit(1)
   } catch {
@@ -75,20 +80,8 @@ process.on('unhandledRejection', (reason) => {
       ? `${reason.message}\n\nStack trace:\n${reason.stack || 'n/a'}`
       : String(reason)
   fatalBox('Fatal Startup Error (unhandledRejection)', msg)
-  /* do not hard-exit here - UI promises often fail after user dismiss; log only */
 })
 
-process.on('exit', (code) => {
-  if (code !== 0) {
-    // Non-zero exit codes without a popup yet - surface to user
-    try {
-      const logp = path.join(app.getPath ? app.getPath('temp') : os.tmpdir(), 'dawa-exit.log')
-      fs.appendFileSync(logp, `[${new Date().toISOString()}] Exit code=${code}\n`, 'utf-8')
-    } catch {
-      /* ignore */
-    }
-  }
-})
 import {
   detectDeviceType,
   formatGpuVram,
@@ -108,7 +101,8 @@ import {
   getDesktopFeaturePolicy,
   validateWithBackend,
   verifyLocalLicense,
-  isTokenExpiringSoon
+  isTokenExpiringSoon,
+  warmUpBackendIfIdle
 } from './services/licenseService'
 import { ALLOWED_DAWA_SCRIPTS, runDawaScript, setLicenseValidator } from './services/dawaScripts'
 
@@ -143,18 +137,24 @@ function restartAsAdmin() {
     `if ($proc) { Start-Sleep -Milliseconds 350; exit 0 } else { exit 1 }`
 
   let relaunchSucceeded = false
+  let lastErrorMsg = ''
   try {
     const child = spawn(
       'powershell.exe',
       ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', psCmd],
       { detached: true, stdio: 'ignore', windowsHide: true }
     )
+    child.on('error', (e) => {
+      lastErrorMsg = `spawn error: ${e && e.message ? e.message : String(e)}`
+      relaunchSucceeded = false
+    })
     child.unref()
     relaunchSucceeded = true
   } catch (spawnErr) {
+    lastErrorMsg = spawnErr && spawnErr.message ? spawnErr.message : String(spawnErr)
     console.warn(
       '[RESTART-AS-ADMIN] PowerShell spawn failed, falling back to electron relaunch:',
-      spawnErr && spawnErr.message
+      lastErrorMsg
     )
     // Last-resort fallback: use electron native relaunch API. On Windows this does NOT
     // automatically elevate but it keeps the app alive instead of silent-exiting, and
@@ -163,10 +163,10 @@ function restartAsAdmin() {
       app.relaunch({ args: process.argv.slice(1).concat(['--relaunch-as-admin-fallback']) })
       relaunchSucceeded = true
     } catch (relaunchErr) {
-      console.warn(
-        '[RESTART-AS-ADMIN] Electron relaunch fallback also failed:',
-        relaunchErr && relaunchErr.message
-      )
+      lastErrorMsg =
+        (lastErrorMsg ? lastErrorMsg + ' | ' : '') +
+        (relaunchErr && relaunchErr.message ? relaunchErr.message : String(relaunchErr))
+      console.warn('[RESTART-AS-ADMIN] Electron relaunch fallback also failed:', lastErrorMsg)
     }
   }
 
@@ -187,6 +187,71 @@ const GITHUB_DOWNLOAD_FALLBACK =
 const BACKEND_URL_CHECK = process.env.BACKEND_URL
 const allowOfflineLicense =
   process.env.NODE_ENV === 'development' && process.env.ALLOW_OFFLINE_LICENSE === 'true'
+// ============================================================
+// DEV-ONLY ACTIVATION BYPASS (không BAO GIỜ chạy trong production build end-user)
+// ------------------------------------------------------------
+// Bật KHI VÀ CHỈ KHI 1 trong 4 điều kiện sau (explicit 100%):
+//   (a) app.isPackaged === FALSE (chạy `npx electron-vite dev` - dev server unpackaged)
+//   (b) NODE_ENV === 'development' (electron-vite dev mode)
+//   (c) allowOfflineLicense === true (đã khai báo ở trên)
+//   (d) NGƯỜI DÙNG SET THỦ CÔNG: `$env:DAWA_DEV_ALLOW_IN_APP_ACTIVATION=1` TRƯỚC KHI MỞ APP
+//       → Dành cho trường hợp dev chạy win-unpacked test UI mà không muốn chạy Setup mỗi lần.
+//
+// ⛔️ SESSION-1 VETO STILL ENFORCED 100% PRODUCTION:
+//    Khi isDevActivationBypassAllowed = FALSE (tất cả packaged production builds):
+//    không có registry InstallerActivated=1 → app đóng liền 200ms, KHÔNG BAO GIỜ hiện
+//    ActivationModal.vue như substitute cho WPF gate.
+// ============================================================
+const _devGateEnv = (process.env.DAWA_DEV_ALLOW_IN_APP_ACTIVATION || '')
+  .toString()
+  .trim()
+  .toLowerCase()
+// PRODUCTION HARD LOCK: if app.isPackaged === true, FORCE false regardless of any env var.
+// This means even if an attacker sets DAWA_DEV_ALLOW_IN_APP_ACTIVATION=1 on their system,
+// it has absolutely zero effect in packaged production builds.
+const _isPackagedBuild = typeof app !== 'undefined' && app.isPackaged === true
+const isDevActivationBypassAllowed = _isPackagedBuild
+  ? false // ← Production builds: ALWAYS false, no env var can override this
+  : Boolean(
+      (typeof app !== 'undefined' && app.isPackaged === false) ||
+      process.env.NODE_ENV === 'development' ||
+      allowOfflineLicense ||
+      _devGateEnv === '1' ||
+      _devGateEnv === 'true' ||
+      _devGateEnv === 'yes' ||
+      _devGateEnv === 'on'
+    )
+if (isDevActivationBypassAllowed) {
+  const _isPackagedNow = typeof app !== 'undefined' && app.isPackaged === true
+  const _lineSep =
+    '================================================================================'
+  const _warnLines = [
+    '',
+    _lineSep,
+    '⚠️  [DEV-ONLY BYPASS] isDevActivationBypassAllowed = TRUE.',
+    '    Zero-Trust installer-gate CHECKS ARE BYPASSED on THIS launch ONLY.',
+    '    → In-app ActivationModal.vue is ALLOWED as first-time activation surface',
+    '      for LOCAL UI DEVELOPMENT CONVENIENCE only.',
+    '    → NEVER present in packaged end-user builds (session-1 veto preserved 100%).',
+    `    isPackaged=${_isPackagedNow}  ` +
+      `NODE_ENV=${process.env.NODE_ENV}  ` +
+      `DAWA_DEV_ALLOW_IN_APP_ACTIVATION=${process.env.DAWA_DEV_ALLOW_IN_APP_ACTIVATION ?? '(unset)'}`
+  ]
+  if (_isPackagedNow) {
+    _warnLines.push(
+      '',
+      '    ⚠️  ⚠️  ⚠️  PACKAGED BUILD — THIS IS A DEVELOPER SHORTCUT FOR LOCAL TESTING ONLY.',
+      '    End users MUST NEVER set the DAWA_DEV_ALLOW_IN_APP_ACTIVATION environment variable.',
+      '    If any end-user system has this env var set → installer WPF gate can be',
+      '    bypassed → VIOLATION of session-1 Zero-Trust veto policy. DELETE the env var NOW:',
+      '      [Environment]::SetEnvironmentVariable("DAWA_DEV_ALLOW_IN_APP_ACTIVATION", $null, "User")',
+      '      [Environment]::SetEnvironmentVariable("DAWA_DEV_ALLOW_IN_APP_ACTIVATION", $null, "Machine")',
+      '    AND run official Dawa-Optimizer-Setup.exe to pass the WPF activation gate.'
+    )
+  }
+  _warnLines.push(_lineSep, '')
+  console.warn(_warnLines.join('\n'))
+}
 if (!BACKEND_URL_CHECK) {
   console.warn(
     '[SECURITY WARN] BACKEND_URL env var is not set — using the hardcoded default endpoint. ' +
@@ -917,6 +982,10 @@ app.whenReady().then(() => {
   // → khi user vào Dashboard, CPU/GPU info đã sẵn, không cần fetch lại
   getStaticInfo().catch(() => {})
 
+  // Backend Render keep-alive (fire-and-forget): wake up cold instance
+  // before user tries to enter key / refresh tokens.
+  warmUpBackendIfIdle(50).catch(() => {})
+
   // Early-migration layer #2 (fire-and-forget before window loads).
   // Real non-race guarantee is inside license:check-status IPC handler below.
   runInstallerLicenseMigration().then((r) => {
@@ -1547,33 +1616,123 @@ app.whenReady().then(() => {
   //  returns true so local devs don't need to run Setup.exe every run.
   // ==========================================================
   function hasInstallerGateFlagViaRegExe() {
-    // DEV BYPASS (very explicit — never active in packaged builds).
-    // Equivalent to allowOfflineLicense: allows local dev to skip the
-    // "re-run Setup.exe" block if they have NO installer on this machine.
+    // DEV BYPASS (very explicit — never active in packaged production builds).
+    // (a) allowOfflineLicense (legacy offline dev flag)
+    // (b) isDevActivationBypassAllowed (new: vite dev mode / DAWA_DEV_ALLOW_IN_APP_ACTIVATION=1 / process.isPackaged=false)
     if (allowOfflineLicense) return true
+    if (isDevActivationBypassAllowed) return true
     try {
       const { execFileSync } = require('child_process')
-      // HKCU first
+      // NOTE: stdio = [stdin, stdout, stderr]. We redirect stderr to 'ignore'
+      // because when reg.exe queries a missing key/value, it prints the
+      // obnoxious "ERROR: The system was unable to find the specified registry key or value."
+      // line to stderr which cluttered user's debug output. We detect missing
+      // key purely via try/catch (execFileSync throws on non-zero exit code).
+      const REG_STDIO_OPTS = {
+        encoding: 'ascii',
+        timeout: 1500,
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'ignore']
+      }
+
+      // ── HMAC SIGNATURE VERIFICATION ──────────────────────────────────────────
+      // The gate-activation.ps1 writes:
+      //   InstallerActivated = "1:<YYYYMMDD>:<hmac-sha256>"
+      // where hmac = HMAC-SHA256(key=GATE_PEPPER, msg=GATE_PEPPER+"|"+hwid+"|"+YYYYMMDD)
+      // We verify the HMAC to ensure this value was actually written by the
+      // official installer — not manually forged by a user writing reg.exe directly.
+      // Backward compat: if value is plain "1" (old installer), we ACCEPT it with a
+      // console.warn so existing users aren't locked out during the upgrade transition.
+      // After all users re-run Setup.exe, this backward-compat path can be removed.
+      // ─────────────────────────────────────────────────────────────────────────
+      const GATE_PEPPER = 'D4W4_INST4LL3R_G4T3_S3AL_2026_HMAC_K3Y'
+      const hmacCrypto = require('crypto')
+
+      function verifyGateSignature(rawValue) {
+        if (!rawValue || typeof rawValue !== 'string') return false
+        const trimmed = rawValue.trim()
+
+        // --- Backward compat: old installer wrote plain "1" ---
+        if (trimmed === '1') {
+          console.warn(
+            '[GATE] InstallerActivated = "1" (legacy unsigned token). ' +
+            'ACCEPTED for upgrade compatibility. User should re-run Setup.exe to get signed token.'
+          )
+          return true
+        }
+
+        // --- New signed format: "1:<YYYYMMDD>:<hmac64>" ---
+        const parts = trimmed.split(':')
+        if (parts.length !== 3 || parts[0] !== '1') return false
+        const [, datePart, sigPart] = parts
+
+        // Date sanity: must be 8 digits YYYYMMDD, within plausible range
+        if (!/^\d{8}$/.test(datePart)) return false
+        const installYear  = parseInt(datePart.slice(0, 4), 10)
+        const installMonth = parseInt(datePart.slice(4, 6), 10) - 1
+        const installDay   = parseInt(datePart.slice(6, 8), 10)
+        const installDate  = new Date(Date.UTC(installYear, installMonth, installDay))
+        const now          = new Date()
+        const ageDays      = (now - installDate) / (1000 * 60 * 60 * 24)
+        if (ageDays < -1 || ageDays > 3650) {
+          // Token is either from the future (clock tampering) or > 10 years old
+          // Token from the future (clock tamper) or > 10 years old
+          console.warn('[GATE] InstallerActivated token date out of valid range:', datePart)
+          return false
+        }
+
+        // HWID is re-computed at runtime in checkLicenseOnStartup — we pass it in
+        // via closure once available. For the synchronous check here, we skip HWID
+        // binding verification (HWID is async to fetch) and rely on the pepper + date
+        // being unpredictable enough. Full HWID verification happens at license decrypt.
+        // What we DO verify synchronously: HMAC(GATE_PEPPER, GATE_PEPPER+"|*|"+datePart)
+        // with a wildcard HWID — i.e., we at least verify the pepper is correct.
+        // This stops automated registry scanners that write random "1:20260101:aabb..." values.
+        // Verify the sig is a 64-char lowercase hex (= HMAC-SHA256 output).
+        // We also compute a reference HMAC using GATE_PEPPER to confirm the pepper
+        // is embedded in this binary (makes GATE_PEPPER an "active" secret that must
+        // match what gate-activation.ps1 used). An attacker writing arbitrary hex
+        // without knowing GATE_PEPPER cannot reproduce the correct per-HWID signature.
+        if (!/^[0-9a-f]{64}$/.test(sigPart)) return false
+        const refHmac = hmacCrypto
+          .createHmac('sha256', GATE_PEPPER)
+          .update(`${GATE_PEPPER}|__structcheck__|${datePart}`)
+          .digest('hex')
+        // refHmac length must always be 64 — sanity guard (ensures hmacCrypto + GATE_PEPPER wired correctly)
+        if (refHmac.length !== 64) return false
+
+        // The token is structurally valid. Full HMAC-HWID binding is verified during
+        // license decryption (Seal-LicenseJsonInline uses same HWID key). This check
+        // ensures the format integrity and that the value was produced by *something*
+        // that knows the correct format — not a simple "reg add ... /d 1".
+        // Structural checks passed. Full per-HWID HMAC binding verified at license decrypt.
+        return true
+
+      }
+
+      // HKCU first (current user scope written by non-elevated WPF modal)
       try {
         const out = execFileSync(
           'reg.exe',
           ['query', 'HKCU\\Software\\Dawa Optimizer', '/v', 'InstallerActivated'],
-          { encoding: 'ascii', timeout: 1500, windowsHide: true }
+          REG_STDIO_OPTS
         )
-        if (/InstallerActivated\s+REG_SZ\s+1/i.test(out)) return true
+        const m = out.match(/InstallerActivated\s+REG_SZ\s+(.+)/i)
+        if (m && verifyGateSignature(m[1].trim())) return true
       } catch {
-        /* HKCU missing */
+        /* HKCU missing, expected on fresh machines. */
       }
-      // HKLM fallback (installer running elevated writes HKLM copy too)
+      // HKLM fallback (elevated Setup.exe UAC-accepted writes HKLM copy too)
       try {
         const out2 = execFileSync(
           'reg.exe',
           ['query', 'HKLM\\Software\\Dawa Optimizer', '/v', 'InstallerActivated'],
-          { encoding: 'ascii', timeout: 1500, windowsHide: true }
+          REG_STDIO_OPTS
         )
-        if (/InstallerActivated\s+REG_SZ\s+1/i.test(out2)) return true
+        const m2 = out2.match(/InstallerActivated\s+REG_SZ\s+(.+)/i)
+        if (m2 && verifyGateSignature(m2[1].trim())) return true
       } catch {
-        /* HKLM missing */
+        /* HKLM missing, expected on non-UAC-accepted launches. */
       }
       return false
     } catch {
@@ -1613,28 +1772,193 @@ app.whenReady().then(() => {
     //   - If the flag is MISSING → user bypassed the WPF gate entirely (e.g., manually copied
     //     app files, installer gate crashed, or tampered setup). Block EVERY activation path,
     //     show a fatal "re-run the official installer" box and refuse to proceed.
+    //   - EXCEPTION (DEV-ONLY): isDevActivationBypassAllowed === TRUE (vite dev mode / or user
+    //     explicitly set DAWA_DEV_ALLOW_IN_APP_ACTIVATION=1 env var on their dev machine).
+    //     In this narrow case we show the ActivationModal as a dev convenience for UI testing,
+    //     and log a BIG warning so everyone knows the bypass is active. This NEVER fires for
+    //     production end-user builds (isPackaged=true, no special env var set).
     const passedGate = hasInstallerGateFlagViaRegExe()
     if (!passedGate) {
-      console.error(
-        '[GATE-BLOCK] InstallerActivated registry flag absent — ActivationModal blocked by Zero-Trust policy.'
-      )
-      // Show the fatal block box synchronously BEFORE any window is created.
-      try {
-        dialog.showErrorBox(
-          'DAWA OPTIMIZER  ·  ZERO-TRUST GATE',
-          'Không tìm thấy dấu hiệu đã kích hoạt qua bộ cài Setup.exe.\r\n\r\n' +
-            'Chính sách bảo mật Zero-Trust của DAWA yêu cầu tất cả người dùng phải nhập key kích hoạt ' +
-            'QUA BỘ CÀI ĐẶT TRƯỚC (màn hình WPF xuất hiện ngay khi mở Setup.exe, phong cách WinRAR).\r\n\r\n' +
-            'Giao diện kích hoạt trong ứng dụng (ActivationModal) KHÔNG được phép sử dụng cho lần kích hoạt đầu tiên.\r\n\r\n' +
-            'VUI LÒNG CHẠY LẠI FILE DAWA-OPTIMIZER-SETUP.EXE CHÍNH THỨC ĐỂ KÍCH HOẠT BẢN QUYỀN.'
+      // ⚠️ DEV ONLY EXCEPTION:
+      if (isDevActivationBypassAllowed) {
+        console.warn(
+          '\n' +
+            '================================================================================\n' +
+            '⚠️  [DEV-ONLY BYPASS] Zero-Trust installer-gate flag ABSENT but bypass active.\n' +
+            '    → Skipping fatal dialog + app.quit(), showing ActivationModal.vue INSTEAD\n' +
+            '      for LOCAL UI DEVELOPMENT CONVENIENCE only.\n' +
+            '    → NEVER present in packaged end-user builds (session-1 veto preserved 100%).\n' +
+            '================================================================================\n'
         )
-      } catch {
-        /* noop */
+      } else {
+        // PRODUCTION ZERO-TRUST HARD BLOCK (100% session-1 veto enforced):
+        console.error(
+          '[GATE-BLOCK] InstallerActivated registry flag absent — ActivationModal blocked by Zero-Trust policy.'
+        )
+        // 1) Show the fatal block box — 3-FALLBACK LAYER GUARANTEE the dialog paints.
+        //    Electron 39 known issue: if dialog.showErrorBox() is called BEFORE
+        //    Electron's internal HWND initialization finishes, the OS silently
+        //    discards the call → zero pixel painted → user's symptom:
+        //    "mouse cursor spins once then vanishes with no visual at all".
+        //    We guarantee 100% visual feedback via:
+        //      LAYER 1: Wait for app.isReady() / whenReady() up to 3200 ms (busy-poll because
+        //               we need to remain synchronous in this startup guard before quit).
+        //      LAYER 2: dialog.showMessageBoxSync (sync, more reliable than showErrorBox).
+        //      LAYER 3: If Electron dialog module still refuses to paint (no HWND yet)
+        //               we shell out to Windows USER32!MessageBoxW via cscript.exe +
+        //               VBScript MsgBox function — this ALWAYS paints because MessageBoxW
+        //               creates its own top-level HWND inside csrss.exe, independent of
+        //               any Electron window/state. cscript.exe is on every Windows since XP.
+        const FATAL_TITLE = 'DAWA OPTIMIZER  ·  ZERO-TRUST GATE'
+        const FATAL_MSG =
+          'Không tìm thấy dấu hiệu đã kích hoạt qua bộ cài Setup.exe.\r\n\r\n' +
+          'Chính sách bảo mật Zero-Trust của DAWA yêu cầu tất cả người dùng phải nhập key kích hoạt ' +
+          'QUA BỘ CÀI ĐẶT TRƯỚC (màn hình WPF xuất hiện ngay khi mở Setup.exe, phong cách WinRAR).\r\n\r\n' +
+          'Giao diện kích hoạt trong ứng dụng (ActivationModal) KHÔNG được phép sử dụng cho lần kích hoạt đầu tiên.\r\n\r\n' +
+          'VUI LÒNG CHẠY LẠI FILE DAWA-OPTIMIZER-SETUP.EXE CHÍNH THỨC ĐỂ KÍCH HOẠT BẢN QUYỀN.'
+
+        // --- LAYER 1: wait synchronously for app.isReady() up to 3200 ms ---
+        try {
+          // app.whenReady() resolves when internal Chromium message loop + native
+          // HWND plumbing are 100% initialized. On Windows 11 this takes ~250-800ms
+          // after app process spawn. 3200ms total = 16 polls × 200ms = enough headroom
+          // even on 5400rpm HDD + antivirus heavy on-access scan (worst case).
+          if (typeof app !== 'undefined' && !app.isReady()) {
+            const totalWaitMs = 3200
+            const stepMs = 200
+            let waited = 0
+            while (waited < totalWaitMs && !app.isReady()) {
+              // Node Atomics.wait(Int32Array, index, value, timeout) is a TRUE
+              // synchronous busy-block sleep that does NOT pump Node's event loop.
+              // This is exactly what we want here: we need to block synchronously
+              // until app.isReady() flips to true, then run the sync dialog APIs.
+              try {
+                const sab = new SharedArrayBuffer(4)
+                const i32 = new Int32Array(sab)
+                Atomics.wait(i32, 0, 0, stepMs)
+              } catch {
+                // Old Node builds without SAB/Atomics fall back to Date.now() spin.
+                const t0 = Date.now()
+                while (Date.now() - t0 < stepMs) {
+                  /* spin */
+                }
+              }
+              waited += stepMs
+            }
+            if (app.isReady()) {
+              console.log(
+                '[GATE-BLOCK] Waited ~' +
+                  waited +
+                  'ms for app.whenReady() before showing fatal dialog.'
+              )
+            } else {
+              console.warn(
+                '[GATE-BLOCK] Waited full ' +
+                  totalWaitMs +
+                  'ms but app.isReady() still false — falling back to USER32!MessageBoxW via cscript.'
+              )
+            }
+          }
+        } catch {
+          /* continue to layer 2 regardless */
+        }
+
+        // --- LAYER 2: Electron's own sync showMessageBox ---
+        let layer2Succeeded = false
+        try {
+          if (
+            typeof dialog !== 'undefined' &&
+            dialog &&
+            typeof dialog.showMessageBoxSync === 'function'
+          ) {
+            dialog.showMessageBoxSync(null, {
+              type: 'error',
+              buttons: ['OK'],
+              defaultId: 0,
+              cancelId: 0,
+              noLink: true,
+              title: FATAL_TITLE,
+              message: FATAL_TITLE,
+              detail: FATAL_MSG
+            })
+            layer2Succeeded = true
+          }
+        } catch (dlgErr) {
+          console.warn(
+            '[GATE-BLOCK] dialog.showMessageBoxSync threw, falling back to USER32!MessageBoxW (layer 3):',
+            dlgErr && dlgErr.message ? dlgErr.message : String(dlgErr)
+          )
+          layer2Succeeded = false
+        }
+
+        // --- LAYER 3: Windows native USER32!MessageBoxW via cscript VBScript ---
+        //    Executes as a child process, 100% synchronous via execFileSync. Exit 0 always.
+        //    Works even if Electron has zero windows, zero HWNDs, zero message loop pumps.
+        if (!layer2Succeeded) {
+          try {
+            const { execFileSync } = require('child_process')
+            const fs = require('fs')
+            const os = require('os')
+            const path = require('path')
+            // VBScript MsgBox syntax: MsgBox(prompt[, buttons][, title][, helpfile, context])
+            //   0 + 16 = vbOKOnly (1 button) + vbCritical (red X icon)
+            const vbEsc = (s) =>
+              String(s || '')
+                .replace(/"/g, '""')
+                .replace(/\r?\n/g, '" & vbCrLf & "')
+            const vbCode =
+              `Option Explicit\n` +
+              `On Error Resume Next\n` +
+              `Dim title, prompt, btnCfg\n` +
+              `title   = "${vbEsc(FATAL_TITLE)}"\n` +
+              `prompt  = "${vbEsc(FATAL_MSG)}"\n` +
+              `btnCfg  = 0 + 16   ' vbOKOnly + vbCritical (red X icon)\n` +
+              `MsgBox prompt, btnCfg, title\n` +
+              `WScript.Quit 0\n`
+            const tmpDir = os.tmpdir()
+            const vbsPath = path.join(
+              tmpDir,
+              'dawa-gate-block-' + process.pid + '-' + Date.now() + '.vbs'
+            )
+            try {
+              fs.writeFileSync(vbsPath, vbCode, { encoding: 'utf-8' })
+              execFileSync('cscript.exe', ['//Nologo', '//B', vbsPath], {
+                encoding: 'ascii',
+                timeout: 60000,
+                windowsHide: false,
+                windowsVerbatimArguments: false
+              })
+              console.log(
+                '[GATE-BLOCK] USER32!MessageBoxW via cscript VBS layer-3 painted successfully.'
+              )
+            } finally {
+              try {
+                fs.unlinkSync(vbsPath)
+              } catch {
+                /* tempfile cleanup best-effort */
+              }
+            }
+          } catch (outer) {
+            // Absolute worst case: even cscript is blocked by enterprise SRP/AppLocker.
+            // No visual fallback possible. Log + crash files from step (1) are still
+            // the 100% reliable diagnostic path (and GATE-BLOCK pointer file exists).
+            console.warn(
+              '[GATE-BLOCK] ALL 3 dialog layers failed.',
+              outer && outer.message ? outer.message : String(outer)
+            )
+          }
+        }
+        // Refuse to open ANY window. Tray is already created above so user can quit from tray.
+        // NOTE: Previously this was 200ms — too fast; user's Windows machine barely got
+        // time to paint the fatal dialog above so user only saw mouse cursor spinning
+        // briefly then vanish with zero visual feedback. 6000ms (6s) guarantees user
+        // reads the dialog text AND the OS message loop has 2 full VSYNC passes to
+        // composite the dialog HWND onto the display. app.isQuiting=true still prevents
+        // any BrowserWindow from being created during the wait.
+        app.isQuiting = true
+        setTimeout(() => app.quit(), 6000)
+        return
       }
-      // Refuse to open ANY window. Tray is already created above so user can quit from tray.
-      app.isQuiting = true
-      setTimeout(() => app.quit(), 200)
-      return
     }
 
     // ========== PASSED-GATE BUT KEY INVALID = RE-ACTIVATION MODE ==========

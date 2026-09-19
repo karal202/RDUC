@@ -31,6 +31,8 @@ Var /GLOBAL AppDataLicensePath
 Var /GLOBAL ProgramDataDir
 Var /GLOBAL ProgramDataLicenseDir
 Var /GLOBAL ProgramDataLicensePath
+Var /GLOBAL GatePsExePath
+Var /GLOBAL GatePsExeTmp0
 
 ; ====================================================================
 ; PURGE MACRO (SAFE — ZERO LABELS):
@@ -54,14 +56,22 @@ Var /GLOBAL ProgramDataLicensePath
 ;   electron-builder only auto-copies icon/license/DLL plugins into
 ;   $PLUGINSDIR during makensis; loose build/*.ps1 are silently
 ;   ignored so gate-activation.ps1 was missing at runtime → WPF
-;   never painted. We File-copy both ps1s explicitly from
+;   never painted. We File-copy ALL 3 ps1 helpers explicitly from
 ;   BUILD_RESOURCES_DIR (electron-builder passes this via /D).
+;   Files staged:
+;     (1) gate-activation.ps1   → WPF XAML window + backend validate
+;     (2) dawa-gate-runner.ps1  → UTF8 firewall invoker (ReadAllBytes
+;                                 + UTF8.GetString + scriptblock::Create
+;                                 — eliminates BOM/codepage ambiguity)
+;     (3) encrypt-license.ps1   → side-by-side CBC seal helper used
+;                                 by gate-activation.ps1 when param
+;                                 EncryptPs1Path is empty (default).
 ; ====================================================================
 Function DawaFn_EnsureGatePs1InPluginsdir
   SetOutPath $PLUGINSDIR
   File /oname=$PLUGINSDIR\gate-activation.ps1  "${BUILD_RESOURCES_DIR}\gate-activation.ps1"
-  ; encrypt-license.ps1 is side-by-side required by gate-activation.ps1
-  ; when its EncryptPs1Path param is empty (the default).
+  File /oname=$PLUGINSDIR\dawa-gate-runner.ps1 "${BUILD_RESOURCES_DIR}\dawa-gate-runner.ps1"
+  File /oname=$PLUGINSDIR\icon.ico            "${BUILD_RESOURCES_DIR}\icon.ico"
   IfFileExists "${BUILD_RESOURCES_DIR}\encrypt-license.ps1" 0 DawaPsCopyDone
   File /oname=$PLUGINSDIR\encrypt-license.ps1 "${BUILD_RESOURCES_DIR}\encrypt-license.ps1"
 DawaPsCopyDone:
@@ -75,52 +85,128 @@ FunctionEnd
 ;   DawaFn_BlockUnattendedSilent
 ;   Repack/crack wrappers often run "Setup.exe /S" to skip every
 ;   interactive page entirely (including the WPF activation window).
-;   Zero-Trust hard-stop: walk $CMDLINE char-by-char for /S -S /silent
-;   /SILENT /VERYSILENT /verysilent variations (case-insensitive);
-;   if anything matches → IMMEDIATE Quit (0 bytes extracted).
+;
+;   HARD RULE 1 — WORD-BOUNDARY CHECK (eliminates false positives like
+;   "-Setup.exe" being wrongly detected as silent flag "-S"):
+;     • Char BEFORE the '/' or '-' that starts a candidate MUST be:
+;       space | tab | double-quote | null (start of $CMDLINE)
+;     • Char AFTER the last char of the matched flag MUST be:
+;       space | tab | double-quote | ':' | '=' | null (end of $CMDLINE)
+;
+;   HARD RULE 2 — Only match if BOTH boundaries pass.
 ; ====================================================================
 Function DawaFn_BlockUnattendedSilent
   Push $R0
   Push $R1
+  Push $R2
+  Push $R3
+  Push $R4
+  ; ───────── Registers summary ─────────
+  ; $R0 = remaining CMDLINE string (we eat 1 char left per iteration)
+  ; $R1 = first char of $R0 at the TOP of the loop  (= current char, NEVER overwritten)
+  ; $R2 = previous char (char BEFORE $R1 across iterations; starts as SPACE = virtual boundary)
+  ; $R3 = char AFTER a matched flag  (used for post-boundary check)
+  ; $R4 = scratch multi-char pattern (2/7/10/11 long)  — overwritten freely
+  ; ────────────────────────────────────
   StrCpy $R0 $CMDLINE
+  StrCpy $R2 " "
   StrCmp $R0 "" DawaSilentCheckDone DawaSilentLoop
 DawaSilentLoop:
   StrCmp $R0 "" DawaSilentCheckDone
-  StrCpy $R1 $R0 1 ""
-  StrCmp $R1 "/" DawaSilentMaybeFlag DawaSilentNotSlash1
-  Goto DawaSilentMaybeFlag
-DawaSilentNotSlash1:
-  StrCmp $R1 "-" DawaSilentMaybeFlag DawaSilentCharNext
-DawaSilentMaybeFlag:
-  ; First: 2-char short forms /S /s -S -s
-  StrCpy $R1 $R0 2 ""
-  StrCmp $R1 "/S" DawaSilentAbort DawaSilentMaybeShort2
-DawaSilentMaybeShort2:
-  StrCmp $R1 "/s" DawaSilentAbort DawaSilentMaybeShort3
-DawaSilentMaybeShort3:
-  StrCmp $R1 "-S" DawaSilentAbort DawaSilentMaybeShort4
-DawaSilentMaybeShort4:
-  StrCmp $R1 "-s" DawaSilentAbort DawaSilentMaybeLong1
-DawaSilentMaybeLong1:
-  ; 7-char: /SILENT /silent
-  StrCpy $R1 $R0 7 ""
-  StrCmp $R1 "/SILENT" DawaSilentAbort DawaSilentMaybeLong2
-DawaSilentMaybeLong2:
-  StrCmp $R1 "/silent" DawaSilentAbort DawaSilentMaybeLong3
-DawaSilentMaybeLong3:
-  ; 11-char: /VERYSILENT /verysilent
-  StrCpy $R1 $R0 11 ""
-  StrCmp $R1 "/VERYSILENT" DawaSilentAbort DawaSilentMaybeLong4
-DawaSilentMaybeLong4:
-  StrCmp $R1 "/verysilent" DawaSilentAbort DawaSilentCharNext
+  StrCpy $R1 $R0 1 ""   ; $R1 = current char; DO NOT overwrite $R1 later!
+  ; (A) Is the current char a flag-starter?
+  StrCmp $R1 "/" 0 DawaSilentNotSlash
+  Goto DawaSilentCheckPrevBoundary
+DawaSilentNotSlash:
+  StrCmp $R1 "-" 0 DawaSilentCharNext   ; nope → move on
+DawaSilentCheckPrevBoundary:
+  ; (B) Char BEFORE '/-' must be whitespace / double-quote / virtual start.
+  StrCmp $R2 " " DawaSilentPrevOK DawaSilentPrevChk2
+DawaSilentPrevChk2:
+  StrCmp $R2 "$\t" DawaSilentPrevOK DawaSilentPrevChk3
+DawaSilentPrevChk3:
+  StrCmp $R2 '"' DawaSilentPrevOK DawaSilentCharNext   ; not a real flag boundary → skip
+DawaSilentPrevOK:
+  ; ── 2-char short flags: /S /s -S -s ──
+  StrCpy $R4 $R0 2 ""
+  StrCmp $R4 "/S" DawaSilentPost2 DawaSilentS2a
+DawaSilentS2a:
+  StrCmp $R4 "/s" DawaSilentPost2 DawaSilentS2b
+DawaSilentS2b:
+  StrCmp $R4 "-S" DawaSilentPost2 DawaSilentS2c
+DawaSilentS2c:
+  StrCmp $R4 "-s" DawaSilentPost2 DawaSilentL7
+DawaSilentPost2:
+  StrCpy $R3 $R0 1 2
+  Goto DawaSilentEvalPostBoundary
+DawaSilentL7:
+  ; ── 7-char /SILENT /silent -SILENT -silent ──
+  StrCpy $R4 $R0 7 ""
+  StrCmp $R4 "/SILENT" DawaSilentPost7 DawaSilentL7b
+DawaSilentL7b:
+  StrCmp $R4 "/silent" DawaSilentPost7 DawaSilentL7c
+DawaSilentL7c:
+  StrCmp $R4 "-SILENT" DawaSilentPost7 DawaSilentL7d
+DawaSilentL7d:
+  StrCmp $R4 "-silent" DawaSilentPost7 DawaSilentL10
+DawaSilentPost7:
+  StrCpy $R3 $R0 1 7
+  Goto DawaSilentEvalPostBoundary
+DawaSilentL10:
+  ; ── 10-char /NORESTART /norestart -NORESTART -norestart ──
+  StrCpy $R4 $R0 10 ""
+  StrCmp $R4 "/NORESTART" DawaSilentPost10 DawaSilentL10b
+DawaSilentL10b:
+  StrCmp $R4 "/norestart" DawaSilentPost10 DawaSilentL10c
+DawaSilentL10c:
+  StrCmp $R4 "-NORESTART" DawaSilentPost10 DawaSilentL10d
+DawaSilentL10d:
+  StrCmp $R4 "-norestart" DawaSilentPost10 DawaSilentL11
+DawaSilentPost10:
+  StrCpy $R3 $R0 1 10
+  Goto DawaSilentEvalPostBoundary
+DawaSilentL11:
+  ; ── 11-char /VERYSILENT /verysilent -VERYSILENT -verysilent ──
+  StrCpy $R4 $R0 11 ""
+  StrCmp $R4 "/VERYSILENT" DawaSilentPost11 DawaSilentL11b
+DawaSilentL11b:
+  StrCmp $R4 "/verysilent" DawaSilentPost11 DawaSilentL11c
+DawaSilentL11c:
+  StrCmp $R4 "-VERYSILENT" DawaSilentPost11 DawaSilentL11d
+DawaSilentL11d:
+  StrCmp $R4 "-verysilent" DawaSilentPost11 DawaSilentCharNext
+DawaSilentPost11:
+  StrCpy $R3 $R0 1 11
+  Goto DawaSilentEvalPostBoundary
+DawaSilentEvalPostBoundary:
+  ; $R3 = char AFTER last flag char. Must be WS / " / : / = / NULL (end of string).
+  StrCmp $R3 "" DawaSilentAbort DawaSilentPostP1   ; NULL → end of cmdline
+DawaSilentPostP1:
+  StrCmp $R3 " " DawaSilentAbort DawaSilentPostP2
+DawaSilentPostP2:
+  StrCmp $R3 "$\t" DawaSilentAbort DawaSilentPostP3
+DawaSilentPostP3:
+  StrCmp $R3 '"' DawaSilentAbort DawaSilentPostP4
+DawaSilentPostP4:
+  StrCmp $R3 ":" DawaSilentAbort DawaSilentPostP5
+DawaSilentPostP5:
+  StrCmp $R3 "=" DawaSilentAbort DawaSilentCharNext   ; anything else = FALSE POSITIVE (e.g. "-Setup")
 DawaSilentCharNext:
+  ; ADVANCE one char. $R1 = CURRENT CHAR (never overwritten in the loop body).
+  StrCpy $R2 $R1
   StrCpy $R0 $R0 "" 1
   Goto DawaSilentLoop
 DawaSilentAbort:
+  Pop $R4
+  Pop $R3
+  Pop $R2
   Pop $R1
   Pop $R0
   Quit
 DawaSilentCheckDone:
+  Pop $R4
+  Pop $R3
+  Pop $R2
   Pop $R1
   Pop $R0
 FunctionEnd
@@ -142,19 +228,13 @@ FunctionEnd
 Function DawaFn_ActivationGate
   StrCpy $InstallerDirName "Dawa Optimizer"
 
-  ; Per-session fast-path only (never skip cross-session via registry)
   StrCmp $GateAlreadyRan "1" DawaGatePassed DawaGateRunWPF
 
 DawaGateRunWPF:
-  ; Silent/unattended wrapper hard-stop (re-checked inside every
-  ; layered hook — even if a repacker somehow bypasses GUIINIT).
   Call DawaFn_BlockUnattendedSilent
-  ; Ensure ps1 files definitely exist in $PLUGINSDIR. Idempotent:
-  ; first GUIINIT hook stages them; later hooks also Call just in
-  ; case a repacker mangles init order.
+
   Call DawaFn_EnsureGatePs1InPluginsdir
 
-  ; Resolve PROGRAMDATA from environment (NSIS has no built-in var).
   ReadEnvStr $ProgramDataDir "PROGRAMDATA"
   StrCmp $ProgramDataDir "" DawaGateUseFallbackProgramData DawaGateHaveProgramData
 DawaGateUseFallbackProgramData:
@@ -176,28 +256,47 @@ DawaGateHaveProgramData:
   ; https://rduc.onrender.com/api/license/validate) so installer does NOT
   ; pass a long URL on the command line — only the 3 mandatory positional
   ; args that PS1 requires: OutputJson SealedLicenseOutput RegFlagFile.
-  InitPluginsDir
-  nsExec::ExecToStack 'powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -File "$PLUGINSDIR\gate-activation.ps1" -OutputJson "$PLUGINSDIR\dawa-activation-result.json" -SealedLicenseOutput "$PLUGINSDIR\installer-license.dat" -RegFlagFile "$APPDATA\Dawa Optimizer\.InstallerActivated"'
-  Pop $0   ; nsExec stdout tail (discarded — PS1 already wrote JSON/dat to disk)
-  Pop $1   ; powershell child exit code
+  ;
+  ; ENCODING HARDENING (2 independent guarantees against Vietnamese
+  ; accented char corrupt + stray-quote AST crash documented session 4):
+  ;   (A) gate-activation.ps1 is re-saved on disk with explicit UTF-8
+  ;       BOM (EF BB BF) — PowerShell 5.1 -File ALWAYS honours BOM, so
+  ;       Vietnamese accented chars / emoji checkmarks NEVER corrupt.
+  ;   (B) dawa-gate-runner.ps1 is staged side-by-side in $PLUGINSDIR as
+  ;       an emergency fallback if an end-user somehow strips the BOM.
+  ;       It re-decodes as ReadAllBytes+UTF8+Write BOM then invokes. We
+  ;       call -File directly here (simpler + faster) because BOM exists.
+  ; ---- POWERSHELL BITNESS HARD RULE ----
+  ; NSIS Setup.exe is 32-bit (electron-builder nsis target x86).
+  ; On 64-bit Windows, 32-bit process resolves C:\Windows\System32 →
+  ; SysWOW64 dir → 32-bit powershell.exe → WoW64 CIM provider problems
+  ; (Win32_ComputerSystemProduct/Processor/OS sometimes missing/invalid
+  ; → HWID hash mismatch → double key-entry bug).
+  ; FIX: $WINDIR\sysnative\... alias ONLY EXISTS for 32-bit processes on
+  ; 64-bit Windows → points to REAL 64-bit System32. Use that when avail.
+  ReadEnvStr $GatePsExeTmp0 "WINDIR"
+  StrCpy $GatePsExePath "powershell.exe"
+  IfFileExists "$GatePsExeTmp0\sysnative\WindowsPowerShell\v1.0\powershell.exe" 0 GatePsNoSysNative
+    StrCpy $GatePsExePath "$GatePsExeTmp0\sysnative\WindowsPowerShell\v1.0\powershell.exe"
+GatePsNoSysNative:
 
-  StrCmp $1 "0" DawaGateCopyLicense DawaGateAbort
+  InitPluginsDir
+  nsExec::ExecToStack '"$GatePsExePath" -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -File "$PLUGINSDIR\gate-activation.ps1" -OutputJson "$PLUGINSDIR\dawa-activation-result.json" -SealedLicenseOutput "$PLUGINSDIR\installer-license.dat" -RegFlagFile "$APPDATA\Dawa Optimizer\.InstallerActivated" -GateIconPath "$PLUGINSDIR\icon.ico"'
+  Pop $0   ; exit code (ExecToStack luôn push exit code TRƯỚC)
+  Pop $1   ; text in ra (SAU)
+
+  StrCmp $0 "0" DawaGateCopyLicense DawaGateAbort
 
 DawaGateCopyLicense:
-  ; SSO mirror 1/2: $APPDATA (primary Electron SSO candidate)
   CreateDirectory "$AppDataLicenseDir"
   SetOverwrite on
-  CopyFiles /SILENT "$PLUGINSDIR\installer-license.dat" "$AppDataLicensePath"
-  ; SSO mirror 2/2: $PROGRAMDATA (cross-user fallback — even if a
-  ; different Windows user launches the app later on this same box)
-  CreateDirectory "$ProgramDataLicenseDir"
+  CopyFiles /SILENT "$PLUGINSDIR\installer-license.dat" "$AppDataLicenseDir"
   CopyFiles /SILENT "$PLUGINSDIR\installer-license.dat" "$ProgramDataLicensePath"
   SetOverwrite off
   Goto DawaGatePassed
 
 DawaGateAbort:
-  ; Non-zero exit = user Escape, titlebar X, key invalid, server offline,
-  ; or PS1 crash. Zero-Trust: NO second chances, NO Welcome page fallback.
+  MessageBox MB_ICONSTOP|MB_OK "Kich hoat khong thanh cong hoac bi huy.$\r$\nExit code: $0$\r$\nChi tiet: $1" /SD IDOK
   Quit
 
 DawaGatePassed:
@@ -273,10 +372,13 @@ FunctionEnd
 ; ====================================================================
 Function .onInstProgress
   ReadRegStr $0 HKCU "Software\Dawa Optimizer" "InstallerActivated"
-  StrCmp $0 "1" DawaFinalPassed DawaFinalHKLM
+  ; Accept both legacy "1" and new signed format "1:YYYYMMDD:hmac"
+  StrCpy $1 $0 1   ; first char
+  StrCmp $1 "1" DawaFinalPassed DawaFinalHKLM
 DawaFinalHKLM:
   ReadRegStr $0 HKLM "Software\Dawa Optimizer" "InstallerActivated"
-  StrCmp $0 "1" DawaFinalPassed DawaFinalAbort
+  StrCpy $1 $0 1   ; first char
+  StrCmp $1 "1" DawaFinalPassed DawaFinalAbort
 DawaFinalPassed:
   ; SSO candidate #3 replant into $INSTDIR\resources\installer-license.dat
   IfFileExists "$INSTDIR\resources\installer-license.dat" DawaFinalDone DawaFinalReplant

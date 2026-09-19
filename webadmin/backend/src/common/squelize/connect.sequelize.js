@@ -28,9 +28,19 @@ const databaseUrl =
 
 const sequelize = new Sequelize(databaseUrl, {
   logging: false,
+  pool: {
+    max: 10,
+    min: 2,
+    acquire: 30000,
+    idle: 10000,
+    evict: 5000,
+  },
   dialectOptions: {
     charset: "utf8mb4",
     timezone: "+07:00",
+    connectTimeout: 20000,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10000,
   },
 });
 
@@ -96,7 +106,12 @@ export async function bootstrapDatabase() {
       console.log("[SEQUELIZE] Added unique index on 'license_keys.key_lookup_hash'.");
     } catch (e) {}
 
-    await sequelize.sync({ alter: true, force: false });
+    // Dùng sync() thông thường thay vì { alter: true } để tránh Sequelize quét toàn bộ DB làm chậm khởi động 15-20s
+    if (process.env.SYNC_ALTER === "true") {
+      await sequelize.sync({ alter: true, force: false });
+    } else {
+      await sequelize.sync();
+    }
     console.log("[SEQUELIZE] Models synchronized successfully.");
 
     // Only import model AFTER sequelize instance is fully initialized,

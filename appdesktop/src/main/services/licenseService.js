@@ -12,6 +12,105 @@ const BACKEND_URL =
   backendUrl.pathname === '/' ? `${backendUrl.origin}/api/license/validate` : backendUrl.toString()
 const BACKEND_ORIGIN = new URL(BACKEND_URL).origin
 
+const RETRY_BACKOFF_MS = [1000, 2000, 4000, 8000, 16000, 32000]
+const RETRY_MAX_ATTEMPTS = 6
+
+function isRetryableFetchError(error, response) {
+  if (response) {
+    const s = response.status
+    return s >= 500 || s === 429 || s === 408
+  }
+  if (!error) return false
+  const m = String(error.message || error.name || '').toLowerCase()
+  if (
+    m.includes('timeout') ||
+    m.includes('etimedout') ||
+    m.includes('econnreset') ||
+    m.includes('econnrefused') ||
+    m.includes('enotfound') ||
+    m.includes('eai_again') ||
+    m.includes('eai_fail') ||
+    m.includes('networkerror') ||
+    m.includes('failed to fetch') ||
+    m.includes('socket hang up') ||
+    m.includes('aborted')
+  ) {
+    return true
+  }
+  return false
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms))
+}
+
+async function fetchWithRetry(url, options = {}, opts = {}) {
+  const maxAttempts = opts.maxAttempts || RETRY_MAX_ATTEMPTS
+  const perTryTimeoutMs = opts.perTryTimeoutMs || 25000
+  const onRetry = opts.onRetry || null
+  let lastErr = null
+  let lastResp = null
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    let ctrl = null
+    let timeoutId = null
+    try {
+      ctrl = new AbortController()
+      timeoutId = setTimeout(() => ctrl && ctrl.abort(new Error('ETIMEDOUT')), perTryTimeoutMs)
+      const merged = { ...options, signal: ctrl.signal }
+      const resp = await fetch(url, merged)
+      lastResp = resp
+      if (resp.ok || !isRetryableFetchError(null, resp)) {
+        clearTimeout(timeoutId)
+        return resp
+      }
+      lastErr = new Error(`HTTP ${resp.status} ${resp.statusText}`)
+    } catch (e) {
+      lastErr = e
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId)
+    }
+    if (attempt >= maxAttempts) break
+    if (!isRetryableFetchError(lastErr, lastResp)) break
+    const delay = RETRY_BACKOFF_MS[attempt - 1] || RETRY_BACKOFF_MS[RETRY_BACKOFF_MS.length - 1]
+    if (onRetry) {
+      try {
+        await Promise.resolve(
+          onRetry({ attempt, maxAttempts, delayMs: delay, error: lastErr, response: lastResp })
+        )
+      } catch {
+        // swallow onRetry errors - network retries must not fail
+      }
+    }
+    await sleep(delay)
+  }
+  if (lastResp) return lastResp
+  throw lastErr || new Error('Fetch failed')
+}
+
+export async function warmUpBackendIfIdle(timeoutSec = 50) {
+  const probeUrls = [
+    `${BACKEND_ORIGIN}/api/license/desktop/check`,
+    `${BACKEND_ORIGIN}/updates`,
+    `${BACKEND_ORIGIN}/api/file-manager/desktop-policy`
+  ]
+  const deadline = Date.now() + timeoutSec * 1000
+  for (const u of probeUrls) {
+    if (Date.now() >= deadline) break
+    const tmo = Math.max(5000, Math.min(20000, deadline - Date.now()))
+    try {
+      await fetchWithRetry(
+        u,
+        { method: 'GET', cache: 'no-store' },
+        { maxAttempts: 2, perTryTimeoutMs: tmo }
+      )
+      return true
+    } catch {
+      // probe failed - try next URL
+    }
+  }
+  return false
+}
+
 export async function getHardwareHash() {
   try {
     const system = await si.system()
@@ -214,21 +313,25 @@ function _normalizedOsInfo() {
   return `${osType} ${os.release()} (${_normalizedArch()})`
 }
 
-export async function validateWithBackend(keyCode, deviceHash) {
+export async function validateWithBackend(keyCode, deviceHash, onRetry = null) {
   const osInfo = _normalizedOsInfo()
   try {
-    const response = await fetch(BACKEND_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        key_code: keyCode,
-        device_hash: deviceHash,
-        hardware_id: deviceHash,
-        hwid: deviceHash,
-        device_name: _normalizedHostname(),
-        os_info: osInfo
-      })
-    })
+    const response = await fetchWithRetry(
+      BACKEND_URL,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key_code: keyCode,
+          device_hash: deviceHash,
+          hardware_id: deviceHash,
+          hwid: deviceHash,
+          device_name: _normalizedHostname(),
+          os_info: osInfo
+        })
+      },
+      { maxAttempts: RETRY_MAX_ATTEMPTS, perTryTimeoutMs: 25000, onRetry }
+    )
     return await response.json()
   } catch (error) {
     console.error('Backend connection failed:', error.message)
@@ -242,12 +345,16 @@ export async function validateWithBackend(keyCode, deviceHash) {
   }
 }
 
-export async function refreshWithBackend(refreshToken) {
-  const response = await fetch(`${BACKEND_ORIGIN}/api/license/desktop/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken })
-  })
+export async function refreshWithBackend(refreshToken, onRetry = null) {
+  const response = await fetchWithRetry(
+    `${BACKEND_ORIGIN}/api/license/desktop/refresh`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken })
+    },
+    { maxAttempts: RETRY_MAX_ATTEMPTS, perTryTimeoutMs: 25000, onRetry }
+  )
   return response.json()
 }
 
@@ -272,17 +379,21 @@ export function isTokenExpiringSoon(accessToken, bufferMinutes = 30) {
   }
 }
 
-export async function checkWithBackend(accessToken) {
-  const response = await fetch(`${BACKEND_ORIGIN}/api/license/desktop/check`, {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  })
+export async function checkWithBackend(accessToken, onRetry = null) {
+  const response = await fetchWithRetry(
+    `${BACKEND_ORIGIN}/api/license/desktop/check`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+    { maxAttempts: RETRY_MAX_ATTEMPTS, perTryTimeoutMs: 25000, onRetry }
+  )
   return { status: response.status, data: await response.json() }
 }
 
-export async function getDesktopFeaturePolicy(accessToken) {
-  const response = await fetch(`${BACKEND_ORIGIN}/api/file-manager/desktop-policy`, {
-    headers: { Authorization: `Bearer ${accessToken}` }
-  })
+export async function getDesktopFeaturePolicy(accessToken, onRetry = null) {
+  const response = await fetchWithRetry(
+    `${BACKEND_ORIGIN}/api/file-manager/desktop-policy`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+    { maxAttempts: RETRY_MAX_ATTEMPTS, perTryTimeoutMs: 25000, onRetry }
+  )
   if (!response.ok) throw new Error(`Feature policy request failed (${response.status})`)
   return response.json()
 }

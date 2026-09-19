@@ -231,4 +231,20 @@ await bootstrapDatabase();
 
 httpServer.listen(PORT, () => {
   console.log(`License backend is running on http://localhost:${PORT}`);
+
+  // Tự động ping chính mình mỗi 13 phút nếu chạy trên Render để tránh bị Sleep (Cold start 50-90s)
+  const keepAliveUrl = process.env.RENDER_EXTERNAL_URL || process.env.KEEP_ALIVE_URL;
+  if (keepAliveUrl) {
+    const pingTarget = `${keepAliveUrl.replace(/\/+$/, "")}/health`;
+    console.log(`[KEEP-ALIVE] Auto-ping active for ${pingTarget} every 13 minutes.`);
+    setInterval(() => {
+      fetch(pingTarget)
+        .then((res) => {
+          if (!isProduction) console.log(`[KEEP-ALIVE] Ping OK (${res.status})`);
+        })
+        .catch((err) => {
+          if (!isProduction) console.warn("[KEEP-ALIVE] Ping failed:", err.message);
+        });
+    }, 13 * 60 * 1000);
+  }
 });
